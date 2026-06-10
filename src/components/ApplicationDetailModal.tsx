@@ -222,6 +222,10 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
         throw new Error("Insufficient OpenRouter credits. Please use a free model or add credits to your OpenRouter account.");
       }
       
+      if (response.status === 429) {
+        throw new Error("Rate limit exceeded! OpenRouter free models only allow a few requests per minute. Please wait 10-20 seconds and try again.");
+      }
+      
       if (!response.ok) throw new Error("Failed to fetch from OpenRouter");
 
       const aiData = await response.json();
@@ -237,11 +241,11 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
       setAiAnalysis(parsedAnalysis);
       toast({ title: "Analysis Complete", description: "Deep AI scan finished successfully." });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Analysis Error:", error);
       toast({
         title: "Analysis Failed",
-        description: "Could not complete the AI analysis. Please try again.",
+        description: error.message || "Could not complete the AI analysis. Please try again.",
         variant: "destructive"
       });
     } finally {
