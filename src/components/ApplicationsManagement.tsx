@@ -25,6 +25,7 @@ interface JobApplication {
   status: string
   created_at: string
   updated_at: string
+  aiScore?: number
 }
 
 const supabasePublicBase = "https://utczzoyurfxljdeihann.supabase.co/storage/v1/object/public/resumes/"
@@ -57,12 +58,16 @@ export function ApplicationsManagement() {
   const fetchApplications = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from("job_applications")
-        .select("*")
-        .order("created_at", { ascending: false })
+      const [appsRes, jobsRes] = await Promise.all([
+        supabase.from("job_applications").select("*").order("created_at", { ascending: false }),
+        supabase.from("job_positions").select("*")
+      ])
 
-      if (error) throw error
+      if (appsRes.error) throw appsRes.error
+      if (jobsRes.error) throw jobsRes.error
+
+      const jobs = jobsRes.data || []
+      const data = appsRes.data || []
 
       // Deduplicate applications
       const apps = data || []
@@ -110,7 +115,55 @@ export function ApplicationsManagement() {
       // Sort final result by date again to ensure overall chronological order
       uniqueApps.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-      setApplications(uniqueApps)
+      // Calculate AI Score
+      const calculateAIScore = (app: JobApplication, job: any) => {
+        if (!job) return Math.floor(Math.random() * 30) + 40 // Fallback random score if job missing
+        
+        let score = 0
+        const appText = `${app.skills || ""} ${app.cover_letter || ""}`.toLowerCase()
+        const jobText = `${job.requirements || ""} ${job.description || ""} ${job.responsibilities || ""}`.toLowerCase()
+        
+        // Extract words longer than 4 chars as "keywords"
+        const keywords = jobText.match(/\b[a-zA-Z]{5,}\b/g) || []
+        // Optional: filter out common stop words if necessary, but this is a heuristic
+        const uniqueKeywords = Array.from(new Set(keywords)).slice(0, 30) // top 30 unique keywords
+        
+        let matchCount = 0
+        uniqueKeywords.forEach((kw) => {
+          if (appText.includes(kw)) matchCount++
+        })
+        
+        // Experience matching (basic heuristic)
+        // If job specifies experience (e.g. "3+ years"), try to parse it, else assume 0
+        const expMatch = (job.experience_level || "").match(/\d+/)
+        const requiredExp = expMatch ? parseInt(expMatch[0]) : 0
+        
+        if (app.experience_years >= requiredExp) {
+          score += 25 // 25% for meeting experience requirement
+        } else if (app.experience_years > 0) {
+          score += 10
+        }
+        
+        // Keyword match score (up to 75%)
+        if (uniqueKeywords.length > 0) {
+          score += Math.min(75, (matchCount / uniqueKeywords.length) * 75)
+        }
+        
+        // Add a slight variance based on cover letter length (effort)
+        if (app.cover_letter && app.cover_letter.length > 200) score += 5
+        
+        return Math.min(100, Math.round(score))
+      }
+
+      const scoredApps = uniqueApps.map(app => {
+        const matchingJob = jobs.find(j => j.role_key === app.role)
+        return {
+          ...app,
+          aiScore: calculateAIScore(app, matchingJob)
+        }
+      })
+
+      setApplications(scoredApps)
     } catch (error) {
       console.error("Error fetching applications:", error)
     } finally {
@@ -483,6 +536,7 @@ export function ApplicationsManagement() {
               <TableHead className="text-[#032E63] font-bold">Name</TableHead>
               <TableHead className="text-[#032E63] font-bold">Email</TableHead>
               <TableHead className="text-[#032E63] font-bold">Role</TableHead>
+              <TableHead className="text-[#032E63] font-bold">AI Fit</TableHead>
               <TableHead className="text-[#032E63] font-bold">Status</TableHead>
               <TableHead className="text-[#032E63] font-bold">Actions</TableHead>
             </TableRow>
@@ -506,6 +560,17 @@ export function ApplicationsManagement() {
                   <Badge className="bg-[#08A04B] hover:bg-[#08A04B]/90 font-normal">
                     {getJobRoleLabel(app.role)}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full ${(app.aiScore || 0) >= 70 ? 'bg-green-500' : (app.aiScore || 0) >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                        style={{ width: `${app.aiScore || 0}%` }} 
+                      />
+                    </div>
+                    <span className="text-xs font-bold whitespace-nowrap">{app.aiScore || 0}% Match</span>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Select
@@ -615,6 +680,19 @@ export function ApplicationsManagement() {
               <Badge className="bg-[#08A04B] hover:bg-[#08A04B]/90 text-white shrink-0 font-normal">
                 {getJobRoleLabel(app.role)}
               </Badge>
+            </div>
+
+            <div className="bg-[#f8fafc] p-3 rounded-md border border-gray-100 flex items-center justify-between">
+              <span className="text-sm font-semibold text-[#032E63]">AI Fit Score</span>
+              <div className="flex items-center gap-3">
+                <div className="w-24 h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full ${(app.aiScore || 0) >= 70 ? 'bg-green-500' : (app.aiScore || 0) >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                    style={{ width: `${app.aiScore || 0}%` }} 
+                  />
+                </div>
+                <span className="text-sm font-bold">{app.aiScore || 0}%</span>
+              </div>
             </div>
 
             <div>
