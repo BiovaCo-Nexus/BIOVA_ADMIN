@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -61,18 +61,27 @@ export function ApplicationsManagement({ initialTargetId, onClearTargetId }: App
     fetchApplications()
   }, [])
 
+  const pendingTargetRef = useRef<string | undefined>(undefined)
+
+  // Store the target ID in a ref when it arrives
   useEffect(() => {
-    if (initialTargetId && applications.length > 0) {
-      const targetApp = applications.find(a => a.application_id === initialTargetId)
+    if (initialTargetId) {
+      pendingTargetRef.current = initialTargetId
+      if (onClearTargetId) onClearTargetId() // Clear parent state immediately, ref keeps the value
+    }
+  }, [initialTargetId, onClearTargetId])
+
+  // Once applications load, check if we have a pending target to open
+  useEffect(() => {
+    if (pendingTargetRef.current && applications.length > 0) {
+      const targetApp = applications.find(a => a.application_id === pendingTargetRef.current)
       if (targetApp) {
         setSelectedApplication(targetApp)
         setShowDetailModal(true)
       }
-      if (onClearTargetId) {
-        onClearTargetId()
-      }
+      pendingTargetRef.current = undefined // Done, clear the ref
     }
-  }, [initialTargetId, applications, onClearTargetId])
+  }, [applications])
 
   const fetchApplications = async () => {
     setLoading(true)
