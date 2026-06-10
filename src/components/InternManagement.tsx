@@ -355,24 +355,24 @@ export default function TeamManagement() {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center justify-between">
-          <TabsList>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+          <TabsList className="w-full sm:w-auto overflow-x-auto flex-nowrap justify-start">
             <TabsTrigger value="interns">Interns</TabsTrigger>
             <TabsTrigger value="team">Team Members</TabsTrigger>
           </TabsList>
           
-          <div className="flex gap-4 items-center">
-            <div className="relative max-w-sm">
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto items-stretch sm:items-center">
+            <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder={`Search ${activeTab}...`}
-                className="pl-10"
+                className="pl-10 w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             
-            <Button onClick={() => {
+            <Button className="w-full sm:w-auto shrink-0 bg-[#032E63] hover:bg-[#032E63]/90" onClick={() => {
               if (activeTab === 'interns') {
                 setCurrentIntern({
                   id: '',

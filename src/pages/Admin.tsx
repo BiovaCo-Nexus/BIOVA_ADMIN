@@ -1183,57 +1183,54 @@ const Admin = () => {
 
             {activeTab === "applications" && (
               <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   <h1 className="text-2xl font-bold text-gray-900">Applications</h1>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
                     <Input
                       placeholder="Search applications..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full sm:w-auto"
                     />
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    >
-                      <option value="all">All Statuses</option>
-                      <option value="submitted">Submitted</option>
-                      <option value="under_review">Under Review</option>
-                      <option value="interview_scheduled">Interview Scheduled</option>
-                      <option value="accepted">Accepted</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            // Export selected if any, otherwise export filtered
-                            const rowsToExport = selectedIds.length
-                              ? applications.filter((a) => selectedIds.includes(a.id))
-                              : filteredApplications
-                            downloadApplicationsCSV(rowsToExport)
-                          }}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Export CSV
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={async () => {
-                            if (!selectedIds.length) {
-                              if (!confirm("No applications selected. Delete all filtered applications?")) return
-                              const idsToDelete = filteredApplications.map((a) => a.id)
-                              await bulkDeleteApplications(idsToDelete)
-                            } else {
-                              if (!confirm(`Delete ${selectedIds.length} selected application(s)?`)) return
-                              await bulkDeleteApplications(selectedIds)
-                            }
-                          }}
-                        >
-                          Delete Selected
-                        </Button>
-                      </div>
+                    <div className="flex gap-2">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white flex-1 sm:flex-none text-sm min-w-[140px]"
+                      >
+                        <option value="all">All Statuses</option>
+                        <option value="submitted">Submitted</option>
+                        <option value="under_review">Under Review</option>
+                        <option value="interview_scheduled">Interview Scheduled</option>
+                        <option value="accepted">Accepted</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                      <Button
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={() => {
+                          const rowsToExport = selectedIds.length
+                            ? applications.filter((a) => selectedIds.includes(a.id))
+                            : filteredApplications
+                          downloadApplicationsCSV(rowsToExport)
+                        }}
+                      >
+                        <Download className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Export CSV</span>
+                      </Button>
+                    </div>
+                    {selectedIds.length > 0 && (
+                      <Button
+                        variant="destructive"
+                        className="w-full sm:w-auto"
+                        onClick={async () => {
+                          if (!confirm(`Delete ${selectedIds.length} selected application(s)?`)) return
+                          await bulkDeleteApplications(selectedIds)
+                        }}
+                      >
+                        Delete Selected
+                      </Button>
+                    )}
                   </div>
                 </div>
 
