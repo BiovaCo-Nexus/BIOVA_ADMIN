@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Background Colors */
+    --background: 0 0% 100%; /* Pure White #FFFFFF */
+    --foreground: 222 47.4% 11.2%; /* Primary Text #0F172A */
+
+    /* Cards & Popovers */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47.4% 11.2%;
+
+    /* Primary: Navy Blue #032E63 - For Primary CTA, Headings, Corporate Elements */
+    --primary: 213 94.1% 20.2%; 
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Section Background #F1F5F9 */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 213 94.1% 20.2%; /* Navy Blue */
+
+    /* Muted: Soft White #F8FAFC */
+    --muted: 210 40% 98.0%;
+    --muted-foreground: 215 16.3% 46.9%; /* Muted Text #64748B */
+
+    /* Accent: Innovation Green #08A04B - For Links, Highlights, Secondary Buttons */
+    --accent: 146 90.5% 33.1%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders */
+    --border: 214 31.8% 91.4%; /* #E2E8F0 */
+    --input: 214 31.8% 91.4%;
+    --ring: 213 94.1% 20.2%; /* Navy Blue Ring */
+
+    --radius: 0.5rem;
+
+    /* Sidebar Defaults */
+    --sidebar-background: 210 40% 98.0%;
+    --sidebar-foreground: 222 47.4% 11.2%;
+    --sidebar-primary: 213 94.1% 20.2%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96.1%;
+    --sidebar-accent-foreground: 213 94.1% 20.2%;
+    --sidebar-border: 214 31.8% 91.4%;
+    --sidebar-ring: 213 94.1% 20.2%;
+  }
+
+  /* Dark mode is disabled or strictly matched for corporate consistency, but kept here for fallback */
+  .dark {
+    --background: 222 47.4% 11.2%;
+    --foreground: 0 0% 100%;
+    --card: 213 94.1% 20.2%;
+    --card-foreground: 0 0% 100%;
+    --popover: 213 94.1% 20.2%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 213 94.1% 20.2%;
+    --secondary: 215 94.1% 13.3%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 215 94.1% 13.3%;
+    --muted-foreground: 215 16.3% 60%;
+    --accent: 146 90.5% 33.1%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 215 94.1% 13.3%;
+    --input: 215 94.1% 13.3%;
+    --ring: 214 31.8% 91.4%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground font-sans selection:bg-accent/20 selection:text-primary;
+  }
+  
+  /* Headings should use Navy Blue */
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-primary tracking-tight;
+  }
+
+  /* Links outside of buttons can use Innovation Green */
+  a:not([class*="btn"]):not([class*="Button"]) {
+    @apply transition-colors duration-200;
+  }
+
+  a:not([class*="btn"]):not([class*="Button"]):hover {
+    @apply text-accent;
+  }
+  
+  /* Adding smooth scrolling behavior */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Custom minimal utilities */
+@layer utilities {
+  .glass {
+    @apply bg-white/80 backdrop-blur-md border border-[#E2E8F0]/50;
+  }
+  
+  .glass-dark {
+    @apply bg-[#032E63]/90 backdrop-blur-md border border-white/10;
+  }
+
+  .text-navy {
+    color: #032E63;
+  }
+
+  .text-deep-navy {
+    color: #021D42;
+  }
+
+  .text-innovation-green {
+    color: #08A04B;
+  }
+
+  .bg-navy {
+    background-color: #032E63;
+  }
+
+  .bg-innovation-green {
+    background-color: #08A04B;
+  }
+}

@@ -1,0 +1,863 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { Search, Plus, CheckCircle, XCircle, Edit, Trash2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// Define interfaces
+interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  bio?: string;
+  linkedin?: string;
+  twitter?: string;
+  photo_url?: string;
+  is_executive: boolean;
+  is_founder: boolean;
+  created_at: string;
+}
+
+interface Intern {
+  id: string;
+  name: string;
+  email: string;
+  contact?: string;
+  college?: string;
+  branch?: string;
+  year?: string;
+  project_department?: string;
+  joining_date?: string;
+  end_date?: string;
+  status: 'Active' | 'Completed' | 'Terminated';
+  photo_url?: string;
+  position: string;
+  bio?: string;
+  is_featured?: boolean;
+  created_at: string;
+}
+
+export default function TeamManagement() {
+  // State management
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [interns, setInterns] = useState<Intern[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('interns');
+  const [isMemberDialogOpen, setIsMemberDialogOpen] = useState(false);
+  const [isInternDialogOpen, setIsInternDialogOpen] = useState(false);
+  const [currentMember, setCurrentMember] = useState<TeamMember | null>(null);
+  const [currentIntern, setCurrentIntern] = useState<Intern | null>(null);
+  const { toast } = useToast();
+
+  // Get Supabase URL
+  const supabaseUrl = supabase.storage.from('intern-photos').getPublicUrl('').data.publicUrl.split('/storage/v1')[0];
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [
+        { data: internsData, error: internsError },
+        { data: membersData, error: membersError }
+      ] = await Promise.all([
+        supabase.from('interns').select('*').order('created_at', { ascending: false }),
+        supabase.from('team_members').select('*').order('created_at', { ascending: false })
+      ]);
+
+      if (internsError) throw internsError;
+      if (membersError) throw membersError;
+
+      setInterns((internsData || []).map(intern => ({
+        ...intern,
+        status: intern.status as 'Active' | 'Completed' | 'Terminated',
+        created_at: intern.created_at
+      })));
+      setTeamMembers((membersData || []).map(member => ({
+        ...member,
+        email: member.email || '',
+        role: member.role || '',
+        is_executive: member.is_executive === 'true',
+        is_founder: member.is_founder === 'true',
+        created_at: member.created_at
+      })));
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load data',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Team Member Functions
+  const handleMemberSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!currentMember) return;
+    
+    setLoading(true);
+    const formData = new FormData(e.currentTarget);
+
+    try {
+      let photoUrl = currentMember.photo_url;
+      const photoFile = formData.get('photo') as File;
+
+      // Handle image upload
+      if (photoFile?.size > 0) {
+        if (currentMember.photo_url) {
+          const oldPhotoPath = currentMember.photo_url.split('/').pop();
+          await supabase.storage.from('intern-photos').remove([`public/${oldPhotoPath}`]);
+        }
+
+        const fileName = `${Date.now()}_${photoFile.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('intern-photos')
+          .upload(`public/${fileName}`, photoFile);
+
+        if (uploadError) throw uploadError;
+        photoUrl = `${supabaseUrl}/storage/v1/object/public/intern-photos/${uploadData.path}`;
+      }
+
+      const memberData = {
+        name: formData.get('name') as string,
+        email: formData.get('email') as string,
+        role: formData.get('role') as string,
+        bio: formData.get('bio') as string,
+        linkedin: formData.get('linkedin') as string,
+        twitter: formData.get('twitter') as string,
+        is_executive: formData.get('is_executive') === 'on' ? 'true' : 'false',
+        is_founder: formData.get('is_founder') === 'on' ? 'true' : 'false',
+        photo_url: photoUrl || null
+      };
+
+      if (currentMember.id) {
+        // Update
+        const { error } = await supabase
+          .from('team_members')
+          .update(memberData)
+          .eq('id', currentMember.id);
+        if (error) throw error;
+        toast({ title: 'Success', description: 'Member updated' });
+      } else {
+        // Create
+        const { error } = await supabase
+          .from('team_members')
+          .insert([{
+            ...memberData,
+            position: memberData.role // Use role as position
+          }]);
+        if (error) throw error;
+        toast({ title: 'Success', description: 'Member added' });
+      }
+
+      setIsMemberDialogOpen(false);
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteMember = async (id: string) => {
+    const confirm = window.confirm('Delete this team member?');
+    if (!confirm) return;
+
+    try {
+      const member = teamMembers.find(m => m.id === id);
+      if (member?.photo_url) {
+        const photoPath = member.photo_url.split('/').pop();
+        await supabase.storage.from('intern-photos').remove([`public/${photoPath}`]);
+      }
+
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast({ title: 'Success', description: 'Member deleted' });
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // Intern Functions (similar to team member functions)
+  const handleInternSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!currentIntern) return;
+    
+    setLoading(true);
+    const formData = new FormData(e.currentTarget);
+
+    try {
+      let photoUrl = currentIntern.photo_url;
+      const photoFile = formData.get('photo') as File;
+
+      if (photoFile?.size > 0) {
+        if (currentIntern.photo_url) {
+          const oldPhotoPath = currentIntern.photo_url.split('/').pop();
+          await supabase.storage.from('intern-photos').remove([`public/${oldPhotoPath}`]);
+        }
+
+        const fileName = `${Date.now()}_${photoFile.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('intern-photos')
+          .upload(`public/${fileName}`, photoFile);
+
+        if (uploadError) throw uploadError;
+        photoUrl = `${supabaseUrl}/storage/v1/object/public/intern-photos/${uploadData.path}`;
+      }
+
+      const internData = {
+        name: formData.get('name') as string,
+        email: formData.get('email') as string,
+        contact: formData.get('contact') as string,
+        college: formData.get('college') as string,
+        branch: formData.get('branch') as string,
+        year: formData.get('year') as string,
+        project_department: formData.get('project_department') as string,
+        joining_date: formData.get('joining_date') as string,
+        end_date: formData.get('end_date') as string,
+        status: formData.get('status') as 'Active' | 'Completed' | 'Terminated',
+        position: formData.get('position') as string,
+        bio: formData.get('bio') as string,
+        is_featured: formData.get('is_featured') === 'on',
+        photo_url: photoUrl || null
+      };
+
+      if (currentIntern.id) {
+        // Update
+        const { error } = await supabase
+          .from('interns')
+          .update(internData)
+          .eq('id', currentIntern.id);
+        if (error) throw error;
+        toast({ title: 'Success', description: 'Intern updated' });
+      } else {
+        // Create
+        const { error } = await supabase
+          .from('interns')
+          .insert([internData]);
+        if (error) throw error;
+        toast({ title: 'Success', description: 'Intern added' });
+      }
+
+      setIsInternDialogOpen(false);
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteIntern = async (id: string) => {
+    const confirm = window.confirm('Delete this intern?');
+    if (!confirm) return;
+
+    try {
+      const intern = interns.find(i => i.id === id);
+      if (intern?.photo_url) {
+        const photoPath = intern.photo_url.split('/').pop();
+        await supabase.storage.from('intern-photos').remove([`public/${photoPath}`]);
+      }
+
+      const { error } = await supabase
+        .from('interns')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast({ title: 'Success', description: 'Intern deleted' });
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const updateInternStatus = async (id: string, status: 'Active' | 'Completed' | 'Terminated') => {
+    try {
+      const { error } = await supabase
+        .from('interns')
+        .update({ status })
+        .eq('id', id);
+
+      if (error) throw error;
+      toast({ title: 'Success', description: 'Status updated' });
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // Filter functions
+  const filteredMembers = teamMembers.filter(member => 
+    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    member.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredInterns = interns.filter(intern => 
+    intern.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    intern.project_department?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Badge colors
+  const statusColors = {
+    Active: 'bg-green-100 text-green-800',
+    Completed: 'bg-blue-100 text-blue-800',
+    Terminated: 'bg-red-100 text-red-800'
+  };
+
+  const roleColors = {
+    founder: 'bg-purple-100 text-purple-800',
+    executive: 'bg-yellow-100 text-yellow-800',
+    manager: 'bg-blue-100 text-blue-800'
+  };
+
+  return (
+    <div className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="interns">Interns</TabsTrigger>
+            <TabsTrigger value="team">Team Members</TabsTrigger>
+          </TabsList>
+          
+          <div className="flex gap-4 items-center">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder={`Search ${activeTab}...`}
+                className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            <Button onClick={() => {
+              if (activeTab === 'interns') {
+                setCurrentIntern({
+                  id: '',
+                  name: '',
+                  email: '',
+                  status: 'Active',
+                  position: 'Intern',
+                  created_at: new Date().toISOString()
+                });
+                setIsInternDialogOpen(true);
+              } else {
+                setCurrentMember({
+                  id: '',
+                  name: '',
+                  email: '',
+                  role: '',
+                  is_executive: false,
+                  is_founder: false,
+                  created_at: new Date().toISOString()
+                });
+                setIsMemberDialogOpen(true);
+              }
+            }}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add {activeTab === 'interns' ? 'Intern' : 'Member'}
+            </Button>
+          </div>
+        </div>
+
+        <TabsContent value="interns">
+          <Card>
+            <CardHeader>
+              <CardTitle>Intern Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Profile</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInterns.map((intern) => (
+                    <TableRow key={intern.id}>
+                      <TableCell>
+                        {intern.photo_url ? (
+                          <img
+                            src={intern.photo_url}
+                            alt={intern.name}
+                            className="h-10 w-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                            <span className="text-xs">No Image</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">{intern.name}</TableCell>
+                      <TableCell>{intern.email}</TableCell>
+                      <TableCell>{intern.project_department || '-'}</TableCell>
+                      <TableCell>
+                        <Badge className={statusColors[intern.status]}>
+                          {intern.status === 'Active' ? (
+                            <CheckCircle className="mr-1 h-3 w-3" />
+                          ) : (
+                            <XCircle className="mr-1 h-3 w-3" />
+                          )}
+                          {intern.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="flex gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setCurrentIntern(intern);
+                            setIsInternDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="mr-1 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteIntern(intern.id)}
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" />
+                          Delete
+                        </Button>
+                        <Select
+                          value={intern.status}
+                          onValueChange={(value: 'Active' | 'Completed' | 'Terminated') =>
+                            updateInternStatus(intern.id, value)
+                          }
+                        >
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Active">Set Active</SelectItem>
+                            <SelectItem value="Completed">Set Completed</SelectItem>
+                            <SelectItem value="Terminated">Set Terminated</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="team">
+          <Card>
+            <CardHeader>
+              <CardTitle>Team Members</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Profile</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredMembers.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell>
+                        {member.photo_url ? (
+                          <img
+                            src={member.photo_url}
+                            alt={member.name}
+                            className="h-10 w-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                            <span className="text-xs">No Image</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">{member.name}</TableCell>
+                      <TableCell>{member.role || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {member.is_founder && (
+                            <Badge className={roleColors.founder}>Founder</Badge>
+                          )}
+                          {member.is_executive && (
+                            <Badge className={roleColors.executive}>Executive</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="flex gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setCurrentMember(member);
+                            setIsMemberDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="mr-1 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteMember(member.id)}
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" />
+                          Delete
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Team Member Dialog */}
+      <Dialog open={isMemberDialogOpen} onOpenChange={setIsMemberDialogOpen}>
+        <DialogContent className="max-w-xl overflow-y-auto max-h-screen">
+          <DialogHeader>
+            <DialogTitle>
+              {currentMember?.id ? 'Edit Team Member' : 'Add New Team Member'}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleMemberSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="name">Full Name *</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  defaultValue={currentMember?.name || ''}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  defaultValue={currentMember?.email || ''}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="role">Role *</Label>
+                <Input
+                  id="role"
+                  name="role"
+                  defaultValue={currentMember?.role || ''}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="linkedin">LinkedIn</Label>
+                <Input
+                  id="linkedin"
+                  name="linkedin"
+                  defaultValue={currentMember?.linkedin || ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="twitter">Twitter</Label>
+                <Input
+                  id="twitter"
+                  name="twitter"
+                  defaultValue={currentMember?.twitter || ''}
+                />
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="is_founder"
+                    name="is_founder"
+                    defaultChecked={currentMember?.is_founder || false}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="is_founder">Founder</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="is_executive"
+                    name="is_executive"
+                    defaultChecked={currentMember?.is_executive || false}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="is_executive">Executive</Label>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="photo">Profile Photo</Label>
+              <Input
+                id="photo"
+                name="photo"
+                type="file"
+                accept="image/*"
+                className="cursor-pointer"
+              />
+              {currentMember?.photo_url && (
+                <div className="mt-2">
+                  <img
+                    src={currentMember.photo_url}
+                    alt="Current profile"
+                    className="h-20 w-20 rounded-full object-cover border"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                name="bio"
+                defaultValue={currentMember?.bio || ''}
+                rows={4}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsMemberDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Intern Dialog */}
+      <Dialog open={isInternDialogOpen} onOpenChange={setIsInternDialogOpen}>
+        <DialogContent className="max-w-xl overflow-y-auto max-h-screen">
+          <DialogHeader>
+            <DialogTitle>
+              {currentIntern?.id ? 'Edit Intern' : 'Add New Intern'}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleInternSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="name">Full Name *</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  defaultValue={currentIntern?.name || ''}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  defaultValue={currentIntern?.email || ''}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="contact">Contact</Label>
+                <Input
+                  id="contact"
+                  name="contact"
+                  defaultValue={currentIntern?.contact || ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="college">College</Label>
+                <Input
+                  id="college"
+                  name="college"
+                  defaultValue={currentIntern?.college || ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="branch">Branch</Label>
+                <Input
+                  id="branch"
+                  name="branch"
+                  defaultValue={currentIntern?.branch || ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="year">Year</Label>
+                <Input
+                  id="year"
+                  name="year"
+                  defaultValue={currentIntern?.year || ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="project_department">Department</Label>
+                <Input
+                  id="project_department"
+                  name="project_department"
+                  defaultValue={currentIntern?.project_department || ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="position">Position</Label>
+                <Input
+                  id="position"
+                  name="position"
+                  defaultValue={currentIntern?.position || 'Intern'}
+                />
+              </div>
+              <div>
+                <Label htmlFor="joining_date">Joining Date</Label>
+                <Input
+                  id="joining_date"
+                  name="joining_date"
+                  type="date"
+                  defaultValue={currentIntern?.joining_date || ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="end_date">End Date</Label>
+                <Input
+                  id="end_date"
+                  name="end_date"
+                  type="date"
+                  defaultValue={currentIntern?.end_date || ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  name="status"
+                  defaultValue={currentIntern?.status || 'Active'}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="Terminated">Terminated</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="is_featured"
+                  name="is_featured"
+                  defaultChecked={currentIntern?.is_featured || false}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="is_featured">Featured Intern</Label>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="photo">Profile Photo</Label>
+              <Input
+                id="photo"
+                name="photo"
+                type="file"
+                accept="image/*"
+                className="cursor-pointer"
+              />
+              {currentIntern?.photo_url && (
+                <div className="mt-2">
+                  <img
+                    src={currentIntern.photo_url}
+                    alt="Current profile"
+                    className="h-20 w-20 rounded-full object-cover border"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                name="bio"
+                defaultValue={currentIntern?.bio || ''}
+                rows={4}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsInternDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

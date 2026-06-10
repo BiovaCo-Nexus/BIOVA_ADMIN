@@ -1,0 +1,8 @@
+
+project_id = "utczzoyurfxljdeihann"
+
+[functions.newsletter-subscribe]
+verify_jwt = false
+
+[functions.newsletter-confirm]
+verify_jwt = false
