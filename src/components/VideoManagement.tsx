@@ -320,61 +320,101 @@ export const VideoManagement: React.FC = () => {
         {loading && videos.length === 0 ? (
           <div className="text-center py-8">Loading videos...</div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Order</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {videos.map((video) => (
-                <TableRow key={video.id}>
-                  <TableCell className="font-medium">{video.title}</TableCell>
-                  <TableCell>
-                    <Badge className={getVideoTypeColor(video.video_type)}>
-                      {video.video_type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={video.is_active}
-                      onCheckedChange={() => handleToggleActive(video.id, video.is_active)}
-                    />
-                  </TableCell>
-                  <TableCell>{video.display_order}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(video.embed_url, '_blank')}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditDialog(video)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(video.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="hidden lg:block overflow-hidden rounded-md border border-gray-200">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#f8fafc]">
+                  <TableHead className="text-[#032E63] font-bold">Title</TableHead>
+                  <TableHead className="text-[#032E63] font-bold">Type</TableHead>
+                  <TableHead className="text-[#032E63] font-bold">Status</TableHead>
+                  <TableHead className="text-[#032E63] font-bold">Order</TableHead>
+                  <TableHead className="text-[#032E63] font-bold">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {videos.map((video) => (
+                  <TableRow key={video.id}>
+                    <TableCell className="font-medium text-[#032E63]">{video.title}</TableCell>
+                    <TableCell>
+                      <Badge className={getVideoTypeColor(video.video_type)}>
+                        {video.video_type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={video.is_active}
+                        onCheckedChange={() => handleToggleActive(video.id, video.is_active)}
+                      />
+                    </TableCell>
+                    <TableCell>{video.display_order}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(video.embed_url, '_blank')}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(video)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDelete(video.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile View */}
+          <div className="grid grid-cols-1 gap-4 lg:hidden">
+            {videos.map((video) => (
+              <Card key={video.id} className="p-4 border-l-4 border-l-[#032E63] shadow-sm flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                  <h3 className="font-bold text-[#032E63] pr-2">{video.title}</h3>
+                  <Badge className={`shrink-0 ${getVideoTypeColor(video.video_type)}`}>
+                    {video.video_type}
+                  </Badge>
+                </div>
+                
+                <div className="flex justify-between items-center bg-gray-50 p-2 rounded-md">
+                  <span className="text-sm font-medium text-gray-600">Active Status</span>
+                  <Switch
+                    checked={video.is_active}
+                    onCheckedChange={() => handleToggleActive(video.id, video.is_active)}
+                  />
+                </div>
+
+                <div className="flex justify-between items-center mt-1 pt-3 border-t border-gray-100">
+                  <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Order: {video.display_order}</span>
+                  <div className="flex gap-1">
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => window.open(video.embed_url, '_blank')}>
+                      <Eye className="h-4 w-4 text-[#032E63]" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => openEditDialog(video)}>
+                      <Edit className="h-4 w-4 text-[#032E63]" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-700 border-red-200" onClick={() => handleDelete(video.id)}>
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
         )}
         
         {videos.length === 0 && !loading && (

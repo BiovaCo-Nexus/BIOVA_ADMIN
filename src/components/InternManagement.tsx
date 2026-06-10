@@ -408,86 +408,142 @@ export default function TeamManagement() {
               <CardTitle>Intern Management</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Profile</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredInterns.map((intern) => (
-                    <TableRow key={intern.id}>
-                      <TableCell>
-                        {intern.photo_url ? (
-                          <img
-                            src={intern.photo_url}
-                            alt={intern.name}
-                            className="h-10 w-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                            <span className="text-xs">No Image</span>
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium">{intern.name}</TableCell>
-                      <TableCell>{intern.email}</TableCell>
-                      <TableCell>{intern.project_department || '-'}</TableCell>
-                      <TableCell>
-                        <Badge className={statusColors[intern.status]}>
-                          {intern.status === 'Active' ? (
-                            <CheckCircle className="mr-1 h-3 w-3" />
-                          ) : (
-                            <XCircle className="mr-1 h-3 w-3" />
-                          )}
-                          {intern.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="flex gap-2">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            setCurrentIntern(intern);
-                            setIsInternDialogOpen(true);
-                          }}
-                        >
-                          <Edit className="mr-1 h-4 w-4" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => deleteIntern(intern.id)}
-                        >
-                          <Trash2 className="mr-1 h-4 w-4" />
-                          Delete
-                        </Button>
-                        <Select
-                          value={intern.status}
-                          onValueChange={(value: 'Active' | 'Completed' | 'Terminated') =>
-                            updateInternStatus(intern.id, value)
-                          }
-                        >
-                          <SelectTrigger className="w-[120px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Active">Set Active</SelectItem>
-                            <SelectItem value="Completed">Set Completed</SelectItem>
-                            <SelectItem value="Terminated">Set Terminated</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
+              <div className="hidden lg:block overflow-hidden rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-[#f8fafc]">
+                      <TableHead>Profile</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInterns.map((intern) => (
+                      <TableRow key={intern.id}>
+                        <TableCell>
+                          {intern.photo_url ? (
+                            <img
+                              src={intern.photo_url}
+                              alt={intern.name}
+                              className="h-10 w-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                              <span className="text-xs">No Image</span>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium text-[#032E63]">{intern.name}</TableCell>
+                        <TableCell>{intern.email}</TableCell>
+                        <TableCell>{intern.project_department || '-'}</TableCell>
+                        <TableCell>
+                          <Badge className={statusColors[intern.status]}>
+                            {intern.status === 'Active' ? (
+                              <CheckCircle className="mr-1 h-3 w-3" />
+                            ) : (
+                              <XCircle className="mr-1 h-3 w-3" />
+                            )}
+                            {intern.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="flex gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              setCurrentIntern(intern);
+                              setIsInternDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="mr-1 h-4 w-4" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => deleteIntern(intern.id)}
+                          >
+                            <Trash2 className="mr-1 h-4 w-4" />
+                            Delete
+                          </Button>
+                          <Select
+                            value={intern.status}
+                            onValueChange={(value: 'Active' | 'Completed' | 'Terminated') =>
+                              updateInternStatus(intern.id, value)
+                            }
+                          >
+                            <SelectTrigger className="w-[120px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Active">Set Active</SelectItem>
+                              <SelectItem value="Completed">Set Completed</SelectItem>
+                              <SelectItem value="Terminated">Set Terminated</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile View */}
+              <div className="grid grid-cols-1 gap-4 lg:hidden mt-4">
+                {filteredInterns.map((intern) => (
+                  <Card key={intern.id} className="p-4 border-l-4 border-l-[#032E63] shadow-sm flex flex-col gap-4">
+                    <div className="flex items-start gap-4">
+                      {intern.photo_url ? (
+                        <img src={intern.photo_url} alt={intern.name} className="h-14 w-14 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center shrink-0">
+                          <span className="text-xs">No Img</span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-[#032E63] truncate">{intern.name}</h3>
+                          <Badge className={statusColors[intern.status]}>
+                            {intern.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-500 truncate">{intern.email}</p>
+                        <p className="text-xs font-medium mt-1 uppercase text-gray-400">{intern.project_department || 'No Department'}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col gap-2">
+                      <Select
+                        value={intern.status}
+                        onValueChange={(value: 'Active' | 'Completed' | 'Terminated') =>
+                          updateInternStatus(intern.id, value)
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Update Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Active">Set Active</SelectItem>
+                          <SelectItem value="Completed">Set Completed</SelectItem>
+                          <SelectItem value="Terminated">Set Terminated</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <div className="flex gap-2">
+                        <Button variant="secondary" size="sm" className="flex-1" onClick={() => { setCurrentIntern(intern); setIsInternDialogOpen(true); }}>
+                          <Edit className="mr-1 h-4 w-4" /> Edit
+                        </Button>
+                        <Button variant="destructive" size="sm" className="flex-1" onClick={() => deleteIntern(intern.id)}>
+                          <Trash2 className="mr-1 h-4 w-4" /> Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -498,69 +554,107 @@ export default function TeamManagement() {
               <CardTitle>Team Members</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Profile</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredMembers.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell>
-                        {member.photo_url ? (
-                          <img
-                            src={member.photo_url}
-                            alt={member.name}
-                            className="h-10 w-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                            <span className="text-xs">No Image</span>
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium">{member.name}</TableCell>
-                      <TableCell>{member.role || '-'}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {member.is_founder && (
-                            <Badge className={roleColors.founder}>Founder</Badge>
-                          )}
-                          {member.is_executive && (
-                            <Badge className={roleColors.executive}>Executive</Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="flex gap-2">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            setCurrentMember(member);
-                            setIsMemberDialogOpen(true);
-                          }}
-                        >
-                          <Edit className="mr-1 h-4 w-4" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => deleteMember(member.id)}
-                        >
-                          <Trash2 className="mr-1 h-4 w-4" />
-                          Delete
-                        </Button>
-                      </TableCell>
+              <div className="hidden lg:block overflow-hidden rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-[#f8fafc]">
+                      <TableHead>Profile</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredMembers.map((member) => (
+                      <TableRow key={member.id}>
+                        <TableCell>
+                          {member.photo_url ? (
+                            <img
+                              src={member.photo_url}
+                              alt={member.name}
+                              className="h-10 w-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                              <span className="text-xs">No Image</span>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium text-[#032E63]">{member.name}</TableCell>
+                        <TableCell>{member.role || '-'}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {member.is_founder && (
+                              <Badge className={roleColors.founder}>Founder</Badge>
+                            )}
+                            {member.is_executive && (
+                              <Badge className={roleColors.executive}>Executive</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="flex gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              setCurrentMember(member);
+                              setIsMemberDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="mr-1 h-4 w-4" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => deleteMember(member.id)}
+                          >
+                            <Trash2 className="mr-1 h-4 w-4" />
+                            Delete
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile View */}
+              <div className="grid grid-cols-1 gap-4 lg:hidden mt-4">
+                {filteredMembers.map((member) => (
+                  <Card key={member.id} className="p-4 border-l-4 border-l-[#08A04B] shadow-sm flex flex-col gap-4">
+                    <div className="flex items-start gap-4">
+                      {member.photo_url ? (
+                        <img src={member.photo_url} alt={member.name} className="h-14 w-14 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center shrink-0">
+                          <span className="text-xs">No Img</span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-1">
+                          <h3 className="font-bold text-[#032E63] truncate">{member.name}</h3>
+                          <div className="flex gap-1 flex-col items-end">
+                            {member.is_founder && <Badge className={roleColors.founder}>Founder</Badge>}
+                            {member.is_executive && <Badge className={roleColors.executive}>Executive</Badge>}
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-500 font-medium">{member.role || '-'}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-2">
+                      <Button variant="secondary" size="sm" className="flex-1" onClick={() => { setCurrentMember(member); setIsMemberDialogOpen(true); }}>
+                        <Edit className="mr-1 h-4 w-4" /> Edit
+                      </Button>
+                      <Button variant="destructive" size="sm" className="flex-1" onClick={() => deleteMember(member.id)}>
+                        <Trash2 className="mr-1 h-4 w-4" /> Delete
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -395,83 +395,126 @@ export const Model3DManagement = () => {
               <p>No 3D models uploaded yet</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {models.map((model) => (
-                  <TableRow key={model.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{model.title}</div>
-                        {model.description && (
-                          <div className="text-sm text-gray-500 truncate max-w-xs">
-                            {model.description}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="uppercase">
-                        {model.file_type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatFileSize(model.file_size)}</TableCell>
-                    <TableCell>
-                      <Badge variant={model.is_active ? "default" : "secondary"}>
-                        {model.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{model.display_order}</TableCell>
-                    <TableCell>
-                      {new Date(model.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingModel(model)
-                            setEditDialogOpen(true)
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleModelStatus(model)}
-                        >
-                          {model.is_active ? (
-                            <ToggleRight className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <ToggleLeft className="h-4 w-4 text-gray-400" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteModel(model)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="hidden lg:block overflow-hidden rounded-md border border-gray-200">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-[#f8fafc]">
+                    <TableHead className="text-[#032E63] font-bold">Title</TableHead>
+                    <TableHead className="text-[#032E63] font-bold">Type</TableHead>
+                    <TableHead className="text-[#032E63] font-bold">Size</TableHead>
+                    <TableHead className="text-[#032E63] font-bold">Status</TableHead>
+                    <TableHead className="text-[#032E63] font-bold">Order</TableHead>
+                    <TableHead className="text-[#032E63] font-bold">Created</TableHead>
+                    <TableHead className="text-[#032E63] font-bold">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {models.map((model) => (
+                    <TableRow key={model.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium text-[#032E63]">{model.title}</div>
+                          {model.description && (
+                            <div className="text-sm text-gray-500 truncate max-w-xs">
+                              {model.description}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="uppercase bg-gray-100">
+                          {model.file_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatFileSize(model.file_size)}</TableCell>
+                      <TableCell>
+                        <Badge className={model.is_active ? "bg-[#08A04B] hover:bg-[#08A04B]/90 text-white" : "bg-gray-400 text-white"}>
+                          {model.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{model.display_order}</TableCell>
+                      <TableCell>
+                        {new Date(model.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingModel(model)
+                              setEditDialogOpen(true)
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleModelStatus(model)}
+                          >
+                            {model.is_active ? (
+                              <ToggleRight className="h-4 w-4 text-[#08A04B]" />
+                            ) : (
+                              <ToggleLeft className="h-4 w-4 text-gray-400" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteModel(model)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            
+            {/* Mobile View */}
+            <div className="grid grid-cols-1 gap-4 lg:hidden">
+              {models.map((model) => (
+                <Card key={model.id} className="p-4 border-l-4 border-l-[#032E63] shadow-sm flex flex-col gap-3">
+                  <div className="flex justify-between items-start">
+                    <div className="pr-4">
+                      <h3 className="font-bold text-[#032E63] leading-tight mb-1">{model.title}</h3>
+                      <p className="text-xs text-gray-500 font-medium">
+                        {formatFileSize(model.file_size)} • {model.file_type.toUpperCase()}
+                      </p>
+                    </div>
+                    <Badge className={`shrink-0 ${model.is_active ? "bg-[#08A04B] hover:bg-[#08A04B]/90 text-white" : "bg-gray-400 text-white"}`}>
+                      {model.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  
+                  {model.description && (
+                    <p className="text-sm text-gray-600 line-clamp-2">{model.description}</p>
+                  )}
+                  
+                  <div className="flex justify-between items-center mt-2 pt-3 border-t border-gray-100">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Order: {model.display_order}</span>
+                      <span className="text-xs text-gray-400">{new Date(model.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex gap-1 bg-gray-50 rounded-md p-1">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setEditingModel(model); setEditDialogOpen(true); }}>
+                        <Edit className="h-4 w-4 text-[#032E63]" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => toggleModelStatus(model)}>
+                        {model.is_active ? <ToggleRight className="h-4 w-4 text-[#08A04B]" /> : <ToggleLeft className="h-4 w-4 text-gray-400" />}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-700" onClick={() => deleteModel(model)}>
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
