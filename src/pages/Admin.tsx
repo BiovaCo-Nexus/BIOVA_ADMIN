@@ -324,13 +324,6 @@ const Admin = () => {
         </main>
       </div>
 
-      {showDetailModal && selectedApplication && (
-        <ApplicationDetailModal
-          isOpen={showDetailModal}
-          onClose={() => setShowDetailModal(false)}
-          application={selectedApplication}
-        />
-      )}
     </div>
   )
 }

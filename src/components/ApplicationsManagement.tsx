@@ -29,6 +29,10 @@ interface JobApplication {
 
 const supabasePublicBase = "https://utczzoyurfxljdeihann.supabase.co/storage/v1/object/public/resumes/"
 
+const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || ""
+const SENDER_EMAIL = "no-reply@biovaco.in"
+const SENDER_NAME = "BiovaCo Nexus"
+
 export function ApplicationsManagement() {
   const [applications, setApplications] = useState<JobApplication[]>([])
   const [loading, setLoading] = useState(true)
@@ -67,23 +71,116 @@ export function ApplicationsManagement() {
     }
   }
 
-  const updateApplicationStatus = async (applicationId: string, newStatus: string) => {
+  const sendEmailNotification = async (email: string, name: string, status: string, applicationId: string) => {
+    const emailData = {
+      sender: {
+        name: SENDER_NAME,
+        email: SENDER_EMAIL,
+      },
+      to: [
+        {
+          email: email,
+          name: name,
+        },
+      ],
+      subject: `Application Status Updated - ${status}`,
+      htmlContent: `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8">
+          <meta name="color-scheme" content="light">
+          <meta name="supported-color-schemes" content="light">
+          <style>
+            :root { color-scheme: light; }
+          </style>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f8fafc;">
+          <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border: 1px solid #e5e7eb;">
+              <div style="background-color: #032E63; padding: 30px 40px; text-align: center; border-bottom: 4px solid #08A04B;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px;">BIOVACO</h1>
+                <p style="color: #cbd5e1; margin: 4px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 4px;">NEXUS</p>
+              </div>
+            <div style="padding: 40px;">
+              <h2 style="color: #032E63; font-size: 20px; font-weight: 600; margin: 0 0 20px 0;">Status Update Notification</h2>
+              <p style="color: #475569; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Dear ${name},</p>
+              <div style="background-color: #f8fafc; border: 1px solid #e5e7eb; border-left: 4px solid #08A04B; padding: 20px; margin-bottom: 24px; border-radius: 8px;">
+                <p style="color: #334155; font-size: 16px; line-height: 1.6; margin: 0 0 12px 0;">Your application (ID: <strong>${applicationId}</strong>) has been updated to:</p>
+                <div style="display: inline-block; background-color: #e0f2fe; color: #0369a1; font-weight: 600; padding: 8px 16px; border-radius: 9999px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">${status.replace(/_/g, ' ')}</div>
+              </div>
+              <p style="color: #475569; font-size: 16px; line-height: 1.6; margin: 0;">
+                Thank you for your continued interest and patience throughout this process.
+              </p>
+              <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+                <p style="color: #475569; font-size: 16px; line-height: 1.6; margin: 0;">
+                  Best regards,<br>
+                  <strong style="color: #032E63;">The BiovaCo Nexus Team</strong>
+                </p>
+              </div>
+            </div>
+            <div style="background-color: #f1f5f9; padding: 20px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="color: #64748b; font-size: 12px; margin: 0;">
+                © ${new Date().getFullYear()} BiovaCo Nexus Private Limited. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    }
+
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "api-key": BREVO_API_KEY,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(emailData),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      console.error("Brevo API Error:", error)
+      throw new Error("Failed to send email notification")
+    }
+  }
+
+  const updateApplicationStatus = async (applicationId: string, newStatus: string, notes = "") => {
     try {
       setStatusUpdatingId(applicationId)
       setOptimisticStatus((prev) => ({ ...prev, [applicationId]: newStatus }))
 
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from("job_applications")
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq("application_id", applicationId)
 
-      if (error) throw error
+      if (updateError) throw updateError
+
+      // Add to status history
+      const { error: historyError } = await supabase.from("application_status_history").insert({
+        application_id: applicationId,
+        status: newStatus,
+        notes: notes,
+      })
+
+      if (historyError) {
+        console.error("Error adding to status history:", historyError)
+      }
 
       setApplications((prev) => prev.map((app) => (app.application_id === applicationId ? { ...app, status: newStatus } : app)))
 
+      // Send email notification to applicant
+      const applicant = applications.find((app) => app.application_id === applicationId)
+      if (applicant) {
+        await sendEmailNotification(applicant.email, applicant.full_name, newStatus, applicationId)
+      }
+
       toast({
         title: "Status Updated",
-        description: `Application status changed to ${newStatus.replace("_", " ")}`,
+        description: `Application status changed to ${newStatus.replace("_", " ")} and email sent.`,
       })
     } catch (error) {
       console.error("Error updating status:", error)
@@ -549,7 +646,6 @@ export function ApplicationsManagement() {
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
         application={selectedApplication}
-        onStatusChange={(appId, newStatus) => updateApplicationStatus(appId, newStatus)}
       />
     </div>
   )
