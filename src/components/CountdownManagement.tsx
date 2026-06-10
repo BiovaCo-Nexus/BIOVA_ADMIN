@@ -199,14 +199,15 @@ export function CountdownManagement() {
               <Label htmlFor="is_active">Active</Label>
             </div>
             
-            <div className="flex gap-2">
-              <Button type="submit">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <Button type="submit" className="w-full sm:w-auto bg-[#032E63] hover:bg-[#032E63]/90">
                 {editingId ? 'Update Countdown' : 'Create Countdown'}
               </Button>
               {editingId && (
                 <Button
                   type="button"
                   variant="outline"
+                  className="w-full sm:w-auto"
                   onClick={() => {
                     setEditingId(null);
                     setFormData({
@@ -230,13 +231,13 @@ export function CountdownManagement() {
         {countdowns.map((countdown) => (
           <Card key={countdown.id}>
             <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="space-y-2 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Clock className="h-4 w-4" />
                     <h4 className="font-medium">{countdown.title}</h4>
                     {countdown.is_active && (
-                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full shrink-0">
                         Active
                       </span>
                     )}
@@ -248,10 +249,11 @@ export function CountdownManagement() {
                     <p className="text-sm text-gray-500">{countdown.description}</p>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <Button
                     size="sm"
                     variant="outline"
+                    className="w-full sm:w-auto"
                     onClick={() => handleEdit(countdown)}
                   >
                     Edit
@@ -259,6 +261,7 @@ export function CountdownManagement() {
                   <Button
                     size="sm"
                     variant="destructive"
+                    className="w-full sm:w-auto"
                     onClick={() => handleDelete(countdown.id)}
                   >
                     Delete

@@ -266,15 +266,15 @@ export function LocationManagement() {
               </div>
             </div>
 
-            <div className="flex space-x-2">
-              <Button onClick={handleSave} disabled={isLoading} className="bg-green-600 hover:bg-green-700 text-white">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <Button onClick={handleSave} disabled={isLoading} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white">
                 <Save className="h-4 w-4 mr-2" />
                 {isLoading ? "Saving..." : "Save Location"}
               </Button>
               <Button
                 onClick={() => setIsEditing(false)}
                 variant="outline"
-                className="border-green-600 text-green-600 hover:bg-green-50"
+                className="w-full sm:w-auto border-green-600 text-green-600 hover:bg-green-50"
               >
                 Cancel
               </Button>

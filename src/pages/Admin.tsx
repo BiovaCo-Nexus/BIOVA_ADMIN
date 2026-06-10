@@ -1099,18 +1099,18 @@ const Admin = () => {
                         }
                       />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 mt-4 pt-4 border-t border-gray-100">
                       {editingPost ? (
                         <>
-                          <Button onClick={handleUpdatePost} className="bg-green-600 hover:bg-green-700">
+                          <Button onClick={handleUpdatePost} className="w-full sm:w-auto bg-[#08A04B] hover:bg-[#08A04B]/90 text-white">
                             Update Post
                           </Button>
-                          <Button variant="outline" onClick={() => setEditingPost(null)}>
+                          <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditingPost(null)}>
                             Cancel
                           </Button>
                         </>
                       ) : (
-                        <Button onClick={handleCreatePost} className="bg-green-600 hover:bg-green-700">
+                        <Button onClick={handleCreatePost} className="w-full sm:w-auto bg-[#08A04B] hover:bg-[#08A04B]/90 text-white">
                           Create Post
                         </Button>
                       )}
@@ -1131,43 +1131,45 @@ const Admin = () => {
                       <div className="space-y-4">
                         {posts.map((post) => (
                           <div key={post.id} className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-lg">{post.title}</h3>
-                                <p className="text-gray-600 text-sm mb-2">
-                                  {new Date(post.created_at).toLocaleDateString()} •
+                            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-2">
+                              <div className="flex-1 pr-0 sm:pr-4">
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                  <h3 className="font-bold text-[#032E63] text-lg">{post.title}</h3>
                                   <span
-                                    className={`ml-1 px-2 py-1 rounded text-xs ${post.is_published ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
+                                    className={`px-2 py-1 rounded-md text-xs font-medium shrink-0 ${post.is_published ? "bg-[#08A04B]/10 text-[#08A04B]" : "bg-gray-100 text-gray-800"}`}
                                   >
                                     {post.is_published ? "Published" : "Draft"}
                                   </span>
+                                </div>
+                                <p className="text-gray-500 text-sm mb-3">
+                                  {new Date(post.created_at).toLocaleDateString()}
                                 </p>
-                                <p className="text-gray-700 mb-2">{post.content}</p>
+                                <p className="text-gray-700 mb-3">{post.content}</p>
                                 {post.image_url && (
                                   <img
                                     src={post.image_url || "/placeholder.svg"}
                                     alt={post.title}
-                                    className="w-32 h-32 object-cover rounded mb-2"
+                                    className="w-full max-w-sm h-48 object-cover rounded-md mb-3"
                                   />
                                 )}
                                 {post.tags && post.tags.length > 0 && (
                                   <div className="flex flex-wrap gap-1">
                                     {post.tags.map((tag: string, index: number) => (
-                                      <span key={index} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                                      <span key={index} className="bg-[#032E63]/10 text-[#032E63] text-xs font-medium px-2 py-1 rounded-md">
                                         #{tag}
                                       </span>
                                     ))}
                                   </div>
                                 )}
                               </div>
-                              <div className="flex gap-2 ml-4">
-                                <Button size="sm" variant="outline" onClick={() => togglePostStatus(post.id)}>
+                              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                                <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => togglePostStatus(post.id)}>
                                   {post.is_published ? "Unpublish" : "Publish"}
                                 </Button>
-                                <Button size="sm" variant="outline" onClick={() => setEditingPost(post)}>
+                                <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => setEditingPost(post)}>
                                   Edit
                                 </Button>
-                                <Button size="sm" variant="destructive" onClick={() => handleDeletePost(post.id)}>
+                                <Button size="sm" variant="destructive" className="w-full sm:w-auto" onClick={() => handleDeletePost(post.id)}>
                                   Delete
                                 </Button>
                               </div>

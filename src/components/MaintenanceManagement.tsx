@@ -126,7 +126,7 @@ export function MaintenanceManagement() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Maintenance Mode Toggle */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-lg">
               <div className="space-y-1">
                 <Label className="text-base font-medium">Maintenance Mode</Label>
                 <p className="text-sm text-gray-600">Enable to show maintenance page to all visitors</p>

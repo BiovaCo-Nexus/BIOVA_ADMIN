@@ -152,14 +152,14 @@ const PostCountdownManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold">Post Countdown Page Management</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.open('/', '_blank')}>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => window.open('/', '_blank')}>
             <Eye className="h-4 w-4 mr-2" />
             Preview Page
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button className="w-full sm:w-auto bg-[#032E63] hover:bg-[#032E63]/90" onClick={handleSave} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
             {saving ? 'Saving...' : 'Save Changes'}
           </Button>
