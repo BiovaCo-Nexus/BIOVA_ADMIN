@@ -63,7 +63,54 @@ export function ApplicationsManagement() {
         .order("created_at", { ascending: false })
 
       if (error) throw error
-      setApplications(data || [])
+
+      // Deduplicate applications
+      const apps = data || []
+      const grouped = new Map<string, JobApplication[]>()
+      
+      apps.forEach((app) => {
+        // Group by email as primary key, or full name if email is missing
+        const key = (app.email || app.full_name || "").toLowerCase().trim()
+        if (!grouped.has(key)) {
+          grouped.set(key, [])
+        }
+        grouped.get(key)!.push(app)
+      })
+
+      const uniqueApps: JobApplication[] = []
+
+      // Scoring system to pick the "best" application
+      const getScore = (app: JobApplication) => {
+        let score = 0
+        if (app.resume_url) score += 3
+        if (app.cover_letter && app.cover_letter.trim().length > 10) score += 2
+        if (app.skills && app.skills.trim().length > 5) score += 2
+        if (app.experience_years > 0) score += 1
+        if (app.phone) score += 1
+        return score
+      }
+
+      grouped.forEach((appGroup) => {
+        if (appGroup.length === 1) {
+          uniqueApps.push(appGroup[0])
+        } else {
+          // Sort by score (descending), then by most recent
+          appGroup.sort((a, b) => {
+            const scoreA = getScore(a)
+            const scoreB = getScore(b)
+            if (scoreA !== scoreB) {
+              return scoreB - scoreA
+            }
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          })
+          uniqueApps.push(appGroup[0]) // Push the highest scored application
+        }
+      })
+
+      // Sort final result by date again to ensure overall chronological order
+      uniqueApps.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+      setApplications(uniqueApps)
     } catch (error) {
       console.error("Error fetching applications:", error)
     } finally {
