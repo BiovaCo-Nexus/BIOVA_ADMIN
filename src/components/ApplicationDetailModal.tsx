@@ -18,6 +18,9 @@ import {
   XCircle,
   AlertCircle,
   Eye,
+  Bot,
+  Sparkles,
+  Loader2,
 } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
@@ -56,7 +59,16 @@ interface ApplicationDetailModalProps {
 export function ApplicationDetailModal({ application, isOpen, onClose }: ApplicationDetailModalProps) {
   const [statusHistory, setStatusHistory] = useState<ApplicationStatus[]>([])
   const [loading, setLoading] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [aiAnalysis, setAiAnalysis] = useState<{
+    score: number;
+    summary: string;
+    pros: string[];
+    cons: string[];
+  } | null>(null)
   const { toast } = useToast()
+
+  const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY || ""
 
   const statusIcons = {
     submitted: <Clock className="h-4 w-4" />,
@@ -97,6 +109,7 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
   useEffect(() => {
     if (application && isOpen) {
       fetchStatusHistory()
+      setAiAnalysis(null) // Reset AI analysis on new open
     }
   }, [application, isOpen])
 
@@ -138,6 +151,99 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
       title: "Download Started",
       description: "Resume download has started",
     })
+  }
+
+  const analyzeWithAI = async () => {
+    if (!application) return;
+    if (!OPENROUTER_API_KEY) {
+      toast({
+        title: "API Key Missing",
+        description: "OpenRouter API Key is not configured.",
+        variant: "destructive"
+      })
+      return;
+    }
+
+    setAnalyzing(true);
+    try {
+      // 1. Fetch the exact job description from Supabase
+      const { data: job, error: jobError } = await supabase
+        .from("job_positions")
+        .select("*")
+        .eq("role_key", application.role)
+        .single();
+
+      if (jobError) throw jobError;
+
+      const jobDetails = `
+        Title: ${job.title}
+        Requirements: ${job.requirements}
+        Responsibilities: ${job.responsibilities}
+        Experience Required: ${job.experience_level}
+      `;
+
+      const candidateDetails = `
+        Name: ${application.full_name}
+        Experience: ${application.experience_years} years
+        Skills: ${application.skills}
+        Cover Letter: ${application.cover_letter}
+      `;
+
+      const prompt = `
+        You are an elite Tech Recruiter AI. Analyze the following candidate against the job description.
+        You must output ONLY raw JSON data, exactly in this format:
+        {
+          "score": <number 0-100>,
+          "summary": "<2-3 sentences evaluating the fit>",
+          "pros": ["<pro 1>", "<pro 2>"],
+          "cons": ["<con 1>", "<con 2>"]
+        }
+        
+        Job Description:
+        ${jobDetails}
+
+        Candidate Details:
+        ${candidateDetails}
+      `;
+
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          response_format: { type: "json_object" },
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch from OpenRouter");
+
+      const aiData = await response.json();
+      let parsedAnalysis;
+      try {
+        parsedAnalysis = JSON.parse(aiData.choices[0].message.content);
+      } catch (e) {
+        // Fallback cleanup if the AI wrapped it in markdown codeblocks
+        const cleaned = aiData.choices[0].message.content.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '');
+        parsedAnalysis = JSON.parse(cleaned);
+      }
+      
+      setAiAnalysis(parsedAnalysis);
+      toast({ title: "Analysis Complete", description: "Deep AI scan finished successfully." });
+
+    } catch (error) {
+      console.error("AI Analysis Error:", error);
+      toast({
+        title: "Analysis Failed",
+        description: "Could not complete the AI analysis. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setAnalyzing(false);
+    }
   }
 
   if (!application) return null
@@ -240,6 +346,83 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
                     <Download className="h-4 w-4 mr-2" />
                     Download Resume
                   </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* AI Deep Scan */}
+          <Card className="border-indigo-100 shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-indigo-100 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-indigo-600" />
+                  <CardTitle className="text-lg text-indigo-900">Deep AI Scan (OpenRouter)</CardTitle>
+                </div>
+                {!aiAnalysis && (
+                  <Button 
+                    onClick={analyzeWithAI} 
+                    disabled={analyzing}
+                    size="sm"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    {analyzing ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...</>
+                    ) : (
+                      <><Sparkles className="h-4 w-4 mr-2" /> Run Evaluation</>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            <CardContent className="p-0">
+              {aiAnalysis ? (
+                <div className="p-6 space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-20 h-20 rounded-full border-4 border-indigo-100 flex items-center justify-center flex-shrink-0 bg-white shadow-inner">
+                      <span className={`text-2xl font-bold ${aiAnalysis.score >= 75 ? 'text-green-600' : aiAnalysis.score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {aiAnalysis.score}%
+                      </span>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Executive Summary</h4>
+                      <p className="text-gray-800 text-sm leading-relaxed">{aiAnalysis.summary}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                    <div className="bg-green-50/50 p-4 rounded-lg border border-green-100">
+                      <h4 className="font-semibold text-green-800 flex items-center gap-2 mb-3 text-sm">
+                        <CheckCircle className="h-4 w-4" /> Pros
+                      </h4>
+                      <ul className="space-y-2">
+                        {aiAnalysis.pros?.map((pro, i) => (
+                          <li key={i} className="text-sm text-green-700 flex items-start gap-2">
+                            <span className="text-green-500 mt-0.5">•</span> {pro}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    
+                    <div className="bg-red-50/50 p-4 rounded-lg border border-red-100">
+                      <h4 className="font-semibold text-red-800 flex items-center gap-2 mb-3 text-sm">
+                        <XCircle className="h-4 w-4" /> Cons
+                      </h4>
+                      <ul className="space-y-2">
+                        {aiAnalysis.cons?.map((con, i) => (
+                          <li key={i} className="text-sm text-red-700 flex items-start gap-2">
+                            <span className="text-red-500 mt-0.5">•</span> {con}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-8 text-center bg-gray-50/50">
+                  <Sparkles className="h-8 w-8 text-indigo-300 mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">Run a deep AI scan to get a comprehensive semantic evaluation of this candidate's fit for the role.</p>
                 </div>
               )}
             </CardContent>
