@@ -1237,153 +1237,272 @@ const Admin = () => {
                   </div>
                 </div>
 
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.length > 0 && filteredApplications.every((a) => selectedIds.includes(a.id))}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedIds(filteredApplications.map((a) => a.id))
-                            } else {
-                              setSelectedIds([])
-                            }
-                          }}
-                        />
-                      </TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredApplications.map((app) => (
-                      <TableRow key={app.id}>
-                        <TableCell>
+                <div className="hidden xl:block overflow-hidden rounded-md border border-gray-200 bg-white">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-[#f8fafc]">
+                        <TableHead className="w-12">
                           <input
                             type="checkbox"
+                            checked={selectedIds.length > 0 && filteredApplications.every((a) => selectedIds.includes(a.id))}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedIds(filteredApplications.map((a) => a.id))
+                              } else {
+                                setSelectedIds([])
+                              }
+                            }}
+                          />
+                        </TableHead>
+                        <TableHead className="text-[#032E63] font-bold">Name</TableHead>
+                        <TableHead className="text-[#032E63] font-bold">Email</TableHead>
+                        <TableHead className="text-[#032E63] font-bold">Role</TableHead>
+                        <TableHead className="text-[#032E63] font-bold">Status</TableHead>
+                        <TableHead className="text-[#032E63] font-bold">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredApplications.map((app) => (
+                        <TableRow key={app.id}>
+                          <TableCell>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(app.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) setSelectedIds((s) => Array.from(new Set([...s, app.id])))
+                                else setSelectedIds((s) => s.filter((id) => id !== app.id))
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium text-[#032E63]">{app.full_name}</TableCell>
+                          <TableCell className="text-gray-600">{app.email}</TableCell>
+                          <TableCell>
+                            <Badge className="bg-[#08A04B] hover:bg-[#08A04B]/90 font-normal">
+                              {getJobRoleLabel(app.role)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={optimisticStatus[app.application_id] || app.status}
+                              onValueChange={(newStatus) => updateApplicationStatus(app.application_id, newStatus)}
+                              disabled={statusUpdatingId === app.application_id}
+                            >
+                              <SelectTrigger
+                                className={`w-40 ${getStatusColor(optimisticStatus[app.application_id] || app.status)}`}
+                              >
+                                <SelectValue>
+                                  <div className="flex items-center gap-2">
+                                    {getStatusIcon(optimisticStatus[app.application_id] || app.status)}
+                                    {optimisticStatus[app.application_id] || app.status}
+                                  </div>
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="submitted">
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4" />
+                                    Submitted
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="under_review">
+                                  <div className="flex items-center gap-2">
+                                    <Eye className="h-4 w-4" />
+                                    Under Review
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="interview_scheduled">
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="h-4 w-4" />
+                                    Interview Scheduled
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="accepted">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircle className="h-4 w-4" />
+                                    Accepted
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="rejected">
+                                  <div className="flex items-center gap-2">
+                                    <XCircle className="h-4 w-4" />
+                                    Rejected
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-[#032E63] text-[#032E63] hover:bg-[#032E63] hover:text-white"
+                              onClick={() => {
+                                setSelectedApplicant({ name: app.full_name, email: app.email, id: app.id })
+                                setContactRemarkOpen(true)
+                              }}
+                            >
+                              <Mail className="h-4 w-4 mr-2" />
+                              Contact
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedApplication(app)
+                                setShowDetailModal(true)
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => downloadResume(app.resume_url, app.full_name)}>
+                              <Download className="h-4 w-4 mr-2" />
+                              Resume
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile Responsive Vertical Cards */}
+                <div className="grid grid-cols-1 gap-4 xl:hidden">
+                  {filteredApplications.map((app) => (
+                    <Card key={app.id} className="p-4 border-l-4 border-l-[#032E63] shadow-sm flex flex-col space-y-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            className="mt-1"
                             checked={selectedIds.includes(app.id)}
                             onChange={(e) => {
                               if (e.target.checked) setSelectedIds((s) => Array.from(new Set([...s, app.id])))
                               else setSelectedIds((s) => s.filter((id) => id !== app.id))
                             }}
                           />
-                        </TableCell>
-                        <TableCell>{app.full_name}</TableCell>
-                        <TableCell>{app.email}</TableCell>
-                        <TableCell>{getJobRoleLabel(app.role)}</TableCell>
-                        <TableCell>
-                          <Select
-                            value={optimisticStatus[app.application_id] || app.status}
-                            onValueChange={(newStatus) => updateApplicationStatus(app.application_id, newStatus)}
-                            disabled={statusUpdatingId === app.application_id}
-                          >
-                            <SelectTrigger
-                              className={`w-40 ${getStatusColor(optimisticStatus[app.application_id] || app.status)}`}
-                            >
-                              <SelectValue>
-                                <div className="flex items-center gap-2">
-                                  {getStatusIcon(optimisticStatus[app.application_id] || app.status)}
-                                  {optimisticStatus[app.application_id] || app.status}
-                                </div>
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="submitted">
-                                <div className="flex items-center gap-2">
-                                  <Clock className="h-4 w-4" />
-                                  Submitted
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="under_review">
-                                <div className="flex items-center gap-2">
-                                  <Eye className="h-4 w-4" />
-                                  Under Review
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="interview_scheduled">
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-4 w-4" />
-                                  Interview Scheduled
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="accepted">
-                                <div className="flex items-center gap-2">
-                                  <CheckCircle className="h-4 w-4" />
-                                  Accepted
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="rejected">
-                                <div className="flex items-center gap-2">
-                                  <XCircle className="h-4 w-4" />
-                                  Rejected
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedApplicant({ name: app.full_name, email: app.email, id: app.id })
-                              setContactRemarkOpen(true)
-                            }}
-                          >
-                            <Mail className="h-4 w-4 mr-2" />
-                            Contact
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedApplication(app)
-                              setShowDetailModal(true)
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View
-                          </Button>
-                          <Button variant="outline" onClick={() => downloadResume(app.resume_url, app.full_name)}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Resume
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                          <div>
+                            <h3 className="font-bold text-[#032E63] leading-none">{app.full_name}</h3>
+                            <p className="text-sm text-gray-500 mt-1 break-all">{app.email}</p>
+                          </div>
+                        </div>
+                        <Badge className="bg-[#08A04B] hover:bg-[#08A04B]/90 text-white shrink-0 font-normal">
+                          {getJobRoleLabel(app.role)}
+                        </Badge>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1 font-semibold uppercase tracking-wider">Status</p>
+                        <Select
+                          value={optimisticStatus[app.application_id] || app.status}
+                          onValueChange={(newStatus) => updateApplicationStatus(app.application_id, newStatus)}
+                          disabled={statusUpdatingId === app.application_id}
+                        >
+                          <SelectTrigger className={`w-full ${getStatusColor(optimisticStatus[app.application_id] || app.status)}`}>
+                            <SelectValue>
+                              <div className="flex items-center gap-2">
+                                {getStatusIcon(optimisticStatus[app.application_id] || app.status)}
+                                {optimisticStatus[app.application_id] || app.status}
+                              </div>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="submitted">Submitted</SelectItem>
+                            <SelectItem value="under_review">Under Review</SelectItem>
+                            <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
+                            <SelectItem value="accepted">Accepted</SelectItem>
+                            <SelectItem value="rejected">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 border-[#032E63] text-[#032E63]"
+                          onClick={() => {
+                            setSelectedApplicant({ name: app.full_name, email: app.email, id: app.id })
+                            setContactRemarkOpen(true)
+                          }}
+                        >
+                          <Mail className="h-4 w-4 mr-2" />
+                          Contact
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => {
+                            setSelectedApplication(app)
+                            setShowDetailModal(true)
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => downloadResume(app.resume_url, app.full_name)}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Resume
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
               </div>
             )}
 
             {activeTab === "newsletter" && (
               <div className="space-y-6">
-                <h1 className="text-2xl font-bold text-gray-900">Newsletter Subscribers</h1>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Confirmed</TableHead>
-                      <TableHead>Subscribed At</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {newsletters.map((sub) => (
-                      <TableRow key={sub.id}>
-                        <TableCell>{sub.email}</TableCell>
-                        <TableCell>
-                          <Badge className={sub.confirmed ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
-                            {sub.confirmed ? "Yes" : "No"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{new Date(sub.subscribed_at).toLocaleDateString()}</TableCell>
+                <h1 className="text-2xl font-bold text-[#032E63]">Newsletter Subscribers</h1>
+                
+                <div className="hidden md:block overflow-hidden rounded-md border border-gray-200 bg-white">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-[#f8fafc]">
+                        <TableHead className="text-[#032E63] font-bold">Email</TableHead>
+                        <TableHead className="text-[#032E63] font-bold">Confirmed</TableHead>
+                        <TableHead className="text-[#032E63] font-bold">Subscribed At</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {newsletters.map((sub) => (
+                        <TableRow key={sub.id}>
+                          <TableCell className="font-medium">{sub.email}</TableCell>
+                          <TableCell>
+                            <Badge className={sub.confirmed ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                              {sub.confirmed ? "Yes" : "No"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-600">{new Date(sub.subscribed_at).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile Responsive Vertical Cards */}
+                <div className="grid grid-cols-1 gap-4 md:hidden">
+                  {newsletters.map((sub) => (
+                    <Card key={sub.id} className="p-4 border-l-4 border-l-[#08A04B] shadow-sm">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="font-bold text-[#032E63] break-all mr-2">{sub.email}</span>
+                        <Badge className={sub.confirmed ? "bg-green-100 text-green-800 shrink-0" : "bg-red-100 text-red-800 shrink-0"}>
+                          {sub.confirmed ? "Confirmed" : "Pending"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-500 font-medium">
+                        <span className="text-xs uppercase tracking-wider mr-1">Date:</span> 
+                        {new Date(sub.subscribed_at).toLocaleDateString()}
+                      </p>
+                    </Card>
+                  ))}
+                </div>
               </div>
             )}
 
