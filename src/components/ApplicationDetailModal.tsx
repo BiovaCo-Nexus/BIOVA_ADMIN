@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import {
   User,
   Mail,
@@ -213,12 +213,15 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          response_format: { type: "json_object" },
+          model: "meta-llama/llama-3-8b-instruct:free",
           messages: [{ role: "user", content: prompt }]
         })
       });
 
+      if (response.status === 402) {
+        throw new Error("Insufficient OpenRouter credits. Please use a free model or add credits to your OpenRouter account.");
+      }
+      
       if (!response.ok) throw new Error("Failed to fetch from OpenRouter");
 
       const aiData = await response.json();
@@ -256,6 +259,9 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
             <Eye className="h-5 w-5" />
             Application Details - {application.full_name}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Detailed view of the applicant's submitted information and AI evaluation.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
