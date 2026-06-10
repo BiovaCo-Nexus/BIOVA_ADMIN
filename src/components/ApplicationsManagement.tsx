@@ -115,9 +115,9 @@ export function ApplicationsManagement() {
       // Sort final result by date again to ensure overall chronological order
       uniqueApps.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-      // Calculate AI Score (Advanced Version 2.0 - 95%+ Accuracy)
+      // Calculate AI Score (Advanced Version 3.0 - Hyper Strict Offline Matcher)
       const calculateAIScore = (app: JobApplication, job: any) => {
-        if (!job) return 0 // No job matched = 0
+        if (!job) return 0;
         
         let score = 0;
         
@@ -133,77 +133,95 @@ export function ApplicationsManagement() {
           "using", "under", "over", "between", "into", "through", "during", "before", "after", "other",
           "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very",
           "can", "will", "just", "should", "now", "role", "position", "join", "help", "support", "part",
-          "time", "full", "remote", "onsite", "hybrid", "office", "based", "ensure", "provide", "within"
+          "time", "full", "remote", "onsite", "hybrid", "office", "based", "ensure", "provide", "within",
+          "ideal", "opportunity", "growth", "career", "benefits", "salary", "we", "are", "you"
         ]);
 
-        // Clean and tokenize job text
         const jobText = `${job.title || ""} ${job.requirements || ""} ${job.responsibilities || ""}`.toLowerCase();
         
-        // Extract meaningful keywords from job description (alphanumeric + '#' for C#, '+' for C++)
-        const rawKeywords = jobText.match(/\b[a-z0-9+#]{2,20}\b/g) || [];
+        // Extract technical keywords (ignore basic words)
+        const rawKeywords = jobText.match(/\b[a-z0-9+#]{2,25}\b/g) || [];
         const validKeywords = rawKeywords.filter(word => !stopWords.has(word) && isNaN(Number(word)));
         
-        // Use frequency to weigh keywords (more frequent = more important)
+        // Count frequency
         const keywordFreq = new Map<string, number>();
         validKeywords.forEach(kw => keywordFreq.set(kw, (keywordFreq.get(kw) || 0) + 1));
         
-        // Take top 25 most frequent/important technical/domain keywords
+        // Get Top 15 most important keywords (Core technical focus)
         const topKeywords = Array.from(keywordFreq.entries())
           .sort((a, b) => b[1] - a[1])
-          .slice(0, 25)
+          .slice(0, 15)
           .map(entry => entry[0]);
 
         const appSkills = (app.skills || "").toLowerCase();
         const appCover = (app.cover_letter || "").toLowerCase();
-        
-        let skillMatchScore = 0;
-        let coverMatchScore = 0;
-        let totalPossibleMatchScore = topKeywords.length * 2; // Skills are weighted double
+        const appTextTotalLength = appSkills.length + appCover.length;
+
+        // Immediate Penalty for Spam/Empty applications
+        if (appTextTotalLength < 20) {
+          return Math.floor(Math.random() * 5) + 5; // Strict 5-9% score
+        }
+
+        // 1. SKILLS & COVER LETTER KEYWORD MATCHING (Max 65 Points)
+        let skillMatchCount = 0;
+        let coverMatchCount = 0;
 
         if (topKeywords.length > 0) {
           topKeywords.forEach((kw) => {
-            // Give 2 points if found in skills explicitly, 1 point if in cover letter
-            if (appSkills.includes(kw)) {
-              skillMatchScore += 2;
-            } else if (appCover.includes(kw)) {
-              coverMatchScore += 1;
-            }
+            // Regex to match exact word boundaries to avoid false positives (e.g. matching "in" inside "engineer")
+            const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i');
+            if (regex.test(appSkills)) skillMatchCount++;
+            if (regex.test(appCover)) coverMatchCount++;
           });
           
-          // Keyword score contributes up to 70% of total score
-          const matchRatio = (skillMatchScore + coverMatchScore) / totalPossibleMatchScore;
-          // Apply a 1.25x curve multiplier so strong candidates can actually hit 95%+ 
-          score += Math.min(70, matchRatio * 70 * 1.25); 
-        } else {
-          score += 40; // Default fallback if no keywords found
+          // Skills are worth more than cover letter mentions
+          const skillScorePercent = (skillMatchCount / topKeywords.length) * 45; // Max 45
+          const coverScorePercent = (coverMatchCount / topKeywords.length) * 20; // Max 20
+          
+          // Boost score gently if they hit multiple keywords but cap at 65
+          score += Math.min(65, (skillScorePercent + coverScorePercent) * 1.3);
         }
 
-        // Experience scoring (contributes up to 30%)
+        // 2. EXPERIENCE MATCHING (Max 20 Points)
         const expMatch = (job.experience_level || "").match(/\d+/);
         const requiredExp = expMatch ? parseInt(expMatch[0]) : 0;
         const appExp = app.experience_years || 0;
         
         if (requiredExp === 0) {
-          // Entry level role, having experience is a bonus
-          score += 20 + Math.min(10, appExp * 2);
+          // Entry level: If they have *any* experience, it's a plus.
+          score += 10 + Math.min(10, appExp * 2);
         } else {
-          // Experienced role
           if (appExp >= requiredExp) {
-            score += 30; // Perfect experience match
-            if (appExp > requiredExp) score += 5; // Bonus for extra experience
-          } else if (appExp >= requiredExp - 1) {
-            score += 15; // Close enough (e.g. 2 yrs for a 3 yr role)
-          } else if (appExp > 0) {
-            score += 5; // Some experience but far below requirement
+            score += 20; // Perfect experience
+          } else if (appExp >= requiredExp - 1 && appExp > 0) {
+            score += 10; // 1 year short is acceptable
+          } else {
+            score += 0; // Too little experience -> 0 points
           }
         }
 
-        // Add small detail bonus for well-formatted submissions
-        if (app.cover_letter && app.cover_letter.length > 200) score += 3;
-        if (app.resume_url) score += 2;
+        // 3. PROFESSIONALISM / EFFORT (Max 15 Points)
+        if (app.resume_url) {
+          score += 10; // Attaching a resume is essential
+        }
+        
+        if (app.cover_letter && app.cover_letter.length > 150) {
+          score += 5; // Took time to write a proper letter
+        }
 
-        // Cap at 99% for realistic AI matching, only give 100% for absolute perfection
-        return Math.min(99, Math.round(score));
+        // 4. IRRELEVANCY PENALTY ("Kuch ka kuch likha ho")
+        // If they wrote a massive essay (>500 chars) but hit less than 10% of keywords, penalize heavily.
+        if (appTextTotalLength > 500 && (skillMatchCount + coverMatchCount) < (topKeywords.length * 0.1)) {
+          score = score * 0.4; // Cut score by 60%
+        }
+        
+        // If they wrote nothing related to the job at all (0 keywords hit)
+        if (skillMatchCount === 0 && coverMatchCount === 0) {
+          score = score * 0.15; // Massive penalty -> Maximum 15% of whatever they got from exp/resume
+        }
+
+        // Ensure bounds (2 to 99)
+        return Math.max(2, Math.min(99, Math.round(score)));
       }
 
       const scoredApps = uniqueApps.map(app => {
