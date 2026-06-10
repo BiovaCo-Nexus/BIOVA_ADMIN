@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { supabase } from "@/integrations/supabase/client"
+import { logAdminActivity } from "@/utils/adminLogger"
 
 export function MarketingPostsManagement() {
   const [posts, setPosts] = useState<any[]>([])
@@ -57,6 +58,7 @@ export function MarketingPostsManagement() {
         throw error
       }
 
+      logAdminActivity("CREATED_POST", `Post: ${newPost.title.trim()}`, "Marketing post created.");
       setNewPost({ title: "", content: "", image: "", tags: "" })
       await loadPosts()
     } catch (error) {
@@ -81,6 +83,7 @@ export function MarketingPostsManagement() {
 
       if (error) throw error
 
+      logAdminActivity("UPDATED_POST", `Post: ${editingPost.title.trim()}`, "Marketing post content updated.");
       setEditingPost(null)
       await loadPosts()
     } catch (error) {
@@ -92,9 +95,13 @@ export function MarketingPostsManagement() {
     if (!confirm("Are you sure you want to delete this post?")) return
 
     try {
+      const postToDelete = posts.find((p) => p.id === postId)
       const { error } = await supabase.from("marketing_posts").delete().eq("id", postId)
 
       if (error) throw error
+      if (postToDelete) {
+        logAdminActivity("DELETED_POST", `Post: ${postToDelete.title}`, "Marketing post deleted.");
+      }
       await loadPosts()
     } catch (error) {
       console.error("Failed to delete post:", error)
@@ -115,6 +122,12 @@ export function MarketingPostsManagement() {
         .eq("id", postId)
 
       if (error) throw error
+      
+      logAdminActivity(
+        "TOGGLED_POST_STATUS", 
+        `Post: ${post.title}`, 
+        `Status changed to ${!post.is_published ? "Published" : "Draft"}`
+      );
       await loadPosts()
     } catch (error) {
       console.error("Failed to toggle post status:", error)
