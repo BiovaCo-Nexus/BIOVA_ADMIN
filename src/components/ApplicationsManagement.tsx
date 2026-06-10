@@ -635,11 +635,11 @@ export function ApplicationsManagement() {
       </div>
 
       <ContactRemarkModal
-        isOpen={contactRemarkOpen}
+        open={contactRemarkOpen}
         onClose={() => setContactRemarkOpen(false)}
         applicantName={selectedApplicant?.name || ""}
         applicantEmail={selectedApplicant?.email || ""}
-        applicantId={selectedApplicant?.id || ""}
+        applicationId={selectedApplicant?.id || ""}
       />
 
       <ApplicationDetailModal
