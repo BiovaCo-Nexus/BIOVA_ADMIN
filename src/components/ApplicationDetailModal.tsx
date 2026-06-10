@@ -177,7 +177,7 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
       
       if (error) throw error
       
-      logAdminActivity("INTERNAL_NOTE", `Applicant: ${application.full_name}`, `Added an internal discussion note.`);
+      logAdminActivity("INTERNAL_NOTE", `Applicant: ${application.full_name} [${application.application_id}]`, `Added an internal discussion note.`);
       setNewNote("")
       toast({ title: "Note Posted", description: "Internal note added successfully." })
     } catch (e: any) {

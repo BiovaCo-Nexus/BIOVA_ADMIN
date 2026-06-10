@@ -35,7 +35,12 @@ const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || ""
 const SENDER_EMAIL = "no-reply@biovaco.in"
 const SENDER_NAME = "BiovaCo Nexus"
 
-export function ApplicationsManagement() {
+interface ApplicationsManagementProps {
+  initialTargetId?: string;
+  onClearTargetId?: () => void;
+}
+
+export function ApplicationsManagement({ initialTargetId, onClearTargetId }: ApplicationsManagementProps = {}) {
   const [applications, setApplications] = useState<JobApplication[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -55,6 +60,18 @@ export function ApplicationsManagement() {
   useEffect(() => {
     fetchApplications()
   }, [])
+
+  useEffect(() => {
+    if (initialTargetId && applications.length > 0) {
+      const targetApp = applications.find(a => a.application_id === initialTargetId)
+      if (targetApp) {
+        setSelectedApp(targetApp)
+      }
+      if (onClearTargetId) {
+        onClearTargetId()
+      }
+    }
+  }, [initialTargetId, applications, onClearTargetId])
 
   const fetchApplications = async () => {
     setLoading(true)
@@ -352,7 +369,7 @@ export function ApplicationsManagement() {
       if (targetApp) {
         logAdminActivity(
           "STATUS_CHANGED",
-          `${targetApp.full_name}'s Application`,
+          `${targetApp.full_name}'s Application [${applicationId}]`,
           `Status changed from ${targetApp.status} to ${newStatus}`
         );
       }

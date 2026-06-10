@@ -7,10 +7,10 @@ import { AdminActivityLogs } from "@/components/AdminActivityLogs"
 
 interface DashboardAnalyticsProps {
   user: any
-  setActiveTab: (tab: string) => void
+  onNavigateToTab?: (tab: string, payload?: string) => void
 }
 
-export function DashboardAnalytics({ user, setActiveTab }: DashboardAnalyticsProps) {
+export function DashboardAnalytics({ user, onNavigateToTab }: DashboardAnalyticsProps) {
   const [applicationsCount, setApplicationsCount] = useState(0)
   const [newApplicationsCount, setNewApplicationsCount] = useState(0)
   const [newslettersCount, setNewslettersCount] = useState(0)
@@ -104,7 +104,7 @@ export function DashboardAnalytics({ user, setActiveTab }: DashboardAnalyticsPro
             <Button
               variant="outline"
               className="h-20 flex-col space-y-2 bg-transparent"
-              onClick={() => setActiveTab("applications")}
+              onClick={() => onNavigateToTab?.("applications")}
             >
               <FileText className="h-6 w-6" />
               <span className="text-xs">Applications</span>
@@ -112,7 +112,7 @@ export function DashboardAnalytics({ user, setActiveTab }: DashboardAnalyticsPro
             <Button
               variant="outline"
               className="h-20 flex-col space-y-2 bg-transparent"
-              onClick={() => setActiveTab("content")}
+              onClick={() => onNavigateToTab?.("content")}
             >
               <Settings className="h-6 w-6" />
               <span className="text-xs">Content</span>
@@ -120,7 +120,7 @@ export function DashboardAnalytics({ user, setActiveTab }: DashboardAnalyticsPro
             <Button
               variant="outline"
               className="h-20 flex-col space-y-2 bg-transparent"
-              onClick={() => setActiveTab("jobs")}
+              onClick={() => onNavigateToTab?.("jobs")}
             >
               <Briefcase className="h-6 w-6" />
               <span className="text-xs">Jobs</span>
@@ -128,7 +128,7 @@ export function DashboardAnalytics({ user, setActiveTab }: DashboardAnalyticsPro
             <Button
               variant="outline"
               className="h-20 flex-col space-y-2 bg-transparent"
-              onClick={() => setActiveTab("maintenance")}
+              onClick={() => onNavigateToTab?.("maintenance")}
             >
               <Wrench className="h-6 w-6" />
               <span className="text-xs">Maintenance</span>
@@ -139,7 +139,7 @@ export function DashboardAnalytics({ user, setActiveTab }: DashboardAnalyticsPro
 
       {/* Real-time Activity Logs */}
       <div className="mt-8">
-        <AdminActivityLogs setActiveTab={setActiveTab} />
+        <AdminActivityLogs onNavigateToTab={onNavigateToTab} />
       </div>
     </div>
   )

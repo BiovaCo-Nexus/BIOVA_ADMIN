@@ -71,6 +71,7 @@ interface ApplicationStatus {
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("dashboard")
+  const [targetApplicationId, setTargetApplicationId] = useState<string | undefined>()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
   const navigate = useNavigate()
@@ -112,6 +113,13 @@ const Admin = () => {
         variant: "destructive",
       })
     }
+  }
+
+  const handleNavigateToTab = (tab: string, payload?: string) => {
+    if (tab === "applications" && payload) {
+      setTargetApplicationId(payload)
+    }
+    setActiveTab(tab)
   }
 
   return (
@@ -317,9 +325,9 @@ const Admin = () => {
               </select>
             </div>
 
-            {activeTab === "dashboard" && <DashboardAnalytics user={user} setActiveTab={setActiveTab} />}
-            {activeTab === "audit" && <AdminActivityLogs setActiveTab={setActiveTab} />}
-            {activeTab === "applications" && <ApplicationsManagement />}
+            {activeTab === "dashboard" && <DashboardAnalytics user={user} onNavigateToTab={handleNavigateToTab} />}
+            {activeTab === "audit" && <AdminActivityLogs onNavigateToTab={handleNavigateToTab} />}
+            {activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} />}
             {activeTab === "posts" && <MarketingPostsManagement />}
             {activeTab === "newsletter" && <NewsletterManagement />}
             {activeTab === "interns" && <InternManagement />}

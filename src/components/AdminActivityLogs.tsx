@@ -13,10 +13,10 @@ interface AdminLog {
 }
 
 interface AdminActivityLogsProps {
-  setActiveTab?: (tab: string) => void;
+  onNavigateToTab?: (tab: string, payload?: string) => void;
 }
 
-export function AdminActivityLogs({ setActiveTab }: AdminActivityLogsProps = {}) {
+export function AdminActivityLogs({ onNavigateToTab }: AdminActivityLogsProps = {}) {
   const [logs, setLogs] = useState<AdminLog[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -52,14 +52,19 @@ export function AdminActivityLogs({ setActiveTab }: AdminActivityLogsProps = {})
     setLoading(false)
   }
 
-  const handleLogClick = (actionType: string) => {
-    if (!setActiveTab) return;
+  const handleLogClick = (actionType: string, entityName: string) => {
+    if (!onNavigateToTab) return;
     
-    // Determine which tab to go to based on action type
+    let targetAppId: string | undefined;
+    const match = entityName.match(/\[(APP-[a-zA-Z0-9-]+)\]/);
+    if (match) {
+      targetAppId = match[1];
+    }
+
     if (["STATUS_CHANGED", "EMAIL_SENT", "INTERNAL_NOTE"].includes(actionType)) {
-      setActiveTab("applications");
+      onNavigateToTab("applications", targetAppId);
     } else if (["CREATED_POST", "UPDATED_POST", "DELETED_POST", "TOGGLED_POST_STATUS"].includes(actionType)) {
-      setActiveTab("posts");
+      onNavigateToTab("posts");
     }
   }
 
@@ -92,8 +97,8 @@ export function AdminActivityLogs({ setActiveTab }: AdminActivityLogsProps = {})
             {logs.map((log) => (
               <div 
                 key={log.id} 
-                onClick={() => handleLogClick(log.action_type)}
-                className={`p-4 transition-colors flex items-start gap-4 ${setActiveTab ? 'cursor-pointer hover:bg-blue-50/80' : 'hover:bg-blue-50/50'}`}
+                onClick={() => handleLogClick(log.action_type, log.entity_name)}
+                className={`p-4 transition-colors flex items-start gap-4 ${onNavigateToTab ? 'cursor-pointer hover:bg-blue-50/80' : 'hover:bg-blue-50/50'}`}
               >
                 <div className="bg-blue-100 text-blue-600 p-2 rounded-full mt-1">
                   <User className="h-4 w-4" />
