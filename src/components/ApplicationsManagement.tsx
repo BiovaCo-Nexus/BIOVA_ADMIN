@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { ContactRemarkModal } from "@/components/ContactRemarkModal"
 import { ApplicationDetailModal } from "@/components/ApplicationDetailModal"
+import { logAdminActivity } from "@/utils/adminLogger"
 
 interface JobApplication {
   id: string
@@ -345,6 +346,15 @@ export function ApplicationsManagement() {
       const applicant = applications.find((app) => app.application_id === applicationId)
       if (applicant) {
         await sendEmailNotification(applicant.email, applicant.full_name, newStatus, applicationId)
+      }
+
+      const targetApp = applications.find(a => a.application_id === applicationId);
+      if (targetApp) {
+        logAdminActivity(
+          "STATUS_CHANGED",
+          `${targetApp.full_name}'s Application`,
+          `Status changed from ${targetApp.status} to ${newStatus}`
+        );
       }
 
       toast({

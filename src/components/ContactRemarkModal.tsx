@@ -1,6 +1,7 @@
 
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
+import { logAdminActivity } from "@/utils/adminLogger";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -177,6 +178,7 @@ export function ContactRemarkModal({
           console.error("Brevo send remark error:", err || resp.statusText);
           toast({ title: "Remark saved", description: "Remark saved but email failed to send.", variant: "destructive" });
         } else {
+          logAdminActivity("EMAIL_SENT", `Applicant: ${applicantName}`, `Subject: ${subject}`);
           toast({ title: "Email Sent", description: "Notification email delivered." });
         }
       } catch (e) {

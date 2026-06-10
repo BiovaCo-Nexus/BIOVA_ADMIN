@@ -31,6 +31,7 @@ import {
   Wrench,
   Box,
   Share2,
+  Activity,
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 import { supabase } from "@/integrations/supabase/client"
@@ -52,6 +53,7 @@ import { NewsletterManagement } from "@/components/NewsletterManagement"
 import { MarketingPostsManagement } from "@/components/MarketingPostsManagement"
 import { DashboardAnalytics } from "@/components/DashboardAnalytics"
 import { ApplicationsManagement } from "@/components/ApplicationsManagement"
+import { AdminActivityLogs } from "@/components/AdminActivityLogs"
 
 interface NewsletterSubscription {
   id: string
@@ -277,6 +279,14 @@ const Admin = () => {
               <Share2 className="h-4 w-4 mr-3" />
               Social Links
             </Button>
+            <Button
+              variant={activeTab === "audit" ? "default" : "ghost"}
+              className="w-full justify-start text-blue-700 bg-blue-50/50 hover:bg-blue-100"
+              onClick={() => setActiveTab("audit")}
+            >
+              <Activity className="h-4 w-4 mr-3" />
+              Audit Logs
+            </Button>
           </nav>
         </aside>
 
@@ -303,10 +313,12 @@ const Admin = () => {
                 <option value="posts">Marketing Posts</option>
                 <option value="models3d">3D Models</option>
                 <option value="social">Social Links</option>
+                <option value="audit">Audit Logs</option>
               </select>
             </div>
 
             {activeTab === "dashboard" && <DashboardAnalytics user={user} setActiveTab={setActiveTab} />}
+            {activeTab === "audit" && <AdminActivityLogs />}
             {activeTab === "applications" && <ApplicationsManagement />}
             {activeTab === "posts" && <MarketingPostsManagement />}
             {activeTab === "newsletter" && <NewsletterManagement />}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { BiovaCoLogo } from './BiovaCoLogo';
+import { useToast } from "@/hooks/use-toast";
 
 interface AuthProtectedRouteProps {
   children: React.ReactNode;
@@ -14,33 +15,49 @@ const AuthProtectedRoute: React.FC<AuthProtectedRouteProps> = ({ children }) => 
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const { toast } = useToast();
+
   useEffect(() => {
+    const handleAuthCheck = async (session: Session | null) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (!session?.user) {
+        setLoading(false);
+        navigate('/auth');
+        return;
+      }
+
+      // STRICT DOMAIN CHECK
+      if (!session.user.email?.endsWith('@biovaco.in')) {
+        await supabase.auth.signOut();
+        toast({
+          title: "Access Denied",
+          description: "Admin dashboard is restricted to @biovaco.in employee accounts only.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        navigate('/auth');
+        return;
+      }
+
+      setLoading(false);
+    };
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-        
-        if (!session?.user) {
-          navigate('/auth');
-        }
+        handleAuthCheck(session);
       }
     );
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-      
-      if (!session?.user) {
-        navigate('/auth');
-      }
+      handleAuthCheck(session);
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   if (loading) {
     return (
