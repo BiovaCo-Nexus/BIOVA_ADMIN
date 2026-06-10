@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -206,6 +206,9 @@ export function ContactRemarkModal({
               ? "Contact Admin (BiovaCo Nexus Team)"
               : `Contact Applicant: ${applicantName}`}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Send an email or remark to the selected applicant.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>

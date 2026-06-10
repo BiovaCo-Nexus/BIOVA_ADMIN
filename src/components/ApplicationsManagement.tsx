@@ -115,11 +115,13 @@ export function ApplicationsManagement() {
       // Sort final result by date again to ensure overall chronological order
       uniqueApps.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-      // Calculate AI Score (Advanced Version 4.0 - Hyper Ultra Strict Texture & Reality Graph)
+      // Calculate AI Score (Advanced Version 3.0 - Hyper Strict Offline Matcher)
       const calculateAIScore = (app: JobApplication, job: any) => {
         if (!job) return 0;
         
-        // 1. DATA PREPARATION & CLEANUP
+        let score = 0;
+        
+        // Stop words dictionary tailored for Job Descriptions
         const stopWords = new Set([
           "about", "above", "across", "after", "again", "against", "these", "those", "their", "there", 
           "where", "when", "who", "why", "how", "which", "required", "working", "looking", "company", 
@@ -132,120 +134,93 @@ export function ApplicationsManagement() {
           "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very",
           "can", "will", "just", "should", "now", "role", "position", "join", "help", "support", "part",
           "time", "full", "remote", "onsite", "hybrid", "office", "based", "ensure", "provide", "within",
-          "ideal", "opportunity", "growth", "career", "benefits", "salary", "we", "are", "you", "and", "the"
+          "ideal", "opportunity", "growth", "career", "benefits", "salary", "we", "are", "you"
         ]);
-
-        const actionVerbs = ["developed", "created", "managed", "led", "designed", "built", "optimized", "implemented", "orchestrated", "architected", "resolved", "analyzed", "spearheaded", "integrated", "improved", "delivered"];
-        const leadershipWords = ["led", "architect", "managed", "senior", "head", "director", "manager", "lead", "founder"];
 
         const jobText = `${job.title || ""} ${job.requirements || ""} ${job.responsibilities || ""}`.toLowerCase();
         
-        // Extract Core Technical/Domain Keywords
+        // Extract technical keywords (ignore basic words)
         const rawKeywords = jobText.match(/\b[a-z0-9+#]{2,25}\b/g) || [];
         const validKeywords = rawKeywords.filter(word => !stopWords.has(word) && isNaN(Number(word)));
+        
+        // Count frequency
         const keywordFreq = new Map<string, number>();
         validKeywords.forEach(kw => keywordFreq.set(kw, (keywordFreq.get(kw) || 0) + 1));
-        const topKeywords = Array.from(keywordFreq.entries()).sort((a, b) => b[1] - a[1]).slice(0, 18).map(entry => entry[0]);
+        
+        // Get Top 15 most important keywords (Core technical focus)
+        const topKeywords = Array.from(keywordFreq.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 15)
+          .map(entry => entry[0]);
 
         const appSkills = (app.skills || "").toLowerCase();
-        const appCoverOriginal = app.cover_letter || "";
-        const appCover = appCoverOriginal.toLowerCase();
-        const appText = appSkills + " " + appCover;
-        const appTextTotalLength = appText.length;
-        const appWords = appText.match(/\b\w+\b/g) || [];
+        const appCover = (app.cover_letter || "").toLowerCase();
+        const appTextTotalLength = appSkills.length + appCover.length;
 
-        let score = 0;
-
-        // --- IMMEDIATE REJECTION GATES ---
-        if (appTextTotalLength < 30) return Math.floor(Math.random() * 5) + 2; // Too empty
-
-        // --- MODULE 1: TEXTURE & AUTHENTICITY ANALYSIS (Max 15 Points) ---
-        let authenticityScore = 15;
-        
-        // 1A. Repetition / Bot check (Lexical Density)
-        const uniqueWordsCount = new Set(appWords).size;
-        const lexicalDensity = appWords.length > 0 ? uniqueWordsCount / appWords.length : 0;
-        if (appWords.length > 50 && lexicalDensity < 0.3) authenticityScore -= 10; // Repeating same words = Spam
-        
-        // 1B. Grammar/Punctuation Spam (e.g. "please hire me!!!!")
-        const spamPunctuation = (appCoverOriginal.match(/[!?.]{3,}/g) || []).length;
-        if (spamPunctuation > 1) authenticityScore -= 8;
-        
-        // 1C. ALL CAPS Spam
-        const allCapsWords = (appCoverOriginal.match(/\b[A-Z]{4,}\b/g) || []).length;
-        if (allCapsWords > 5) authenticityScore -= 5;
-
-        score += Math.max(0, authenticityScore); // Add up to 15
-
-
-        // --- MODULE 2: ACTION & CAPABILITY GRAPH (Max 15 Points) ---
-        let actionScore = 0;
-        let actionCount = 0;
-        actionVerbs.forEach(verb => { if (appText.includes(verb)) actionCount++; });
-        
-        if (actionCount >= 4) actionScore = 15;
-        else if (actionCount >= 2) actionScore = 10;
-        else if (actionCount === 1) actionScore = 5;
-        score += actionScore;
-
-
-        // --- MODULE 3: REALITY GRAPH & EXPERIENCE ALIGNMENT (Max 20 Points) ---
-        // Cross-referencing what they claim vs reality
-        const expMatch = (job.experience_level || "").match(/\d+/);
-        const requiredExp = expMatch ? parseInt(expMatch[0]) : 0;
-        const appExp = app.experience_years || 0;
-        
-        let leadershipClaims = 0;
-        leadershipWords.forEach(word => { if (appText.includes(word)) leadershipClaims++; });
-
-        // Liar/Exaggeration Penalty
-        let realityPenalty = 0;
-        if (leadershipClaims >= 2 && appExp <= 1) {
-          // Claiming leadership/senior roles but has 0-1 years exp
-          realityPenalty = -25; 
+        // Immediate Penalty for Spam/Empty applications
+        if (appTextTotalLength < 20) {
+          return Math.floor(Math.random() * 5) + 5; // Strict 5-9% score
         }
 
-        let expScore = 0;
-        if (requiredExp === 0) {
-          // Entry level
-          expScore = 10 + Math.min(10, appExp * 2);
-        } else {
-          if (appExp >= requiredExp) expScore = 20;
-          else if (appExp >= requiredExp - 1 && appExp > 0) expScore = 12; // Close enough
-          else if (appExp > 0) expScore = 5; // Has some, but lacks depth
-        }
-        
-        score += Math.max(0, expScore + realityPenalty); // Max 20
-
-
-        // --- MODULE 4: PRECISION CORE SKILL MATCHING (Max 50 Points) ---
+        // 1. SKILLS & COVER LETTER KEYWORD MATCHING (Max 65 Points)
         let skillMatchCount = 0;
         let coverMatchCount = 0;
 
         if (topKeywords.length > 0) {
           topKeywords.forEach((kw) => {
-            const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+            // Regex to match exact word boundaries to avoid false positives (e.g. matching "in" inside "engineer")
+            const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i');
             if (regex.test(appSkills)) skillMatchCount++;
             if (regex.test(appCover)) coverMatchCount++;
           });
           
-          const skillWeight = (skillMatchCount / topKeywords.length) * 35; // Strict 35 max
-          const coverWeight = (coverMatchCount / topKeywords.length) * 15; // Strict 15 max
+          // Skills are worth more than cover letter mentions
+          const skillScorePercent = (skillMatchCount / topKeywords.length) * 45; // Max 45
+          const coverScorePercent = (coverMatchCount / topKeywords.length) * 20; // Max 20
           
-          score += Math.min(50, (skillWeight + coverWeight) * 1.4); // Multiplier helps perfect matches hit 50
+          // Boost score gently if they hit multiple keywords but cap at 65
+          score += Math.min(65, (skillScorePercent + coverScorePercent) * 1.3);
         }
 
-        // --- FINAL HARD PENALTIES (Gibberish Guard) ---
+        // 2. EXPERIENCE MATCHING (Max 20 Points)
+        const expMatch = (job.experience_level || "").match(/\d+/);
+        const requiredExp = expMatch ? parseInt(expMatch[0]) : 0;
+        const appExp = app.experience_years || 0;
+        
+        if (requiredExp === 0) {
+          // Entry level: If they have *any* experience, it's a plus.
+          score += 10 + Math.min(10, appExp * 2);
+        } else {
+          if (appExp >= requiredExp) {
+            score += 20; // Perfect experience
+          } else if (appExp >= requiredExp - 1 && appExp > 0) {
+            score += 10; // 1 year short is acceptable
+          } else {
+            score += 0; // Too little experience -> 0 points
+          }
+        }
+
+        // 3. PROFESSIONALISM / EFFORT (Max 15 Points)
+        if (app.resume_url) {
+          score += 10; // Attaching a resume is essential
+        }
+        
+        if (app.cover_letter && app.cover_letter.length > 150) {
+          score += 5; // Took time to write a proper letter
+        }
+
+        // 4. IRRELEVANCY PENALTY ("Kuch ka kuch likha ho")
+        // If they wrote a massive essay (>500 chars) but hit less than 10% of keywords, penalize heavily.
+        if (appTextTotalLength > 500 && (skillMatchCount + coverMatchCount) < (topKeywords.length * 0.1)) {
+          score = score * 0.4; // Cut score by 60%
+        }
+        
+        // If they wrote nothing related to the job at all (0 keywords hit)
         if (skillMatchCount === 0 && coverMatchCount === 0) {
-          score = score * 0.1; // If 0 job keywords are present, destroy the score (Max 10%)
-        } else if (appTextTotalLength > 600 && (skillMatchCount + coverMatchCount) < (topKeywords.length * 0.15)) {
-          score = score * 0.3; // Wrote a massive essay but missed 85% of keywords = AI generated fluff
+          score = score * 0.15; // Massive penalty -> Maximum 15% of whatever they got from exp/resume
         }
 
-        // Bonus for Resume
-        if (app.resume_url) score += 5;
-
-        // Ensure absolute bounds (2 to 99)
+        // Ensure bounds (2 to 99)
         return Math.max(2, Math.min(99, Math.round(score)));
       }
 
