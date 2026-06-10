@@ -1458,9 +1458,36 @@ const Admin = () => {
 
             {activeTab === "newsletter" && (
               <div className="space-y-6">
-                <h1 className="text-2xl font-bold text-[#032E63]">Newsletter Subscribers</h1>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <h1 className="text-2xl font-bold text-[#032E63]">Newsletter Subscribers ({newsletters.length})</h1>
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => {
+                      const csvContent = [
+                        ["Email", "Confirmed", "Subscribed At"],
+                        ...newsletters.map((sub) => [
+                          sub.email,
+                          sub.confirmed ? "Yes" : "No",
+                          new Date(sub.subscribed_at).toLocaleDateString(),
+                        ]),
+                      ]
+                        .map((row) => row.join(","))
+                        .join("\n")
+
+                      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+                      const link = document.createElement("a")
+                      link.href = URL.createObjectURL(blob)
+                      link.download = `newsletter_subscribers_${new Date().toISOString().slice(0, 10)}.csv`
+                      link.click()
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </Button>
+                </div>
                 
-                <div className="hidden md:block overflow-hidden rounded-md border border-gray-200 bg-white">
+                <div className="hidden md:block overflow-x-auto rounded-md border border-gray-200 bg-white">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-[#f8fafc]">
