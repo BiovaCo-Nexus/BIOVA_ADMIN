@@ -175,13 +175,13 @@ export function ContactRemarkModal({
         if (!resp.ok) {
           const err = await resp.json().catch(() => null);
           console.error("Brevo send remark error:", err || resp.statusText);
-          toast({ title: "Remark saved", description: "Remark saved but email failed to send.", variant: "warning" });
+          toast({ title: "Remark saved", description: "Remark saved but email failed to send.", variant: "destructive" });
         } else {
           toast({ title: "Email Sent", description: "Notification email delivered." });
         }
       } catch (e) {
         console.error("Error sending remark email:", e);
-        toast({ title: "Remark saved", description: "Remark saved but email failed to send.", variant: "warning" });
+        toast({ title: "Remark saved", description: "Remark saved but email failed to send.", variant: "destructive" });
       }
     })();
     setSubject("");
