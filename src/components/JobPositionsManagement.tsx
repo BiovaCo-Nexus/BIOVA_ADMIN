@@ -578,12 +578,15 @@ export function JobPositionsManagement() {
               />
             </div>
 
-            <div className="flex gap-2">
-              <Button type="submit">{editingId ? "Update Position" : "Create Position"}</Button>
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
+              <Button type="submit" className="w-full sm:w-auto bg-[#032E63] hover:bg-[#032E63]/90">
+                {editingId ? "Update Position" : "Create Position"}
+              </Button>
               {editingId && (
                 <Button
                   type="button"
                   variant="outline"
+                  className="w-full sm:w-auto"
                   onClick={() => {
                     setEditingId(null)
                     setFormData({
@@ -601,59 +604,74 @@ export function JobPositionsManagement() {
       </Card>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Existing Positions</h3>
-        {positions.map((position, index) => (
-          <Card key={position.id}>
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4" />
-                    <h4 className="font-medium">{position.title}</h4>
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                      {position.job_type}
-                    </span>
-                    {position.is_active && (
-                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Active</span>
-                    )}
+        <h3 className="text-lg font-bold text-[#032E63] border-b pb-2">Existing Positions</h3>
+        {positions.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No job positions found. Create one above.</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {positions.map((position, index) => (
+              <Card key={position.id} className="border-l-4 border-l-[#032E63] shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="space-y-3 flex-1 pr-0 sm:pr-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Briefcase className="h-5 w-5 text-[#032E63]" />
+                        <h4 className="font-bold text-[#032E63] text-lg leading-tight">{position.title}</h4>
+                        <div className="flex gap-2 flex-wrap mt-1 sm:mt-0">
+                          <span className="text-xs bg-[#032E63]/10 text-[#032E63] px-2 py-1 rounded-md font-medium shrink-0">
+                            {position.job_type}
+                          </span>
+                          {position.is_active ? (
+                            <span className="bg-[#08A04B]/10 text-[#08A04B] text-xs px-2 py-1 rounded-md font-medium shrink-0">Active</span>
+                          ) : (
+                            <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-md font-medium shrink-0">Inactive</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-sm font-medium text-gray-600 flex flex-wrap gap-1">
+                        <span>{position.department}</span>
+                        <span className="text-gray-400">•</span>
+                        <span>{position.location}</span>
+                      </div>
+                      <p className="text-sm text-gray-500 line-clamp-2">{position.description}</p>
+                    </div>
+                    
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100 mt-2 sm:mt-0">
+                      <div className="flex gap-1 bg-gray-50 rounded-md p-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => movePosition(position.id, "up")}
+                          disabled={index === 0}
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => movePosition(position.id, "down")}
+                          disabled={index === positions.length - 1}
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="h-8 px-3 text-[#032E63] border-[#032E63]/20 hover:bg-[#032E63]/5" onClick={() => handleEdit(position)}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-8 px-3 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700" onClick={() => handleDelete(position.id)}>
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600">
-                    {position.department} • {position.location}
-                  </p>
-                  <p className="text-sm text-gray-500 line-clamp-2">{position.description}</p>
-                </div>
-                <div className="flex gap-2 flex-col">
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => movePosition(position.id, "up")}
-                      disabled={index === 0}
-                    >
-                      <ArrowUp className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => movePosition(position.id, "down")}
-                      disabled={index === positions.length - 1}
-                    >
-                      <ArrowDown className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="outline" onClick={() => handleEdit(position)}>
-                      Edit
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleDelete(position.id)}>
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
