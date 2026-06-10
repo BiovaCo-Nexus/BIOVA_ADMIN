@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { FileText, Mail, AlertCircle, Settings, Briefcase, Wrench } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
+import { AdminActivityLogs } from "@/components/AdminActivityLogs"
 
 interface DashboardAnalyticsProps {
   user: any
@@ -135,6 +136,11 @@ export function DashboardAnalytics({ user, setActiveTab }: DashboardAnalyticsPro
           </div>
         </CardContent>
       </Card>
+
+      {/* Real-time Activity Logs */}
+      <div className="mt-8">
+        <AdminActivityLogs />
+      </div>
     </div>
   )
 }
