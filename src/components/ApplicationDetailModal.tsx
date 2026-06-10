@@ -21,9 +21,12 @@ import {
   Bot,
   Sparkles,
   Loader2,
+  MessageSquare,
+  Send
 } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
+import { logAdminActivity } from "@/utils/adminLogger"
 
 interface JobApplication {
   id: string
@@ -56,8 +59,18 @@ interface ApplicationDetailModalProps {
   onClose: () => void
 }
 
+interface AdminNote {
+  id: string
+  admin_email: string
+  comment: string
+  created_at: string
+}
+
 export function ApplicationDetailModal({ application, isOpen, onClose }: ApplicationDetailModalProps) {
   const [statusHistory, setStatusHistory] = useState<ApplicationStatus[]>([])
+  const [internalNotes, setInternalNotes] = useState<AdminNote[]>([])
+  const [newNote, setNewNote] = useState("")
+  const [postingNote, setPostingNote] = useState(false)
   const [loading, setLoading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [aiAnalysis, setAiAnalysis] = useState<{
@@ -109,9 +122,71 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
   useEffect(() => {
     if (application && isOpen) {
       fetchStatusHistory()
+      fetchInternalNotes()
       setAiAnalysis(null) // Reset AI analysis on new open
+
+      const channel = supabase
+        .channel('internal_notes')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'admin_internal_notes', filter: `application_id=eq.${application.application_id}` },
+          (payload) => {
+            setInternalNotes(prev => [payload.new as AdminNote, ...prev])
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
   }, [application, isOpen])
+
+  const fetchInternalNotes = async () => {
+    if (!application) return
+    try {
+      const { data, error } = await supabase
+        .from("admin_internal_notes")
+        .select("*")
+        .eq("application_id", application.application_id)
+        .order("created_at", { ascending: false })
+      
+      if (!error) {
+        setInternalNotes(data || [])
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handlePostNote = async () => {
+    if (!application || !newNote.trim()) return
+
+    setPostingNote(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const adminEmail = session?.user?.email || "Unknown Admin"
+
+      const { error } = await supabase
+        .from("admin_internal_notes")
+        .insert({
+          application_id: application.application_id,
+          admin_email: adminEmail,
+          comment: newNote.trim()
+        })
+      
+      if (error) throw error
+      
+      logAdminActivity("INTERNAL_NOTE", `Applicant: ${application.full_name}`, `Added an internal discussion note.`);
+      setNewNote("")
+      toast({ title: "Note Posted", description: "Internal note added successfully." })
+    } catch (e: any) {
+      console.error("Error posting note:", e)
+      toast({ title: "Error", description: e.message || "Could not post note.", variant: "destructive" })
+    } finally {
+      setPostingNote(false)
+    }
+  }
 
   const fetchStatusHistory = async () => {
     if (!application) return
@@ -526,6 +601,61 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
                   <p className="text-gray-500">No status updates available</p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Internal Discussion */}
+          <Card className="border-blue-100 shadow-sm">
+            <CardHeader className="bg-blue-50/50 border-b border-blue-100">
+              <CardTitle className="text-lg flex items-center gap-2 text-blue-900">
+                <MessageSquare className="h-5 w-5 text-blue-600" />
+                Internal Admin Discussion
+              </CardTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                These notes are strictly internal and only visible to BiovaCo Nexus administrators.
+              </DialogDescription>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="space-y-4">
+                <div className="max-h-60 overflow-y-auto pr-2 space-y-3">
+                  {internalNotes.length > 0 ? (
+                    internalNotes.map((note) => (
+                      <div key={note.id} className="bg-white border border-gray-100 rounded-lg p-3 shadow-sm">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-semibold text-xs text-blue-700">{note.admin_email}</span>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(note.created_at).toLocaleString('en-IN', {
+                              day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{note.comment}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-gray-400 text-sm">
+                      No internal notes yet. Start the discussion!
+                    </div>
+                  )}
+                </div>
+                
+                <div className="pt-2 border-t flex gap-2">
+                  <textarea
+                    placeholder="Type an internal note to other admins... (e.g. 'Why did you reject this?')"
+                    className="flex-1 resize-none border rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    rows={2}
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                  />
+                  <Button 
+                    onClick={handlePostNote} 
+                    disabled={postingNote || !newNote.trim()}
+                    className="self-end bg-blue-600 hover:bg-blue-700"
+                  >
+                    {postingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
