@@ -34,8 +34,9 @@ const Auth = () => {
     setError('');
 
     // Restrict to specific email
-    if (email !== 'electroculture22@gmail.com') {
-      setError('Access restricted to authorized email only');
+    const allowedEmails = ['ceo@biovaco.in', 'md@biovaco.in'];
+    if (!allowedEmails.includes(email.toLowerCase().trim())) {
+      setError('Access restricted to authorized executive emails only.');
       setLoading(false);
       return;
     }
@@ -113,7 +114,7 @@ const Auth = () => {
             <div className="space-y-2">
               <Input
                 type="email"
-                placeholder="electroculture22@gmail.com"
+                placeholder="ceo@biovaco.in"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
