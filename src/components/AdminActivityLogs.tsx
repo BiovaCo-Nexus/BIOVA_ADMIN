@@ -12,7 +12,11 @@ interface AdminLog {
   created_at: string;
 }
 
-export function AdminActivityLogs() {
+interface AdminActivityLogsProps {
+  setActiveTab?: (tab: string) => void;
+}
+
+export function AdminActivityLogs({ setActiveTab }: AdminActivityLogsProps = {}) {
   const [logs, setLogs] = useState<AdminLog[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -48,6 +52,17 @@ export function AdminActivityLogs() {
     setLoading(false)
   }
 
+  const handleLogClick = (actionType: string) => {
+    if (!setActiveTab) return;
+    
+    // Determine which tab to go to based on action type
+    if (["STATUS_CHANGED", "EMAIL_SENT", "INTERNAL_NOTE"].includes(actionType)) {
+      setActiveTab("applications");
+    } else if (["CREATED_POST", "UPDATED_POST", "DELETED_POST", "TOGGLED_POST_STATUS"].includes(actionType)) {
+      setActiveTab("posts");
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center p-12">
@@ -75,7 +90,11 @@ export function AdminActivityLogs() {
         ) : (
           <div className="divide-y divide-gray-100">
             {logs.map((log) => (
-              <div key={log.id} className="p-4 hover:bg-blue-50/50 transition-colors flex items-start gap-4">
+              <div 
+                key={log.id} 
+                onClick={() => handleLogClick(log.action_type)}
+                className={`p-4 transition-colors flex items-start gap-4 ${setActiveTab ? 'cursor-pointer hover:bg-blue-50/80' : 'hover:bg-blue-50/50'}`}
+              >
                 <div className="bg-blue-100 text-blue-600 p-2 rounded-full mt-1">
                   <User className="h-4 w-4" />
                 </div>

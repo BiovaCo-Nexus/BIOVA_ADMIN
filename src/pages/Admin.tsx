@@ -318,7 +318,7 @@ const Admin = () => {
             </div>
 
             {activeTab === "dashboard" && <DashboardAnalytics user={user} setActiveTab={setActiveTab} />}
-            {activeTab === "audit" && <AdminActivityLogs />}
+            {activeTab === "audit" && <AdminActivityLogs setActiveTab={setActiveTab} />}
             {activeTab === "applications" && <ApplicationsManagement />}
             {activeTab === "posts" && <MarketingPostsManagement />}
             {activeTab === "newsletter" && <NewsletterManagement />}

@@ -139,7 +139,7 @@ export function DashboardAnalytics({ user, setActiveTab }: DashboardAnalyticsPro
 
       {/* Real-time Activity Logs */}
       <div className="mt-8">
-        <AdminActivityLogs />
+        <AdminActivityLogs setActiveTab={setActiveTab} />
       </div>
     </div>
   )
