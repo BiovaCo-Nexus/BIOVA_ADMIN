@@ -65,7 +65,8 @@ export function ApplicationsManagement({ initialTargetId, onClearTargetId }: App
     if (initialTargetId && applications.length > 0) {
       const targetApp = applications.find(a => a.application_id === initialTargetId)
       if (targetApp) {
-        setSelectedApp(targetApp)
+        setSelectedApplication(targetApp)
+        setShowDetailModal(true)
       }
       if (onClearTargetId) {
         onClearTargetId()
