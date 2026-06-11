@@ -609,6 +609,42 @@ export function FinanceManagement() {
   const netProfitLoss = totalIncome - totalExpenses;
   const cashFlow = totalCapital + totalIncome - totalExpenses;
 
+  // Valuation Calculation Logic
+  const calculateValuation = () => {
+    const bookValue = totalCapital + cashFlow;
+    const revenueMultiple = 4;
+    const revenueValuation = totalIncome * revenueMultiple;
+    const profitMultiple = 10;
+    const profitValuation = netProfitLoss > 0 ? netProfitLoss * profitMultiple : 0;
+
+    let estimatedValuation = 0;
+    let primaryMethod = "";
+
+    if (totalIncome === 0) {
+      estimatedValuation = bookValue;
+      primaryMethod = "Book Value (Pre-Revenue)";
+    } else if (netProfitLoss <= 0) {
+      estimatedValuation = (bookValue * 0.3) + (revenueValuation * 0.7);
+      primaryMethod = "Revenue Multiple Blended (Pre-Profit)";
+    } else {
+      estimatedValuation = (bookValue * 0.2) + (revenueValuation * 0.5) + (profitValuation * 0.3);
+      primaryMethod = "Comprehensive Blended (Profitable)";
+    }
+
+    if (estimatedValuation < bookValue) estimatedValuation = bookValue;
+
+    return {
+      estimatedValuation,
+      bookValue,
+      revenueValuation,
+      profitValuation,
+      primaryMethod,
+      multiples: { rev: revenueMultiple, prof: profitMultiple }
+    };
+  };
+
+  const valuationMetrics = calculateValuation();
+
   // Filtered Expenses
   const filteredExpenses = expenses.filter(e => {
     if (filterDateFrom && e.date < filterDateFrom) return false;
@@ -746,6 +782,40 @@ export function FinanceManagement() {
               </CardContent>
             </Card>
           </div>
+
+          {/* AI Smart Valuation Card */}
+          <Card className="border border-purple-200 bg-gradient-to-br from-white to-purple-50/50 shadow-sm overflow-hidden relative">
+            <div className="absolute top-[-20%] right-[-5%] p-8 opacity-5 pointer-events-none"><Building2 className="w-64 h-64 text-purple-900" /></div>
+            <CardContent className="p-6 relative z-10">
+              <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                <div>
+                  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-purple-100 text-purple-700 text-xs font-semibold mb-2">
+                    <TrendingUp className="w-3 h-3" /> AI Smart Valuation
+                  </div>
+                  <h2 className="text-4xl font-black text-gray-900 tracking-tight">
+                    ₹{valuationMetrics.estimatedValuation.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">Estimated Company Valuation based on real-time financial metrics.</p>
+                </div>
+                
+                <div className="bg-white/60 backdrop-blur-sm p-4 rounded-xl border border-purple-100/50 w-full md:w-1/2">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Calculation Guide</h4>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {totalIncome === 0 
+                      ? `Currently Pre-Revenue. Valuation is equal to your Book Value (Total Assets + Cash). Start generating revenue to multiply this value!`
+                      : netProfitLoss <= 0
+                      ? `Pre-Profit Growth Stage. Valuation is a blend of your Book Value and a ${valuationMetrics.multiples.rev}x Revenue Multiple. Focus on reducing expenses to reach profitability and unlock higher EBITDA multiples.`
+                      : `Profitable Stage! 🎉 Valuation is a comprehensive blend of Book Value, a ${valuationMetrics.multiples.rev}x Revenue Multiple, and a ${valuationMetrics.multiples.prof}x Profit Multiple. Excellent financial health.`
+                    }
+                  </p>
+                  <div className="mt-3 pt-3 border-t border-purple-100 flex gap-4 text-xs text-gray-500">
+                    <div><span className="font-semibold text-gray-700">Book Value:</span> ₹{valuationMetrics.bookValue.toLocaleString('en-IN')}</div>
+                    {totalIncome > 0 && <div><span className="font-semibold text-gray-700">Rev Value:</span> ₹{valuationMetrics.revenueValuation.toLocaleString('en-IN')}</div>}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
