@@ -645,23 +645,23 @@ export function FinanceManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full min-w-0">
       {/* Tabs */}
-      <div className="flex space-x-2 border-b pb-4 overflow-x-auto whitespace-nowrap scrollbar-hide">
-        <Button variant={activeTab === "dashboard" ? "default" : "outline"} onClick={() => setActiveTab("dashboard")}>
-          <PieChart className="w-4 h-4 mr-2" /> Dashboard
+      <div className="flex flex-wrap gap-2 border-b pb-4">
+        <Button variant={activeTab === "dashboard" ? "default" : "outline"} onClick={() => setActiveTab("dashboard")} className="flex-1 sm:flex-none">
+          <PieChart className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Dashboard</span>
         </Button>
-        <Button variant={activeTab === "income" ? "default" : "outline"} onClick={() => setActiveTab("income")}>
-          <Wallet className="w-4 h-4 mr-2" /> Income
+        <Button variant={activeTab === "income" ? "default" : "outline"} onClick={() => setActiveTab("income")} className="flex-1 sm:flex-none">
+          <Wallet className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Income</span>
         </Button>
-        <Button variant={activeTab === "expenses" ? "default" : "outline"} onClick={() => setActiveTab("expenses")}>
-          <FileText className="w-4 h-4 mr-2" /> Expenses
+        <Button variant={activeTab === "expenses" ? "default" : "outline"} onClick={() => setActiveTab("expenses")} className="flex-1 sm:flex-none">
+          <FileText className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Expenses</span>
         </Button>
-        <Button variant={activeTab === "capital" ? "default" : "outline"} onClick={() => setActiveTab("capital")}>
-          <Building2 className="w-4 h-4 mr-2" /> Capital
+        <Button variant={activeTab === "capital" ? "default" : "outline"} onClick={() => setActiveTab("capital")} className="flex-1 sm:flex-none">
+          <Building2 className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Capital</span>
         </Button>
-        <Button variant={activeTab === "reports" ? "default" : "outline"} onClick={() => setActiveTab("reports")}>
-          <Download className="w-4 h-4 mr-2" /> Reports
+        <Button variant={activeTab === "reports" ? "default" : "outline"} onClick={() => setActiveTab("reports")} className="flex-1 sm:flex-none">
+          <Download className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Reports</span>
         </Button>
       </div>
 
@@ -812,7 +812,7 @@ export function FinanceManagement() {
           )}
 
           <Card>
-            <CardContent className="p-0 overflow-x-auto">
+            <CardContent className="p-0 overflow-x-auto w-full">
               <Table>
                 <TableHeader className="bg-gray-50">
                   <TableRow>
@@ -959,7 +959,7 @@ export function FinanceManagement() {
           )}
 
           <Card>
-            <CardContent className="p-0 overflow-x-auto">
+            <CardContent className="p-0 overflow-x-auto w-full">
               <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
