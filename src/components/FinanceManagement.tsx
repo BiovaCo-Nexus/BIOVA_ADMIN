@@ -471,9 +471,15 @@ export function FinanceManagement() {
 
     if (type === "Expense Ledger") {
       title = "EXPENSE LEDGER";
-      head = [["#", "Date", "Expense ID", "Category", "Paid By", "Mode/Ref", "Amount (Rs.)", "Status"]];
+      head = [["#", "Date & ID", "Category & Desc", "Vendor & Details", "Paid By & Mode", "Amount (Rs.)", "Status"]];
       body = expenses.map((e, i) => [
-        i + 1, new Date(e.date).toLocaleDateString('en-IN'), e.expense_id, e.category, e.paid_by_name, `${e.payment_mode}${e.transaction_ref_number ? ` (${e.transaction_ref_number})` : ''}`, Number(e.total_amount).toLocaleString('en-IN'), e.reimbursement_status
+        i + 1, 
+        `${new Date(e.date).toLocaleDateString('en-IN')}\n${e.expense_id}`, 
+        `${e.category}\n${e.description}`, 
+        `Vendor: ${e.vendor_name || '-'}\nBen: ${e.beneficiary_name || '-'}\nInv: ${e.invoice_number || '-'}`, 
+        `${e.paid_by_name} (${e.paid_by_role})\n${e.payment_mode}${e.transaction_ref_number ? `\nRef: ${e.transaction_ref_number}` : ''}`, 
+        Number(e.total_amount).toLocaleString('en-IN'), 
+        e.reimbursement_status
       ]);
       totalLabel = "Total Expenses";
       totalValue = expenses.reduce((s, e) => s + Number(e.total_amount), 0);
