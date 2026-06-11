@@ -433,11 +433,30 @@ export function FinanceManagement() {
     }
   };
 
-  const generatePDFReport = (type: string) => {
+  const generatePDFReport = async (type: string) => {
     const doc = new jsPDF();
     const companyName = "BiovaCo Nexus Private Limited";
     const reportNo = `RPT-${Date.now().toString(36).toUpperCase()}`;
     const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Load Image
+    const imgData = await new Promise<string>((resolve) => {
+      const img = new Image();
+      img.src = '/uploads/Icon.png';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        } else {
+          resolve('');
+        }
+      };
+      img.onerror = () => resolve('');
+    });
     
     // --- Professional B&W Header ---
     doc.setDrawColor(0);
@@ -447,12 +466,19 @@ export function FinanceManagement() {
     doc.setFontSize(18);
     doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'bold');
-    doc.text(companyName, 14, 22);
+    
+    let textStartX = 14;
+    if (imgData) {
+      doc.addImage(imgData, 'PNG', 14, 15, 12, 12);
+      textStartX = 30;
+    }
+
+    doc.text(companyName, textStartX, 22);
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0);
-    doc.text('CIN: U01100MH2026PTC000000  |  Registered Office: Dhamangaon Railway, Maharashtra', 14, 27);
+    doc.text('CIN: U01100MH2026PTC000000  |  Registered Office: Dhamangaon Railway, Maharashtra', textStartX, 27);
 
     doc.setLineWidth(0.3);
     doc.line(14, 30, pageWidth - 14, 30);
