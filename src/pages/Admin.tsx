@@ -308,7 +308,7 @@ const Admin = () => {
           </nav>
         </aside>
 
-        <main className="flex-1 lg:ml-0">
+        <main className="flex-1 min-w-0 w-full lg:ml-0 overflow-x-hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             
             <div className="lg:hidden mb-6">
