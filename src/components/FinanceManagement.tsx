@@ -647,7 +647,7 @@ export function FinanceManagement() {
   return (
     <div className="space-y-6">
       {/* Tabs */}
-      <div className="flex space-x-2 border-b pb-4 overflow-x-auto">
+      <div className="flex space-x-2 border-b pb-4 overflow-x-auto whitespace-nowrap scrollbar-hide">
         <Button variant={activeTab === "dashboard" ? "default" : "outline"} onClick={() => setActiveTab("dashboard")}>
           <PieChart className="w-4 h-4 mr-2" /> Dashboard
         </Button>
@@ -756,11 +756,11 @@ export function FinanceManagement() {
       {/* INCOME TAB */}
       {activeTab === "income" && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <h3 className="text-lg font-semibold text-gray-800">Income Management</h3>
-            <div className="space-x-2">
-              <Button variant="outline" size="sm" onClick={exportIncomeCSV}><Download className="w-4 h-4 mr-1" /> CSV</Button>
-              <Button variant="outline" size="sm" onClick={() => generatePDFReport("Income Ledger")}><FileText className="w-4 h-4 mr-1" /> PDF</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={exportIncomeCSV} className="flex-1 sm:flex-none"><Download className="w-4 h-4 mr-1" /> CSV</Button>
+              <Button variant="outline" size="sm" onClick={() => generatePDFReport("Income Ledger")} className="flex-1 sm:flex-none"><FileText className="w-4 h-4 mr-1" /> PDF</Button>
               <Button onClick={() => {
                 if (isAddingIncome) {
                   setIsAddingIncome(false);
@@ -867,9 +867,9 @@ export function FinanceManagement() {
       {/* EXPENSES TAB */}
       {activeTab === "expenses" && (
         <div className="space-y-6">
-          <div className="flex flex-wrap justify-between items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <h3 className="text-lg font-semibold text-gray-800">Expense Records ({filteredExpenses.length})</h3>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}><Filter className="w-4 h-4 mr-1" /> Filters</Button>
               <Button variant="outline" size="sm" onClick={exportCSV}><Download className="w-4 h-4 mr-1" /> CSV</Button>
               <Button variant="outline" size="sm" onClick={() => generatePDFReport("Expense Ledger")}><FileText className="w-4 h-4 mr-1" /> PDF</Button>
@@ -959,9 +959,8 @@ export function FinanceManagement() {
           )}
 
           <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
                       <TableHead>Date & ID</TableHead>
@@ -1018,11 +1017,10 @@ export function FinanceManagement() {
                       </TableRow>
                     ))}
                     {filteredExpenses.length === 0 && (
-                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No expenses found.</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No expenses found.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </div>
@@ -1031,7 +1029,7 @@ export function FinanceManagement() {
       {/* CAPITAL CONTRIBUTIONS TAB */}
       {activeTab === "capital" && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <h3 className="text-lg font-semibold text-gray-800">Capital Contributions</h3>
             <Button onClick={() => {
               if (isAddingCapital) {
@@ -1073,13 +1071,13 @@ export function FinanceManagement() {
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Authorized Capital Allocation</label><Input type="number" value={newCapital.authorized_capital_allocation || ''} onChange={e => setNewCapital({...newCapital, authorized_capital_allocation: Number(e.target.value)})} placeholder="0.00" /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Paid-Up Capital Allocation</label><Input type="number" value={newCapital.paid_up_capital_allocation || ''} onChange={e => setNewCapital({...newCapital, paid_up_capital_allocation: Number(e.target.value)})} placeholder="0.00" /></div>
                 </div>
-                <Button onClick={handleAddCapital} className="bg-indigo-600">{editingCapitalId ? "Update Capital Entry" : "Save Capital Entry"}</Button>
+                <Button onClick={handleAddCapital} className="w-full sm:w-auto bg-indigo-600">{editingCapitalId ? "Update Capital Entry" : "Save Capital Entry"}</Button>
               </CardContent>
             </Card>
           )}
 
           <Card>
-            <CardContent className="p-0">
+            <CardContent className="p-0 overflow-x-auto">
               <Table>
                 <TableHeader className="bg-gray-50">
                   <TableRow>
