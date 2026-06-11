@@ -32,6 +32,7 @@ import {
   Box,
   Share2,
   Activity,
+  IndianRupee,
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 import { supabase } from "@/integrations/supabase/client"
@@ -54,6 +55,7 @@ import { MarketingPostsManagement } from "@/components/MarketingPostsManagement"
 import { DashboardAnalytics } from "@/components/DashboardAnalytics"
 import { ApplicationsManagement } from "@/components/ApplicationsManagement"
 import { AdminActivityLogs } from "@/components/AdminActivityLogs"
+import { FinanceManagement } from "@/components/FinanceManagement"
 
 interface NewsletterSubscription {
   id: string
@@ -288,6 +290,14 @@ const Admin = () => {
               Social Links
             </Button>
             <Button
+              variant={activeTab === "finance" ? "default" : "ghost"}
+              className="w-full justify-start text-[#08A04B] bg-[#08A04B]/10 hover:bg-[#08A04B]/20"
+              onClick={() => setActiveTab("finance")}
+            >
+              <IndianRupee className="h-4 w-4 mr-3" />
+              Finance & Expenses
+            </Button>
+            <Button
               variant={activeTab === "audit" ? "default" : "ghost"}
               className="w-full justify-start text-blue-700 bg-blue-50/50 hover:bg-blue-100"
               onClick={() => setActiveTab("audit")}
@@ -321,6 +331,7 @@ const Admin = () => {
                 <option value="posts">Marketing Posts</option>
                 <option value="models3d">3D Models</option>
                 <option value="social">Social Links</option>
+                <option value="finance">Finance & Expenses</option>
                 <option value="audit">Audit Logs</option>
               </select>
             </div>
@@ -340,6 +351,7 @@ const Admin = () => {
             {activeTab === "maintenance" && <MaintenanceManagement />}
             {activeTab === "models3d" && <Model3DManagement />}
             {activeTab === "social" && <SocialLinksManagement />}
+            {activeTab === "finance" && <FinanceManagement />}
           </div>
         </main>
       </div>
