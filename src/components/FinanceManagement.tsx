@@ -1061,7 +1061,7 @@ export function FinanceManagement() {
                         {expense.reimbursement_status === 'Pending' && (
                           <>
                             <Button size="icon" variant="outline" className="h-8 w-8 bg-blue-50 text-blue-600" onClick={() => handleUpdateStatus(expense.id, 'Approved')}><CheckCircle className="w-4 h-4" /></Button>
-                            <Button size="icon" variant="outline" className="h-8 w-8 bg-red-50 text-red-600" onClick={() => handleUpdateStatus(expense.id, 'Rejected')}><X className="w-4 h-4" /></Button>
+                            <Button size="icon" variant="outline" className="h-8 w-8 bg-red-50 text-red-600" onClick={() => handleUpdateStatus(expense.id, 'Rejected')}><XCircle className="w-4 h-4" /></Button>
                           </>
                         )}
                         {expense.reimbursement_status === 'Approved' && (
