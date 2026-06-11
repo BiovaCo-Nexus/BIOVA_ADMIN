@@ -452,7 +452,7 @@ export function FinanceManagement() {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80);
-    doc.text('CIN: U01100MH2026PTC000000  |  Registered Office: Mumbai, Maharashtra', 14, 27);
+    doc.text('CIN: U01100MH2026PTC000000  |  Registered Office: Dhamangaon Railway, Maharashtra', 14, 27);
 
     doc.setLineWidth(0.3);
     doc.line(14, 30, pageWidth - 14, 30);
