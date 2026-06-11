@@ -71,6 +71,25 @@ interface ApplicationStatus {
   notes: string
 }
 
+const INITIAL_TABS = [
+  { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+  { id: "applications", label: "Applications", icon: FileText },
+  { id: "newsletter", label: "Newsletter", icon: Mail },
+  { id: "interns", label: "Interns", icon: Users },
+  { id: "content", label: "Our Story", icon: FileText },
+  { id: "jobs", label: "Job Positions", icon: Briefcase },
+  { id: "videos", label: "Videos", icon: Video },
+  { id: "location", label: "Location", icon: MapPin },
+  { id: "countdown", label: "Countdown", icon: Calendar },
+  { id: "postcountdown", label: "Post Countdown", icon: Settings },
+  { id: "maintenance", label: "Maintenance", icon: Wrench },
+  { id: "posts", label: "Marketing Posts", icon: FileText },
+  { id: "models3d", label: "3D Models", icon: Box },
+  { id: "social", label: "Social Links", icon: Share2 },
+  { id: "finance", label: "Finance & Expenses", icon: IndianRupee, className: "text-[#08A04B] bg-[#08A04B]/10 hover:bg-[#08A04B]/20" },
+  { id: "audit", label: "Audit Logs", icon: Activity, className: "text-blue-700 bg-blue-50/50 hover:bg-blue-100" },
+];
+
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [targetApplicationId, setTargetApplicationId] = useState<string | undefined>()
@@ -80,6 +99,42 @@ const Admin = () => {
   const { toast } = useToast()
 
 
+  const [tabs, setTabs] = useState(() => {
+    const saved = localStorage.getItem("adminTabsOrder");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.length === INITIAL_TABS.length) {
+          return parsed.map((pId: string) => INITIAL_TABS.find(t => t.id === pId) || INITIAL_TABS.find(t => t.id === pId)).filter(Boolean);
+        }
+      } catch (e) {}
+    }
+    return INITIAL_TABS;
+  });
+
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === index) return;
+
+    const newTabs = [...tabs];
+    const draggedItem = newTabs[draggedIdx];
+    newTabs.splice(draggedIdx, 1);
+    newTabs.splice(index, 0, draggedItem);
+    setDraggedIdx(index);
+    setTabs(newTabs);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIdx(null);
+    localStorage.setItem("adminTabsOrder", JSON.stringify(tabs.map(t => t.id)));
+  };
 
   const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || ""
   const SENDER_EMAIL = "no-reply@biovaco.in"
@@ -177,134 +232,28 @@ const Admin = () => {
       <div className="flex min-h-screen">
         <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-white shadow-sm border-r border-gray-200">
           <nav className="flex-1 px-4 py-6 space-y-2">
-            <Button
-              variant={activeTab === "dashboard" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("dashboard")}
-            >
-              <BarChart3 className="h-4 w-4 mr-3" />
-              Dashboard
-            </Button>
-            <Button
-              variant={activeTab === "applications" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("applications")}
-            >
-              <FileText className="h-4 w-4 mr-3" />
-              Applications
-            </Button>
-            <Button
-              variant={activeTab === "newsletter" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("newsletter")}
-            >
-              <Mail className="h-4 w-4 mr-3" />
-              Newsletter
-            </Button>
-            <Button
-              variant={activeTab === "interns" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("interns")}
-            >
-              <Users className="h-4 w-4 mr-3" />
-              Interns
-            </Button>
-            <Button
-              variant={activeTab === "content" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("content")}
-            >
-              <FileText className="h-4 w-4 mr-3" />
-              Our Story
-            </Button>
-            <Button
-              variant={activeTab === "jobs" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("jobs")}
-            >
-              <Briefcase className="h-4 w-4 mr-3" />
-              Job Positions
-            </Button>
-            <Button
-              variant={activeTab === "videos" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("videos")}
-            >
-              <Video className="h-4 w-4 mr-3" />
-              Videos
-            </Button>
-            <Button
-              variant={activeTab === "location" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("location")}
-            >
-              <MapPin className="h-4 w-4 mr-3" />
-              Location
-            </Button>
-            <Button
-              variant={activeTab === "countdown" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("countdown")}
-            >
-              <Calendar className="h-4 w-4 mr-3" />
-              Countdown
-            </Button>
-            <Button
-              variant={activeTab === "postcountdown" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("postcountdown")}
-            >
-              <Settings className="h-4 w-4 mr-3" />
-              Post Countdown
-            </Button>
-            <Button
-              variant={activeTab === "maintenance" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("maintenance")}
-            >
-              <Wrench className="h-4 w-4 mr-3" />
-              Maintenance
-            </Button>
-            <Button
-              variant={activeTab === "posts" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("posts")}
-            >
-              <FileText className="h-4 w-4 mr-3" />
-              Marketing Posts
-            </Button>
-            <Button
-              variant={activeTab === "models3d" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("models3d")}
-            >
-              <Box className="h-4 w-4 mr-3" />
-              3D Models
-            </Button>
-            <Button
-              variant={activeTab === "social" ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setActiveTab("social")}
-            >
-              <Share2 className="h-4 w-4 mr-3" />
-              Social Links
-            </Button>
-            <Button
-              variant={activeTab === "finance" ? "default" : "ghost"}
-              className="w-full justify-start text-[#08A04B] bg-[#08A04B]/10 hover:bg-[#08A04B]/20"
-              onClick={() => setActiveTab("finance")}
-            >
-              <IndianRupee className="h-4 w-4 mr-3" />
-              Finance & Expenses
-            </Button>
-            <Button
-              variant={activeTab === "audit" ? "default" : "ghost"}
-              className="w-full justify-start text-blue-700 bg-blue-50/50 hover:bg-blue-100"
-              onClick={() => setActiveTab("audit")}
-            >
-              <Activity className="h-4 w-4 mr-3" />
-              Audit Logs
-            </Button>
+            {tabs.map((tab, index) => {
+              const Icon = tab.icon;
+              return (
+                <div
+                  key={tab.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragEnd={handleDragEnd}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`cursor-grab active:cursor-grabbing transition-opacity ${draggedIdx === index ? 'opacity-40' : ''}`}
+                >
+                  <Button
+                    variant={activeTab === tab.id ? "default" : "ghost"}
+                    className={`w-full justify-start pointer-events-none ${tab.className || ''}`}
+                  >
+                    <Icon className="h-4 w-4 mr-3" />
+                    {tab.label}
+                  </Button>
+                </div>
+              );
+            })}
           </nav>
         </aside>
 
@@ -317,22 +266,9 @@ const Admin = () => {
                 onChange={(e) => setActiveTab(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               >
-                <option value="dashboard">Dashboard</option>
-                <option value="applications">Applications</option>
-                <option value="newsletter">Newsletter</option>
-                <option value="interns">Interns</option>
-                <option value="content">Our Story</option>
-                <option value="jobs">Job Positions</option>
-                <option value="videos">Videos</option>
-                <option value="location">Location</option>
-                <option value="countdown">Countdown</option>
-                <option value="postcountdown">Post Countdown</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="posts">Marketing Posts</option>
-                <option value="models3d">3D Models</option>
-                <option value="social">Social Links</option>
-                <option value="finance">Finance & Expenses</option>
-                <option value="audit">Audit Logs</option>
+                {tabs.map((tab) => (
+                  <option key={tab.id} value={tab.id}>{tab.label}</option>
+                ))}
               </select>
             </div>
 
