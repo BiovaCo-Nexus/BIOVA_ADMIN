@@ -451,7 +451,7 @@ export function FinanceManagement() {
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(80);
+    doc.setTextColor(0);
     doc.text('CIN: U01100MH2026PTC000000  |  Registered Office: Dhamangaon Railway, Maharashtra', 14, 27);
 
     doc.setLineWidth(0.3);
@@ -459,7 +459,7 @@ export function FinanceManagement() {
 
     // Report meta (right-aligned)
     doc.setFontSize(8);
-    doc.setTextColor(60);
+    doc.setTextColor(0);
     doc.text(`Report No: ${reportNo}`, pageWidth - 14, 18, { align: 'right' });
     doc.text(`Date: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`, pageWidth - 14, 23, { align: 'right' });
 
@@ -526,18 +526,18 @@ export function FinanceManagement() {
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100);
+    doc.setTextColor(0);
     doc.text(`Reporting Period: All Records  |  Total Entries: ${body.length}`, 14, 46);
 
-    // Table - Clean B&W
+    // Table - Strict Black & White
     autoTable(doc, {
       startY: 52,
       head: head,
       body: body,
-      theme: 'plain',
-      headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 7, lineWidth: 0.3, lineColor: [0, 0, 0] },
-      bodyStyles: { fontSize: 7, textColor: [30, 30, 30], lineWidth: 0.1, lineColor: [180, 180, 180] },
-      alternateRowStyles: { fillColor: [248, 248, 248] },
+      theme: 'grid',
+      headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 7, lineWidth: 0.3, lineColor: [0, 0, 0] },
+      bodyStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontSize: 7, lineWidth: 0.3, lineColor: [0, 0, 0] },
+      alternateRowStyles: { fillColor: [255, 255, 255] },
       styles: { cellPadding: 2.5 },
     });
 
@@ -566,7 +566,7 @@ export function FinanceManagement() {
 
     // Footer
     doc.setFontSize(7);
-    doc.setTextColor(120);
+    doc.setTextColor(0);
     doc.text('This is a system-generated document. No signature is required for internal records.', 14, sigY + 15);
     doc.text(`Generated on ${new Date().toLocaleString('en-IN')} | ${companyName}`, 14, sigY + 20);
 
