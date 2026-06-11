@@ -812,53 +812,89 @@ export function FinanceManagement() {
           )}
 
           <Card>
-            <CardContent className="p-0 overflow-x-auto w-full">
-              <Table>
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead>Date / ID</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead className="hidden md:table-cell">Description</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead className="hidden sm:table-cell">Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {incomes.map((inc) => (
-                    <TableRow key={inc.id}>
-                      <TableCell>
+            <CardContent className="p-0">
+              {/* Mobile View */}
+              <div className="block sm:hidden divide-y">
+                {incomes.map((inc) => (
+                  <div key={inc.id} className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
                         <div className="font-medium text-gray-900">{new Date(inc.date).toLocaleDateString('en-IN')}</div>
                         <div className="text-xs text-gray-500 font-mono">{inc.income_id}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="mb-1">{inc.source}</Badge>
-                        <div className="text-xs font-medium hidden sm:block">{inc.client_name}</div>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate text-sm hidden md:table-cell" title={inc.description}>{inc.description}</TableCell>
-                      <TableCell>
+                      </div>
+                      <Badge className={inc.status === 'Received' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}>{inc.status}</Badge>
+                    </div>
+                    <div>
+                      <Badge variant="outline" className="mb-1">{inc.source}</Badge>
+                      <div className="text-sm font-medium">{inc.client_name}</div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div>
                         <div className="font-bold text-emerald-700">₹{Number(inc.total_amount).toLocaleString('en-IN')}</div>
                         <div className="text-xs text-gray-500">{inc.payment_mode || 'Cash'}</div>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <Badge className={inc.status === 'Received' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}>{inc.status}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-1">
-                          {inc.status === 'Pending' && (
-                            <Button size="sm" variant="outline" className="h-7 text-xs bg-emerald-50 text-emerald-600" onClick={() => handleUpdateIncomeStatus(inc.id, 'Received')}><CheckCircle className="w-3 h-3 mr-1" /> Mark Received</Button>
-                          )}
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-blue-600" onClick={() => handleEditIncome(inc)}><Edit className="w-3 h-3" /></Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-red-400" onClick={() => handleDeleteIncome(inc.id)}><Trash2 className="w-3 h-3" /></Button>
-                        </div>
-                      </TableCell>
+                      </div>
+                      <div className="flex space-x-1">
+                        {inc.status === 'Pending' && (
+                          <Button size="icon" variant="outline" className="h-8 w-8 bg-emerald-50 text-emerald-600" onClick={() => handleUpdateIncomeStatus(inc.id, 'Received')}><CheckCircle className="w-4 h-4" /></Button>
+                        )}
+                        <Button size="icon" variant="outline" className="h-8 w-8 text-blue-600" onClick={() => handleEditIncome(inc)}><Edit className="w-4 h-4" /></Button>
+                        <Button size="icon" variant="outline" className="h-8 w-8 text-red-400" onClick={() => handleDeleteIncome(inc.id)}><Trash2 className="w-4 h-4" /></Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {incomes.length === 0 && <div className="text-center py-8 text-gray-500 text-sm">No income records found.</div>}
+              </div>
+
+              {/* Desktop View */}
+              <div className="hidden sm:block overflow-x-auto w-full">
+                <Table>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow>
+                      <TableHead>Date / ID</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead className="hidden md:table-cell">Description</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead className="hidden sm:table-cell">Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                  {incomes.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No income records found.</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {incomes.map((inc) => (
+                      <TableRow key={inc.id}>
+                        <TableCell>
+                          <div className="font-medium text-gray-900">{new Date(inc.date).toLocaleDateString('en-IN')}</div>
+                          <div className="text-xs text-gray-500 font-mono">{inc.income_id}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="mb-1">{inc.source}</Badge>
+                          <div className="text-xs font-medium hidden sm:block">{inc.client_name}</div>
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate text-sm hidden md:table-cell" title={inc.description}>{inc.description}</TableCell>
+                        <TableCell>
+                          <div className="font-bold text-emerald-700">₹{Number(inc.total_amount).toLocaleString('en-IN')}</div>
+                          <div className="text-xs text-gray-500">{inc.payment_mode || 'Cash'}</div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge className={inc.status === 'Received' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}>{inc.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-1">
+                            {inc.status === 'Pending' && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs bg-emerald-50 text-emerald-600" onClick={() => handleUpdateIncomeStatus(inc.id, 'Received')}><CheckCircle className="w-3 h-3 mr-1" /> Mark Received</Button>
+                            )}
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-blue-600" onClick={() => handleEditIncome(inc)}><Edit className="w-3 h-3" /></Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-red-400" onClick={() => handleDeleteIncome(inc.id)}><Trash2 className="w-3 h-3" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {incomes.length === 0 && (
+                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No income records found.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -959,8 +995,52 @@ export function FinanceManagement() {
           )}
 
           <Card>
-            <CardContent className="p-0 overflow-x-auto w-full">
-              <Table>
+            <CardContent className="p-0">
+              {/* Mobile View */}
+              <div className="block sm:hidden divide-y">
+                {filteredExpenses.map((expense) => (
+                  <div key={expense.id} className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-medium text-gray-900">{new Date(expense.date).toLocaleDateString('en-IN')}</div>
+                        <div className="text-xs text-gray-500">{expense.expense_id}</div>
+                      </div>
+                      <Badge className={
+                        expense.reimbursement_status === 'Approved' ? 'bg-blue-100 text-blue-800' :
+                        expense.reimbursement_status === 'Reimbursed' ? 'bg-green-100 text-green-800' :
+                        expense.reimbursement_status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }>{expense.reimbursement_status}</Badge>
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm text-gray-800">{expense.category}</div>
+                      <div className="text-xs text-gray-600 mt-1">{expense.description}</div>
+                      <div className="text-xs text-gray-500 mt-1">Paid by: {expense.paid_by_name}</div>
+                    </div>
+                    <div className="flex justify-between items-center pt-1">
+                      <div className="font-bold text-gray-900 text-lg">₹{Number(expense.total_amount).toLocaleString('en-IN')}</div>
+                      <div className="flex gap-1 flex-wrap justify-end">
+                        {expense.reimbursement_status === 'Pending' && (
+                          <>
+                            <Button size="icon" variant="outline" className="h-8 w-8 bg-blue-50 text-blue-600" onClick={() => handleUpdateStatus(expense.id, 'Approved')}><CheckCircle className="w-4 h-4" /></Button>
+                            <Button size="icon" variant="outline" className="h-8 w-8 bg-red-50 text-red-600" onClick={() => handleUpdateStatus(expense.id, 'Rejected')}><X className="w-4 h-4" /></Button>
+                          </>
+                        )}
+                        {expense.reimbursement_status === 'Approved' && (
+                          <Button size="sm" variant="outline" className="h-8 text-xs bg-green-50 text-green-600" onClick={() => handleUpdateStatus(expense.id, 'Reimbursed')}>Mark Paid</Button>
+                        )}
+                        <Button size="icon" variant="outline" className="h-8 w-8 text-blue-600" onClick={() => handleEditExpense(expense)}><Edit className="w-4 h-4" /></Button>
+                        <Button size="icon" variant="outline" className="h-8 w-8 text-red-400" onClick={() => handleDeleteExpense(expense.id)}><Trash2 className="w-4 h-4" /></Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {filteredExpenses.length === 0 && <div className="text-center py-8 text-gray-500 text-sm">No expenses found.</div>}
+              </div>
+
+              {/* Desktop View */}
+              <div className="hidden sm:block overflow-x-auto w-full">
+                <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
                       <TableHead>Date</TableHead>
@@ -1015,10 +1095,11 @@ export function FinanceManagement() {
                       </TableRow>
                     ))}
                     {filteredExpenses.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No expenses found.</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No expenses found.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -1075,43 +1156,70 @@ export function FinanceManagement() {
           )}
 
           <Card>
-            <CardContent className="p-0 overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead className="hidden sm:table-cell">Type</TableHead>
-                    <TableHead className="hidden md:table-cell">Equity</TableHead>
-                    <TableHead className="hidden lg:table-cell">Mode</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {capital.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell>{new Date(c.date).toLocaleDateString('en-IN')}</TableCell>
-                      <TableCell className="font-medium text-gray-900">{c.founder_name}</TableCell>
-                      <TableCell className="hidden sm:table-cell"><Badge variant="outline">{c.capital_type || 'Equity'}</Badge></TableCell>
-                      <TableCell className="hidden md:table-cell">{c.equity_percentage ? `${c.equity_percentage}%` : '-'}</TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        <div className="text-sm font-medium">{c.payment_mode || '-'}</div>
-                      </TableCell>
-                      <TableCell className="font-bold text-gray-900">₹{Number(c.capital_contributed).toLocaleString('en-IN')}</TableCell>
-                      <TableCell>
-                        <div className="flex space-x-1">
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-blue-600" onClick={() => handleEditCapital(c)}><Edit className="w-3 h-3" /></Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-red-400" onClick={() => handleDeleteCapital(c.id)}><Trash2 className="w-3 h-3" /></Button>
-                        </div>
-                      </TableCell>
+            <CardContent className="p-0">
+              {/* Mobile View */}
+              <div className="block sm:hidden divide-y">
+                {capital.map((c) => (
+                  <div key={c.id} className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="font-medium text-gray-900">{new Date(c.date).toLocaleDateString('en-IN')}</div>
+                      <Badge variant="outline">{c.capital_type || 'Equity'}</Badge>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">{c.founder_name}</div>
+                      <div className="text-xs text-gray-500 mt-1">Payment Mode: {c.payment_mode || 'N/A'}</div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div className="font-bold text-gray-900 text-lg">₹{Number(c.capital_contributed).toLocaleString('en-IN')}</div>
+                      <div className="flex space-x-2">
+                        <Button size="icon" variant="outline" className="h-8 w-8 text-blue-600" onClick={() => handleEditCapital(c)}><Edit className="w-4 h-4" /></Button>
+                        <Button size="icon" variant="outline" className="h-8 w-8 text-red-400" onClick={() => handleDeleteCapital(c.id)}><Trash2 className="w-4 h-4" /></Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {capital.length === 0 && <div className="text-center py-8 text-gray-500 text-sm">No capital contributions recorded yet.</div>}
+              </div>
+
+              {/* Desktop View */}
+              <div className="hidden sm:block overflow-x-auto w-full">
+                <Table>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead className="hidden sm:table-cell">Type</TableHead>
+                      <TableHead className="hidden md:table-cell">Equity</TableHead>
+                      <TableHead className="hidden lg:table-cell">Mode</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                  {capital.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-gray-500">No capital contributions recorded yet.</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {capital.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell>{new Date(c.date).toLocaleDateString('en-IN')}</TableCell>
+                        <TableCell className="font-medium text-gray-900">{c.founder_name}</TableCell>
+                        <TableCell className="hidden sm:table-cell"><Badge variant="outline">{c.capital_type || 'Equity'}</Badge></TableCell>
+                        <TableCell className="hidden md:table-cell">{c.equity_percentage ? `${c.equity_percentage}%` : '-'}</TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <div className="text-sm font-medium">{c.payment_mode || '-'}</div>
+                        </TableCell>
+                        <TableCell className="font-bold text-gray-900">₹{Number(c.capital_contributed).toLocaleString('en-IN')}</TableCell>
+                        <TableCell>
+                          <div className="flex space-x-1">
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-blue-600" onClick={() => handleEditCapital(c)}><Edit className="w-3 h-3" /></Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-red-400" onClick={() => handleDeleteCapital(c.id)}><Trash2 className="w-3 h-3" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {capital.length === 0 && (
+                      <TableRow><TableCell colSpan={7} className="text-center py-8 text-gray-500">No capital contributions recorded yet.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </div>
