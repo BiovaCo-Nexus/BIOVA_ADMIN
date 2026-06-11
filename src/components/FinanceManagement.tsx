@@ -25,7 +25,8 @@ import {
   Loader2,
   Trash2,
   Upload,
-  Edit
+  Edit,
+  Wallet
 } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, CartesianGrid, Legend } from "recharts";
 import jsPDF from "jspdf";
@@ -59,6 +60,23 @@ export interface ExpenseRecord {
   created_at: string;
 }
 
+export interface IncomeRecord {
+  id: string;
+  income_id: string;
+  date: string;
+  source: string;
+  description: string;
+  amount: number;
+  gst_amount: number;
+  total_amount: number;
+  payment_mode: string;
+  transaction_reference?: string;
+  client_name?: string;
+  invoice_number?: string;
+  status: string;
+  created_at: string;
+}
+
 export interface CapitalContribution {
   id: string;
   founder_name: string;
@@ -86,6 +104,15 @@ const EXPENSE_CATEGORIES = [
   "Miscellaneous"
 ];
 
+const INCOME_SOURCES = [
+  "Product Sales",
+  "Service Revenue",
+  "Consulting Fees",
+  "Subscription",
+  "Interest Income",
+  "Other Income"
+];
+
 const REGISTRATION_SUBCATEGORIES = [
   "DSC", "DIN", "Name Reservation", "MCA Fees", "Government Fees", 
   "Stamp Duty", "Legal Fees", "CA/CS Fees", "Trademark Fees", 
@@ -100,6 +127,7 @@ export function FinanceManagement() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [capital, setCapital] = useState<CapitalContribution[]>([]);
+  const [incomes, setIncomes] = useState<IncomeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -139,6 +167,20 @@ export function FinanceManagement() {
     transaction_reference: "",
   });
 
+  // New Income State
+  const [isAddingIncome, setIsAddingIncome] = useState(false);
+  const [editingIncomeId, setEditingIncomeId] = useState<string | null>(null);
+  const [newIncome, setNewIncome] = useState<Partial<IncomeRecord>>({
+    date: new Date().toISOString().split('T')[0],
+    source: "",
+    description: "",
+    amount: 0,
+    gst_amount: 0,
+    total_amount: 0,
+    payment_mode: "",
+    status: "Received"
+  });
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -146,16 +188,19 @@ export function FinanceManagement() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [expenseRes, capitalRes] = await Promise.all([
+      const [expenseRes, capitalRes, incomeRes] = await Promise.all([
         supabase.from('expense_records').select('*').order('date', { ascending: false }),
-        supabase.from('capital_contributions').select('*').order('date', { ascending: false })
+        supabase.from('capital_contributions').select('*').order('date', { ascending: false }),
+        supabase.from('income_records').select('*').order('date', { ascending: false })
       ]);
 
       if (expenseRes.error) throw expenseRes.error;
       if (capitalRes.error) throw capitalRes.error;
+      if (incomeRes.error && incomeRes.error.code !== '42P01') throw incomeRes.error; // Ignore if table doesn't exist yet
 
       setExpenses(expenseRes.data || []);
       setCapital(capitalRes.data || []);
+      setIncomes(incomeRes.data || []);
     } catch (error: any) {
       console.error("Error fetching finance data:", error);
       toast({ title: "Error", description: "Failed to load financial data", variant: "destructive" });
@@ -301,6 +346,91 @@ export function FinanceManagement() {
     }
   };
 
+  const generateIncomeId = () => {
+    const prefix = "INC";
+    const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `${prefix}-${dateStr}-${random}`;
+  };
+
+  const handleAddIncome = async () => {
+    if (!newIncome.date || !newIncome.source || !newIncome.amount) {
+      toast({ title: "Missing Fields", description: "Please fill all required fields.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const total = Number(newIncome.amount) + Number(newIncome.gst_amount || 0);
+
+      if (editingIncomeId) {
+        const { error } = await supabase.from('income_records').update({
+          ...newIncome,
+          total_amount: total
+        }).eq('id', editingIncomeId);
+        if (error) throw error;
+        toast({ title: "Success", description: "Income record updated." });
+      } else {
+        const incomeId = generateIncomeId();
+        const { error } = await supabase.from('income_records').insert([{
+          ...newIncome,
+          income_id: incomeId,
+          total_amount: total
+        }]);
+        if (error) throw error;
+        toast({ title: "Success", description: "Income record created." });
+      }
+
+      setIsAddingIncome(false);
+      setEditingIncomeId(null);
+      setNewIncome({
+        date: new Date().toISOString().split('T')[0],
+        source: "",
+        description: "",
+        amount: 0,
+        gst_amount: 0,
+        total_amount: 0,
+        payment_mode: "",
+        transaction_reference: "",
+        client_name: "",
+        invoice_number: "",
+        status: "Received"
+      });
+      fetchData();
+    } catch (error: any) {
+      console.error("Error saving income:", error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleEditIncome = (incomeItem: IncomeRecord) => {
+    setNewIncome({ ...incomeItem });
+    setEditingIncomeId(incomeItem.id);
+    setIsAddingIncome(true);
+  };
+
+  const handleDeleteIncome = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this income record?')) return;
+    try {
+      const { error } = await supabase.from('income_records').delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: 'Deleted', description: 'Income record removed.' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateIncomeStatus = async (id: string, status: string) => {
+    try {
+      const { error } = await supabase.from('income_records').update({ status }).eq('id', id);
+      if (error) throw error;
+      toast({ title: "Status Updated", description: `Income marked as ${status}` });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
   const generatePDFReport = (type: string) => {
     const doc = new jsPDF();
     const companyName = "BiovaCo Nexus Private Limited";
@@ -370,6 +500,14 @@ export function FinanceManagement() {
       ]);
       totalLabel = "Total Registration Cost";
       totalValue = reg.reduce((s, e) => s + Number(e.total_amount), 0);
+    } else if (type === "Income Ledger") {
+      title = "INCOME LEDGER REPORT";
+      head = [["#", "Date", "Income ID", "Source", "Client", "Amount (Rs.)", "Status"]];
+      body = incomes.map((inc, i) => [
+        i + 1, new Date(inc.date).toLocaleDateString('en-IN'), inc.income_id, inc.source, inc.client_name || '-', Number(inc.total_amount).toLocaleString('en-IN'), inc.status
+      ]);
+      totalLabel = "Total Income";
+      totalValue = incomes.filter(inc => inc.status === 'Received').reduce((s, inc) => s + Number(inc.total_amount), 0);
     }
 
     // Title
@@ -430,10 +568,12 @@ export function FinanceManagement() {
   // Calculations for Dashboard
   const totalCapital = capital.reduce((sum, c) => sum + Number(c.capital_contributed), 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.total_amount), 0);
+  const totalIncome = incomes.filter(i => i.status === 'Received').reduce((sum, i) => sum + Number(i.total_amount), 0);
+  const pendingIncome = incomes.filter(i => i.status === 'Pending').reduce((sum, i) => sum + Number(i.total_amount), 0);
   const pendingReimbursements = expenses.filter(e => e.reimbursement_status === 'Pending').reduce((sum, e) => sum + Number(e.total_amount), 0);
   const reimbursedAmount = expenses.filter(e => e.reimbursement_status === 'Reimbursed').reduce((sum, e) => sum + Number(e.total_amount), 0);
-  const approvedAmount = expenses.filter(e => e.reimbursement_status === 'Approved').reduce((sum, e) => sum + Number(e.total_amount), 0);
-  const cashFlow = totalCapital - totalExpenses;
+  const netProfitLoss = totalIncome - totalExpenses;
+  const cashFlow = totalCapital + totalIncome - totalExpenses;
 
   // Filtered Expenses
   const filteredExpenses = expenses.filter(e => {
@@ -472,7 +612,7 @@ export function FinanceManagement() {
     }
   };
 
-  // CSV Export
+  // CSV Export for Expenses
   const exportCSV = () => {
     const headers = 'Date,Expense ID,Category,Description,Paid By,Role,Amount,GST,Total,Payment Mode,Status,Vendor,Invoice\n';
     const rows = filteredExpenses.map(e =>
@@ -483,6 +623,20 @@ export function FinanceManagement() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `BiovaCo_Expenses_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
+  // CSV Export for Income
+  const exportIncomeCSV = () => {
+    const headers = 'Date,Income ID,Source,Description,Client,Amount,GST,Total,Payment Mode,Status,Invoice\n';
+    const rows = incomes.map(inc =>
+      `${inc.date},${inc.income_id},${inc.source},"${inc.description}",${inc.client_name || ''},${inc.amount},${inc.gst_amount},${inc.total_amount},${inc.payment_mode},${inc.status},${inc.invoice_number || ''}`
+    ).join('\n');
+    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `BiovaCo_Income_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
   };
 
@@ -497,11 +651,14 @@ export function FinanceManagement() {
         <Button variant={activeTab === "dashboard" ? "default" : "outline"} onClick={() => setActiveTab("dashboard")}>
           <PieChart className="w-4 h-4 mr-2" /> Dashboard
         </Button>
+        <Button variant={activeTab === "income" ? "default" : "outline"} onClick={() => setActiveTab("income")}>
+          <Wallet className="w-4 h-4 mr-2" /> Income
+        </Button>
         <Button variant={activeTab === "expenses" ? "default" : "outline"} onClick={() => setActiveTab("expenses")}>
-          <FileText className="w-4 h-4 mr-2" /> Expenses & Reimbursements
+          <FileText className="w-4 h-4 mr-2" /> Expenses
         </Button>
         <Button variant={activeTab === "capital" ? "default" : "outline"} onClick={() => setActiveTab("capital")}>
-          <Building2 className="w-4 h-4 mr-2" /> Capital Contributions
+          <Building2 className="w-4 h-4 mr-2" /> Capital
         </Button>
         <Button variant={activeTab === "reports" ? "default" : "outline"} onClick={() => setActiveTab("reports")}>
           <Download className="w-4 h-4 mr-2" /> Reports
@@ -518,37 +675,40 @@ export function FinanceManagement() {
                 <div className="flex items-center"><IndianRupee className="w-4 h-4 text-gray-400 mr-1" /><h3 className="text-xl font-bold">{totalCapital.toLocaleString('en-IN')}</h3></div>
               </CardContent>
             </Card>
+            <Card className="border-l-4 border-l-emerald-600 shadow-sm">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium text-gray-500 mb-1">Total Received Income</p>
+                <div className="flex items-center"><IndianRupee className="w-4 h-4 text-emerald-500 mr-1" /><h3 className="text-xl font-bold text-emerald-700">{totalIncome.toLocaleString('en-IN')}</h3></div>
+              </CardContent>
+            </Card>
             <Card className="border-l-4 border-l-red-500 shadow-sm">
               <CardContent className="p-4">
                 <p className="text-xs font-medium text-gray-500 mb-1">Total Expenses</p>
-                <div className="flex items-center"><IndianRupee className="w-4 h-4 text-gray-400 mr-1" /><h3 className="text-xl font-bold">{totalExpenses.toLocaleString('en-IN')}</h3></div>
+                <div className="flex items-center"><IndianRupee className="w-4 h-4 text-red-500 mr-1" /><h3 className="text-xl font-bold text-red-700">{totalExpenses.toLocaleString('en-IN')}</h3></div>
+              </CardContent>
+            </Card>
+            <Card className={`border-l-4 shadow-sm ${netProfitLoss >= 0 ? 'border-l-emerald-500' : 'border-l-rose-500'}`}>
+              <CardContent className="p-4">
+                <p className="text-xs font-medium text-gray-500 mb-1">Net Profit / Loss</p>
+                <div className="flex items-center">
+                  {netProfitLoss >= 0 ? <TrendingUp className="w-4 h-4 text-emerald-500 mr-1" /> : <TrendingDown className="w-4 h-4 text-rose-500 mr-1" />}
+                  <h3 className={`text-xl font-bold ${netProfitLoss >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>₹{Math.abs(netProfitLoss).toLocaleString('en-IN')}</h3>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className={`border-l-4 shadow-sm ${cashFlow >= 0 ? 'border-l-blue-500' : 'border-l-rose-500'}`}>
+              <CardContent className="p-4">
+                <p className="text-xs font-medium text-gray-500 mb-1">Available Cash Flow</p>
+                <div className="flex items-center">
+                  {cashFlow >= 0 ? <TrendingUp className="w-4 h-4 text-blue-500 mr-1" /> : <TrendingDown className="w-4 h-4 text-rose-500 mr-1" />}
+                  <h3 className={`text-xl font-bold ${cashFlow >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>₹{Math.abs(cashFlow).toLocaleString('en-IN')}</h3>
+                </div>
               </CardContent>
             </Card>
             <Card className="border-l-4 border-l-yellow-500 shadow-sm">
               <CardContent className="p-4">
                 <p className="text-xs font-medium text-gray-500 mb-1">Pending Reimbursements</p>
                 <div className="flex items-center"><IndianRupee className="w-4 h-4 text-gray-400 mr-1" /><h3 className="text-xl font-bold">{pendingReimbursements.toLocaleString('en-IN')}</h3></div>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-green-500 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-xs font-medium text-gray-500 mb-1">Reimbursed Amount</p>
-                <div className="flex items-center"><IndianRupee className="w-4 h-4 text-gray-400 mr-1" /><h3 className="text-xl font-bold">{reimbursedAmount.toLocaleString('en-IN')}</h3></div>
-              </CardContent>
-            </Card>
-            <Card className={`border-l-4 shadow-sm ${cashFlow >= 0 ? 'border-l-emerald-500' : 'border-l-rose-500'}`}>
-              <CardContent className="p-4">
-                <p className="text-xs font-medium text-gray-500 mb-1">Cash Flow (Capital - Expenses)</p>
-                <div className="flex items-center">
-                  {cashFlow >= 0 ? <TrendingUp className="w-4 h-4 text-emerald-500 mr-1" /> : <TrendingDown className="w-4 h-4 text-rose-500 mr-1" />}
-                  <h3 className={`text-xl font-bold ${cashFlow >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>₹{Math.abs(cashFlow).toLocaleString('en-IN')}</h3>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-purple-500 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-xs font-medium text-gray-500 mb-1">Registration Expenses</p>
-                <div className="flex items-center"><IndianRupee className="w-4 h-4 text-gray-400 mr-1" /><h3 className="text-xl font-bold">{totalRegistration.toLocaleString('en-IN')}</h3></div>
               </CardContent>
             </Card>
           </div>
@@ -590,6 +750,117 @@ export function FinanceManagement() {
               </CardContent>
             </Card>
           </div>
+        </div>
+      )}
+
+      {/* INCOME TAB */}
+      {activeTab === "income" && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-gray-800">Income Management</h3>
+            <div className="space-x-2">
+              <Button variant="outline" size="sm" onClick={exportIncomeCSV}><Download className="w-4 h-4 mr-1" /> CSV</Button>
+              <Button variant="outline" size="sm" onClick={() => generatePDFReport("Income Ledger")}><FileText className="w-4 h-4 mr-1" /> PDF</Button>
+              <Button onClick={() => {
+                if (isAddingIncome) {
+                  setIsAddingIncome(false);
+                  setEditingIncomeId(null);
+                  setNewIncome({
+                    date: new Date().toISOString().split('T')[0],
+                    source: "",
+                    description: "",
+                    amount: 0,
+                    gst_amount: 0,
+                    total_amount: 0,
+                    payment_mode: "",
+                    transaction_reference: "",
+                    client_name: "",
+                    invoice_number: "",
+                    status: "Received"
+                  });
+                } else {
+                  setIsAddingIncome(true);
+                }
+              }} className="bg-emerald-600 hover:bg-emerald-700" size="sm">
+                {isAddingIncome ? "Cancel" : <><Plus className="w-4 h-4 mr-1" /> Record Income</>}
+              </Button>
+            </div>
+          </div>
+
+          {isAddingIncome && (
+            <Card className="border-emerald-100 bg-emerald-50/30">
+              <CardHeader><CardTitle className="text-emerald-900">{editingIncomeId ? "Edit Income Entry" : "New Income Entry"}</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Date *</label><Input type="date" value={newIncome.date} onChange={e => setNewIncome({...newIncome, date: e.target.value})} /></div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Source *</label>
+                    <Select value={newIncome.source} onValueChange={val => setNewIncome({...newIncome, source: val})}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{INCOME_SOURCES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                  </div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Base Amount (₹) *</label><Input type="number" value={newIncome.amount || ''} onChange={e => setNewIncome({...newIncome, amount: Number(e.target.value)})} placeholder="0.00" /></div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">GST Amount (₹)</label><Input type="number" value={newIncome.gst_amount || ''} onChange={e => setNewIncome({...newIncome, gst_amount: Number(e.target.value)})} placeholder="0.00" /></div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Payment Mode</label>
+                    <Select value={newIncome.payment_mode} onValueChange={val => setNewIncome({...newIncome, payment_mode: val})}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{PAYMENT_MODES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select>
+                  </div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Transaction Ref / UPI</label><Input value={newIncome.transaction_reference || ''} onChange={e => setNewIncome({...newIncome, transaction_reference: e.target.value})} placeholder="Ref No" /></div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Client / Customer Name</label><Input value={newIncome.client_name || ''} onChange={e => setNewIncome({...newIncome, client_name: e.target.value})} placeholder="Client Name" /></div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Invoice Number</label><Input value={newIncome.invoice_number || ''} onChange={e => setNewIncome({...newIncome, invoice_number: e.target.value})} placeholder="INV-..." /></div>
+                  <div className="md:col-span-3"><label className="text-xs font-medium text-gray-600 mb-1 block">Description</label><Input value={newIncome.description || ''} onChange={e => setNewIncome({...newIncome, description: e.target.value})} placeholder="Payment for..." /></div>
+                </div>
+                <Button onClick={handleAddIncome} className="w-full sm:w-auto bg-emerald-600">{editingIncomeId ? "Update Income Record" : "Save Income Record"}</Button>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-gray-50">
+                  <TableRow>
+                    <TableHead>Date / ID</TableHead>
+                    <TableHead>Source & Client</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {incomes.map((inc) => (
+                    <TableRow key={inc.id}>
+                      <TableCell>
+                        <div className="font-medium text-gray-900">{new Date(inc.date).toLocaleDateString('en-IN')}</div>
+                        <div className="text-xs text-gray-500 font-mono">{inc.income_id}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="mb-1">{inc.source}</Badge>
+                        <div className="text-xs font-medium">{inc.client_name}</div>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-sm" title={inc.description}>{inc.description}</TableCell>
+                      <TableCell>
+                        <div className="font-bold text-emerald-700">₹{Number(inc.total_amount).toLocaleString('en-IN')}</div>
+                        <div className="text-xs text-gray-500">{inc.payment_mode || 'Cash'} {inc.transaction_reference && `(${inc.transaction_reference})`}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={inc.status === 'Received' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}>{inc.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-1">
+                          {inc.status === 'Pending' && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs bg-emerald-50 text-emerald-600" onClick={() => handleUpdateIncomeStatus(inc.id, 'Received')}><CheckCircle className="w-3 h-3 mr-1" /> Mark Received</Button>
+                          )}
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-blue-600" onClick={() => handleEditIncome(inc)}><Edit className="w-3 h-3" /></Button>
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-red-400" onClick={() => handleDeleteIncome(inc.id)}><Trash2 className="w-3 h-3" /></Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {incomes.length === 0 && (
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No income records found.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -858,6 +1129,7 @@ export function FinanceManagement() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               { type: "Expense Ledger", desc: "Complete list of all expenses", icon: <FileText className="w-7 h-7" />, color: "blue" },
+              { type: "Income Ledger", desc: "Complete record of all income", icon: <Wallet className="w-7 h-7" />, color: "emerald" },
               { type: "Capital Contributions", desc: "Funds injected by founders", icon: <Building2 className="w-7 h-7" />, color: "indigo" },
               { type: "Reimbursement Report", desc: "Pending & completed reimbursements", icon: <CheckCircle className="w-7 h-7" />, color: "green" },
               { type: "Registration Expenses", desc: "Company registration costs", icon: <Briefcase className="w-7 h-7" />, color: "purple" },
@@ -875,8 +1147,9 @@ export function FinanceManagement() {
           <Card className="mt-4 border-dashed">
             <CardContent className="p-4 flex flex-wrap gap-3 items-center justify-center">
               <p className="text-sm text-gray-600 mr-2">Quick Export:</p>
-              <Button variant="outline" size="sm" onClick={exportCSV}><Download className="w-4 h-4 mr-1" /> Export All as CSV</Button>
-              <Button variant="outline" size="sm" onClick={() => generatePDFReport("Expense Ledger")}><FileText className="w-4 h-4 mr-1" /> Full Ledger PDF</Button>
+              <Button variant="outline" size="sm" onClick={exportCSV}><Download className="w-4 h-4 mr-1" /> Expenses CSV</Button>
+              <Button variant="outline" size="sm" onClick={exportIncomeCSV}><Download className="w-4 h-4 mr-1" /> Income CSV</Button>
+              <Button variant="outline" size="sm" onClick={() => generatePDFReport("Expense Ledger")}><FileText className="w-4 h-4 mr-1" /> Expenses PDF</Button>
             </CardContent>
           </Card>
         </div>

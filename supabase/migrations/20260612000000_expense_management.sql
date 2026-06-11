@@ -58,6 +58,32 @@ CREATE POLICY "Allow authenticated users to insert capital contributions" ON pub
 CREATE POLICY "Allow authenticated users to update capital contributions" ON public.capital_contributions FOR UPDATE TO authenticated USING (true);
 CREATE POLICY "Allow authenticated users to delete capital contributions" ON public.capital_contributions FOR DELETE TO authenticated USING (true);
 
+-- Income Records Table
+CREATE TABLE IF NOT EXISTS public.income_records (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    income_id TEXT UNIQUE NOT NULL,
+    date DATE NOT NULL,
+    source TEXT NOT NULL,
+    description TEXT,
+    amount NUMERIC(15, 2) NOT NULL,
+    gst_amount NUMERIC(15, 2) DEFAULT 0,
+    total_amount NUMERIC(15, 2) NOT NULL,
+    payment_mode TEXT,
+    transaction_reference TEXT,
+    client_name TEXT,
+    invoice_number TEXT,
+    status TEXT DEFAULT 'Received',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+ALTER TABLE public.income_records ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow authenticated users to read income records" ON public.income_records FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated users to insert income records" ON public.income_records FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated users to update income records" ON public.income_records FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated users to delete income records" ON public.income_records FOR DELETE TO authenticated USING (true);
+
 -- Enable Realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE expense_records;
+ALTER PUBLICATION supabase_realtime ADD TABLE expense_records, capital_contributions, income_records;
 ALTER PUBLICATION supabase_realtime ADD TABLE capital_contributions;
