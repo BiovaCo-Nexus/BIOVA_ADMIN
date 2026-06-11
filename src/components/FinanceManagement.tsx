@@ -24,7 +24,8 @@ import {
   Clock,
   Loader2,
   Trash2,
-  Upload
+  Upload,
+  Edit
 } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, CartesianGrid, Legend } from "recharts";
 import jsPDF from "jspdf";
@@ -126,6 +127,7 @@ export function FinanceManagement() {
 
   // New Capital State
   const [isAddingCapital, setIsAddingCapital] = useState(false);
+  const [editingCapitalId, setEditingCapitalId] = useState<string | null>(null);
   const [newCapital, setNewCapital] = useState<Partial<CapitalContribution>>({
     date: new Date().toISOString().split('T')[0],
     founder_name: "",
@@ -214,15 +216,37 @@ export function FinanceManagement() {
     }
 
     try {
-      const { error } = await supabase.from('capital_contributions').insert([newCapital]);
-      if (error) throw error;
+      if (editingCapitalId) {
+        const { error } = await supabase.from('capital_contributions').update(newCapital).eq('id', editingCapitalId);
+        if (error) throw error;
+        toast({ title: "Success", description: "Capital contribution updated." });
+      } else {
+        const { error } = await supabase.from('capital_contributions').insert([newCapital]);
+        if (error) throw error;
+        toast({ title: "Success", description: "Capital contribution recorded." });
+      }
 
-      toast({ title: "Success", description: "Capital contribution recorded." });
       setIsAddingCapital(false);
+      setEditingCapitalId(null);
+      setNewCapital({
+        date: new Date().toISOString().split('T')[0],
+        founder_name: "",
+        capital_contributed: 0,
+        equity_percentage: undefined,
+        capital_type: undefined,
+        authorized_capital_allocation: undefined,
+        paid_up_capital_allocation: undefined,
+      });
       fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
+  };
+
+  const handleEditCapital = (capitalItem: CapitalContribution) => {
+    setNewCapital({ ...capitalItem });
+    setEditingCapitalId(capitalItem.id);
+    setIsAddingCapital(true);
   };
 
   const handleDeleteCapital = async (id: string) => {
@@ -677,14 +701,29 @@ export function FinanceManagement() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-800">Capital Contributions</h3>
-            <Button onClick={() => setIsAddingCapital(!isAddingCapital)} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button onClick={() => {
+              if (isAddingCapital) {
+                setIsAddingCapital(false);
+                setEditingCapitalId(null);
+                setNewCapital({
+                  date: new Date().toISOString().split('T')[0],
+                  founder_name: "",
+                  capital_contributed: 0,
+                });
+              } else {
+                setIsAddingCapital(true);
+              }
+            }} className="bg-indigo-600 hover:bg-indigo-700">
               {isAddingCapital ? "Cancel" : <><Plus className="w-4 h-4 mr-2" /> Add Capital</>}
             </Button>
           </div>
 
           {isAddingCapital && (
             <Card className="border-indigo-100 bg-indigo-50/30">
-              <CardContent className="pt-6">
+              <CardHeader>
+                <CardTitle className="text-indigo-900">{editingCapitalId ? "Edit Capital Entry" : "New Capital Entry"}</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Date *</label><Input type="date" value={newCapital.date} onChange={e => setNewCapital({...newCapital, date: e.target.value})} /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Founder / Investor Name *</label><Input value={newCapital.founder_name} onChange={e => setNewCapital({...newCapital, founder_name: e.target.value})} placeholder="Name" /></div>
@@ -696,7 +735,7 @@ export function FinanceManagement() {
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Authorized Capital Allocation</label><Input type="number" value={newCapital.authorized_capital_allocation || ''} onChange={e => setNewCapital({...newCapital, authorized_capital_allocation: Number(e.target.value)})} placeholder="0.00" /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Paid-Up Capital Allocation</label><Input type="number" value={newCapital.paid_up_capital_allocation || ''} onChange={e => setNewCapital({...newCapital, paid_up_capital_allocation: Number(e.target.value)})} placeholder="0.00" /></div>
                 </div>
-                <Button onClick={handleAddCapital} className="bg-indigo-600">Save Capital Entry</Button>
+                <Button onClick={handleAddCapital} className="bg-indigo-600">{editingCapitalId ? "Update Capital Entry" : "Save Capital Entry"}</Button>
               </CardContent>
             </Card>
           )}
@@ -722,7 +761,12 @@ export function FinanceManagement() {
                       <TableCell><Badge variant="outline">{c.capital_type || 'Equity'}</Badge></TableCell>
                       <TableCell>{c.equity_percentage ? `${c.equity_percentage}%` : '-'}</TableCell>
                       <TableCell className="font-bold text-gray-900">₹{Number(c.capital_contributed).toLocaleString('en-IN')}</TableCell>
-                      <TableCell><Button size="sm" variant="outline" className="h-7 text-xs text-red-400" onClick={() => handleDeleteCapital(c.id)}><Trash2 className="w-3 h-3" /></Button></TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-blue-600" onClick={() => handleEditCapital(c)}><Edit className="w-3 h-3" /></Button>
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-red-400" onClick={() => handleDeleteCapital(c.id)}><Trash2 className="w-3 h-3" /></Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {capital.length === 0 && (
