@@ -151,6 +151,7 @@ export function FinanceManagement() {
     gst_amount: 0,
     total_amount: 0,
     payment_mode: "",
+    transaction_ref_number: "",
     paid_by_role: "",
     paid_by_name: "",
     reimbursement_status: "Pending"
@@ -254,6 +255,7 @@ export function FinanceManagement() {
         gst_amount: 0,
         total_amount: 0,
         payment_mode: "",
+        transaction_ref_number: "",
         paid_by_role: "",
         paid_by_name: "",
         beneficiary_name: "",
@@ -469,9 +471,9 @@ export function FinanceManagement() {
 
     if (type === "Expense Ledger") {
       title = "EXPENSE LEDGER";
-      head = [["#", "Date", "Expense ID", "Category", "Paid By", "Amount (Rs.)", "Status"]];
+      head = [["#", "Date", "Expense ID", "Category", "Paid By", "Mode/Ref", "Amount (Rs.)", "Status"]];
       body = expenses.map((e, i) => [
-        i + 1, new Date(e.date).toLocaleDateString('en-IN'), e.expense_id, e.category, e.paid_by_name, Number(e.total_amount).toLocaleString('en-IN'), e.reimbursement_status
+        i + 1, new Date(e.date).toLocaleDateString('en-IN'), e.expense_id, e.category, e.paid_by_name, `${e.payment_mode}${e.transaction_ref_number ? ` (${e.transaction_ref_number})` : ''}`, Number(e.total_amount).toLocaleString('en-IN'), e.reimbursement_status
       ]);
       totalLabel = "Total Expenses";
       totalValue = expenses.reduce((s, e) => s + Number(e.total_amount), 0);
@@ -614,9 +616,9 @@ export function FinanceManagement() {
 
   // CSV Export for Expenses
   const exportCSV = () => {
-    const headers = 'Date,Expense ID,Category,Description,Paid By,Role,Amount,GST,Total,Payment Mode,Status,Vendor,Invoice\n';
+    const headers = 'Date,Expense ID,Category,Description,Paid By,Role,Amount,GST,Total,Payment Mode,Txn Ref,Status,Vendor,Invoice\n';
     const rows = filteredExpenses.map(e =>
-      `${e.date},${e.expense_id},${e.category},"${e.description}",${e.paid_by_name},${e.paid_by_role},${e.amount},${e.gst_amount},${e.total_amount},${e.payment_mode},${e.reimbursement_status},${e.vendor_name || ''},${e.invoice_number || ''}`
+      `${e.date},${e.expense_id},${e.category},"${e.description}",${e.paid_by_name},${e.paid_by_role},${e.amount},${e.gst_amount},${e.total_amount},${e.payment_mode},${e.transaction_ref_number || ''},${e.reimbursement_status},${e.vendor_name || ''},${e.invoice_number || ''}`
     ).join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -922,6 +924,7 @@ export function FinanceManagement() {
                     gst_amount: 0,
                     total_amount: 0,
                     payment_mode: "",
+                    transaction_ref_number: "",
                     paid_by_role: "",
                     paid_by_name: "",
                     reimbursement_status: "Pending"
@@ -983,6 +986,9 @@ export function FinanceManagement() {
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Payment Mode *</label>
                     <Select value={newExpense.payment_mode} onValueChange={val => setNewExpense({...newExpense, payment_mode: val})}><SelectTrigger><SelectValue placeholder="Mode" /></SelectTrigger><SelectContent>{PAYMENT_MODES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
                   </div>
+                  {(newExpense.payment_mode === 'UPI' || newExpense.payment_mode === 'Bank Transfer') && (
+                    <div><label className="text-xs font-medium text-gray-600 mb-1 block">UPI ID / Txn Ref *</label><Input value={newExpense.transaction_ref_number || ''} onChange={e => setNewExpense({...newExpense, transaction_ref_number: e.target.value})} placeholder="Ref/Txn No" /></div>
+                  )}
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Beneficiary Name</label><Input value={newExpense.beneficiary_name || ''} onChange={e => setNewExpense({...newExpense, beneficiary_name: e.target.value})} placeholder="Beneficiary" /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Vendor Name</label><Input value={newExpense.vendor_name || ''} onChange={e => setNewExpense({...newExpense, vendor_name: e.target.value})} placeholder="Vendor" /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Invoice Number</label><Input value={newExpense.invoice_number || ''} onChange={e => setNewExpense({...newExpense, invoice_number: e.target.value})} placeholder="INV-123" /></div>
@@ -1015,7 +1021,7 @@ export function FinanceManagement() {
                     <div>
                       <div className="font-medium text-sm text-gray-800">{expense.category}</div>
                       <div className="text-xs text-gray-600 mt-1">{expense.description}</div>
-                      <div className="text-xs text-gray-500 mt-1">Paid by: {expense.paid_by_name}</div>
+                      <div className="text-xs text-gray-500 mt-1">Paid by: {expense.paid_by_name} • {expense.payment_mode} {expense.transaction_ref_number ? `(${expense.transaction_ref_number})` : ''}</div>
                     </div>
                     <div className="flex justify-between items-center pt-1">
                       <div className="font-bold text-gray-900 text-lg">₹{Number(expense.total_amount).toLocaleString('en-IN')}</div>
@@ -1068,6 +1074,7 @@ export function FinanceManagement() {
                         </TableCell>
                         <TableCell>
                           <div className="font-bold text-gray-900">₹{Number(expense.total_amount).toLocaleString('en-IN')}</div>
+                          <div className="text-xs text-gray-500">{expense.payment_mode} {expense.transaction_ref_number ? `(${expense.transaction_ref_number})` : ''}</div>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
                           <Badge className={
