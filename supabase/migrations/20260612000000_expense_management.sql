@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS public.capital_contributions (
     date DATE NOT NULL,
     equity_percentage NUMERIC(5, 2),
     capital_type TEXT,
+    payment_mode TEXT,
+    transaction_reference TEXT,
     authorized_capital_allocation NUMERIC(15, 2),
     paid_up_capital_allocation NUMERIC(15, 2),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,

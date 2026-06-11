@@ -66,6 +66,8 @@ export interface CapitalContribution {
   date: string;
   equity_percentage?: number;
   capital_type?: string;
+  payment_mode?: string;
+  transaction_reference?: string;
   authorized_capital_allocation?: number;
   paid_up_capital_allocation?: number;
   created_at: string;
@@ -133,6 +135,8 @@ export function FinanceManagement() {
     date: new Date().toISOString().split('T')[0],
     founder_name: "",
     capital_contributed: 0,
+    payment_mode: "",
+    transaction_reference: "",
   });
 
   useEffect(() => {
@@ -268,6 +272,8 @@ export function FinanceManagement() {
         capital_contributed: 0,
         equity_percentage: undefined,
         capital_type: undefined,
+        payment_mode: "",
+        transaction_reference: "",
         authorized_capital_allocation: undefined,
         paid_up_capital_allocation: undefined,
       });
@@ -341,9 +347,9 @@ export function FinanceManagement() {
       totalValue = expenses.reduce((s, e) => s + Number(e.total_amount), 0);
     } else if (type === "Capital Contributions") {
       title = "CAPITAL CONTRIBUTIONS";
-      head = [["#", "Date", "Founder / Investor", "Capital Type", "Equity %", "Amount (Rs.)"]];
+      head = [["#", "Date", "Founder / Investor", "Capital Type", "Equity %", "Payment Details", "Amount (Rs.)"]];
       body = capital.map((c, i) => [
-        i + 1, new Date(c.date).toLocaleDateString('en-IN'), c.founder_name, c.capital_type || 'Equity', c.equity_percentage ? `${c.equity_percentage}%` : '-', Number(c.capital_contributed).toLocaleString('en-IN')
+        i + 1, new Date(c.date).toLocaleDateString('en-IN'), c.founder_name, c.capital_type || 'Equity', c.equity_percentage ? `${c.equity_percentage}%` : '-', `${c.payment_mode || '-'} ${c.transaction_reference ? `(${c.transaction_reference})` : ''}`, Number(c.capital_contributed).toLocaleString('en-IN')
       ]);
       totalLabel = "Total Capital";
       totalValue = capital.reduce((s, c) => s + Number(c.capital_contributed), 0);
@@ -764,6 +770,8 @@ export function FinanceManagement() {
                   date: new Date().toISOString().split('T')[0],
                   founder_name: "",
                   capital_contributed: 0,
+                  payment_mode: "",
+                  transaction_reference: "",
                 });
               } else {
                 setIsAddingCapital(true);
@@ -787,6 +795,10 @@ export function FinanceManagement() {
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Capital Type</label>
                     <Select value={newCapital.capital_type} onValueChange={val => setNewCapital({...newCapital, capital_type: val})}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="Equity">Equity</SelectItem><SelectItem value="Debt">Debt (Loan)</SelectItem><SelectItem value="Convertible Note">Convertible Note</SelectItem></SelectContent></Select>
                   </div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Payment Mode</label>
+                    <Select value={newCapital.payment_mode} onValueChange={val => setNewCapital({...newCapital, payment_mode: val})}><SelectTrigger><SelectValue placeholder="Select Mode" /></SelectTrigger><SelectContent><SelectItem value="UPI">UPI</SelectItem><SelectItem value="Bank Transfer">Bank Transfer</SelectItem><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Cheque">Cheque</SelectItem></SelectContent></Select>
+                  </div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">{newCapital.payment_mode === "UPI" ? "UPI ID / Ref No" : newCapital.payment_mode === "Bank Transfer" ? "Transaction ID" : "Reference No"}</label><Input value={newCapital.transaction_reference || ''} onChange={e => setNewCapital({...newCapital, transaction_reference: e.target.value})} placeholder="Ref No" /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Authorized Capital Allocation</label><Input type="number" value={newCapital.authorized_capital_allocation || ''} onChange={e => setNewCapital({...newCapital, authorized_capital_allocation: Number(e.target.value)})} placeholder="0.00" /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Paid-Up Capital Allocation</label><Input type="number" value={newCapital.paid_up_capital_allocation || ''} onChange={e => setNewCapital({...newCapital, paid_up_capital_allocation: Number(e.target.value)})} placeholder="0.00" /></div>
                 </div>
@@ -804,6 +816,7 @@ export function FinanceManagement() {
                     <TableHead>Name</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Equity %</TableHead>
+                    <TableHead>Payment Mode</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -815,6 +828,10 @@ export function FinanceManagement() {
                       <TableCell className="font-medium text-gray-900">{c.founder_name}</TableCell>
                       <TableCell><Badge variant="outline">{c.capital_type || 'Equity'}</Badge></TableCell>
                       <TableCell>{c.equity_percentage ? `${c.equity_percentage}%` : '-'}</TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium">{c.payment_mode || '-'}</div>
+                        {c.transaction_reference && <div className="text-xs text-gray-500">{c.transaction_reference}</div>}
+                      </TableCell>
                       <TableCell className="font-bold text-gray-900">₹{Number(c.capital_contributed).toLocaleString('en-IN')}</TableCell>
                       <TableCell>
                         <div className="flex space-x-1">
@@ -825,7 +842,7 @@ export function FinanceManagement() {
                     </TableRow>
                   ))}
                   {capital.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No capital contributions recorded yet.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-gray-500">No capital contributions recorded yet.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
