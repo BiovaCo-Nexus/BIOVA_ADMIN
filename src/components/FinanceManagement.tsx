@@ -225,101 +225,140 @@ export function FinanceManagement() {
     }
   };
 
+  const handleDeleteCapital = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this capital entry?')) return;
+    try {
+      const { error } = await supabase.from('capital_contributions').delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: 'Deleted', description: 'Capital contribution removed.' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const generatePDFReport = (type: string) => {
     const doc = new jsPDF();
     const companyName = "BiovaCo Nexus Private Limited";
+    const reportNo = `RPT-${Date.now().toString(36).toUpperCase()}`;
+    const pageWidth = doc.internal.pageSize.getWidth();
     
-    // Header
-    doc.setFontSize(20);
-    doc.setTextColor(3, 46, 99); // Brand blue
+    // --- Professional B&W Header ---
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.8);
+    doc.line(14, 12, pageWidth - 14, 12);
+
+    doc.setFontSize(18);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
     doc.text(companyName, 14, 22);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Report Type: ${type}`, 14, 30);
-    doc.text(`Generated Date: ${new Date().toLocaleDateString()}`, 14, 36);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80);
+    doc.text('CIN: U01100MH2026PTC000000  |  Registered Office: Mumbai, Maharashtra', 14, 27);
+
+    doc.setLineWidth(0.3);
+    doc.line(14, 30, pageWidth - 14, 30);
+
+    // Report meta (right-aligned)
+    doc.setFontSize(8);
+    doc.setTextColor(60);
+    doc.text(`Report No: ${reportNo}`, pageWidth - 14, 18, { align: 'right' });
+    doc.text(`Date: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`, pageWidth - 14, 23, { align: 'right' });
 
     let head: any[] = [];
     let body: any[] = [];
     let title = "";
+    let totalLabel = "";
+    let totalValue = 0;
 
     if (type === "Expense Ledger") {
-      title = "Expense Ledger Report";
-      head = [["Date", "Expense ID", "Category", "Paid By", "Amount", "Status"]];
-      body = expenses.map(e => [
-        new Date(e.date).toLocaleDateString(),
-        e.expense_id,
-        e.category,
-        e.paid_by_name,
-        `Rs. ${e.total_amount}`,
-        e.reimbursement_status
+      title = "EXPENSE LEDGER";
+      head = [["#", "Date", "Expense ID", "Category", "Paid By", "Amount (Rs.)", "Status"]];
+      body = expenses.map((e, i) => [
+        i + 1, new Date(e.date).toLocaleDateString('en-IN'), e.expense_id, e.category, e.paid_by_name, Number(e.total_amount).toLocaleString('en-IN'), e.reimbursement_status
       ]);
+      totalLabel = "Total Expenses";
+      totalValue = expenses.reduce((s, e) => s + Number(e.total_amount), 0);
     } else if (type === "Capital Contributions") {
-      title = "Capital Contributions Report";
-      head = [["Date", "Founder Name", "Capital Type", "Equity %", "Amount"]];
-      body = capital.map(c => [
-        new Date(c.date).toLocaleDateString(),
-        c.founder_name,
-        c.capital_type || '-',
-        c.equity_percentage ? `${c.equity_percentage}%` : '-',
-        `Rs. ${c.capital_contributed}`
+      title = "CAPITAL CONTRIBUTIONS";
+      head = [["#", "Date", "Founder / Investor", "Capital Type", "Equity %", "Amount (Rs.)"]];
+      body = capital.map((c, i) => [
+        i + 1, new Date(c.date).toLocaleDateString('en-IN'), c.founder_name, c.capital_type || 'Equity', c.equity_percentage ? `${c.equity_percentage}%` : '-', Number(c.capital_contributed).toLocaleString('en-IN')
       ]);
+      totalLabel = "Total Capital";
+      totalValue = capital.reduce((s, c) => s + Number(c.capital_contributed), 0);
     } else if (type === "Reimbursement Report") {
-      title = "Reimbursement Status Report";
-      head = [["Date", "ID", "Paid By", "Amount", "Status", "Approval Date"]];
-      body = expenses.filter(e => e.reimbursement_status !== 'Rejected').map(e => [
-        new Date(e.date).toLocaleDateString(),
-        e.expense_id,
-        e.paid_by_name,
-        `Rs. ${e.total_amount}`,
-        e.reimbursement_status,
-        e.approval_date ? new Date(e.approval_date).toLocaleDateString() : '-'
+      title = "REIMBURSEMENT STATUS REPORT";
+      head = [["#", "Date", "ID", "Paid By", "Amount (Rs.)", "Status", "Approval Date"]];
+      body = expenses.filter(e => e.reimbursement_status !== 'Rejected').map((e, i) => [
+        i + 1, new Date(e.date).toLocaleDateString('en-IN'), e.expense_id, e.paid_by_name, Number(e.total_amount).toLocaleString('en-IN'), e.reimbursement_status, e.approval_date ? new Date(e.approval_date).toLocaleDateString('en-IN') : '-'
       ]);
+      totalLabel = "Total Reimbursable";
+      totalValue = expenses.filter(e => e.reimbursement_status !== 'Rejected').reduce((s, e) => s + Number(e.total_amount), 0);
     } else if (type === "Registration Expenses") {
-      title = "Company Registration Expense Summary";
-      const regExpenses = expenses.filter(e => e.category === 'Company Registration');
-      head = [["Date", "Sub Category", "Description", "Vendor", "Amount"]];
-      body = regExpenses.map(e => [
-        new Date(e.date).toLocaleDateString(),
-        e.sub_category || '-',
-        e.description,
-        e.vendor_name || '-',
-        `Rs. ${e.total_amount}`
+      title = "COMPANY REGISTRATION EXPENSES";
+      const reg = expenses.filter(e => e.category === 'Company Registration');
+      head = [["#", "Date", "Sub Category", "Description", "Vendor", "Amount (Rs.)"]];
+      body = reg.map((e, i) => [
+        i + 1, new Date(e.date).toLocaleDateString('en-IN'), e.sub_category || '-', e.description, e.vendor_name || '-', Number(e.total_amount).toLocaleString('en-IN')
       ]);
+      totalLabel = "Total Registration Cost";
+      totalValue = reg.reduce((s, e) => s + Number(e.total_amount), 0);
     }
 
-    doc.setFontSize(14);
+    // Title
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(0);
-    doc.text(title, 14, 48);
+    doc.text(title, 14, 40);
 
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text(`Reporting Period: All Records  |  Total Entries: ${body.length}`, 14, 46);
+
+    // Table - Clean B&W
     autoTable(doc, {
-      startY: 55,
+      startY: 52,
       head: head,
       body: body,
-      theme: 'grid',
-      headStyles: { fillColor: [3, 46, 99] },
-      styles: { fontSize: 8 },
+      theme: 'plain',
+      headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 7, lineWidth: 0.3, lineColor: [0, 0, 0] },
+      bodyStyles: { fontSize: 7, textColor: [30, 30, 30], lineWidth: 0.1, lineColor: [180, 180, 180] },
+      alternateRowStyles: { fillColor: [248, 248, 248] },
+      styles: { cellPadding: 2.5 },
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || 55;
-    
-    if (type === "Expense Ledger") {
-      const total = expenses.reduce((sum, e) => sum + Number(e.total_amount), 0);
-      doc.setFontSize(12);
-      doc.text(`Total Expenses: Rs. ${total.toFixed(2)}`, 14, finalY + 10);
-    } else if (type === "Capital Contributions") {
-      const total = capital.reduce((sum, c) => sum + Number(c.capital_contributed), 0);
-      doc.setFontSize(12);
-      doc.text(`Total Capital: Rs. ${total.toFixed(2)}`, 14, finalY + 10);
-    }
+    const finalY = (doc as any).lastAutoTable.finalY || 52;
+
+    // Total line
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.5);
+    doc.line(14, finalY + 5, pageWidth - 14, finalY + 5);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text(`${totalLabel}: Rs. ${totalValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, pageWidth - 14, finalY + 12, { align: 'right' });
 
     // Signatures
-    doc.setFontSize(10);
-    doc.text("_________________________", 14, finalY + 40);
-    doc.text("Authorized Signatory", 14, finalY + 45);
-    
-    doc.text("_________________________", 140, finalY + 40);
-    doc.text("Accountant / Director", 140, finalY + 45);
+    const sigY = finalY + 40;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0);
+    doc.line(14, sigY, 70, sigY);
+    doc.text('Prepared By', 14, sigY + 5);
+    doc.line(85, sigY, 135, sigY);
+    doc.text('Verified By', 85, sigY + 5);
+    doc.line(145, sigY, pageWidth - 14, sigY);
+    doc.text('Authorized Signatory', 145, sigY + 5);
+
+    // Footer
+    doc.setFontSize(7);
+    doc.setTextColor(120);
+    doc.text('This is a system-generated document. No signature is required for internal records.', 14, sigY + 15);
+    doc.text(`Generated on ${new Date().toLocaleString('en-IN')} | ${companyName}`, 14, sigY + 20);
 
     doc.save(`BiovaCo_${type.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
   };
@@ -672,6 +711,7 @@ export function FinanceManagement() {
                     <TableHead>Type</TableHead>
                     <TableHead>Equity %</TableHead>
                     <TableHead>Amount</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -682,10 +722,11 @@ export function FinanceManagement() {
                       <TableCell><Badge variant="outline">{c.capital_type || 'Equity'}</Badge></TableCell>
                       <TableCell>{c.equity_percentage ? `${c.equity_percentage}%` : '-'}</TableCell>
                       <TableCell className="font-bold text-gray-900">₹{Number(c.capital_contributed).toLocaleString('en-IN')}</TableCell>
+                      <TableCell><Button size="sm" variant="outline" className="h-7 text-xs text-red-400" onClick={() => handleDeleteCapital(c.id)}><Trash2 className="w-3 h-3" /></Button></TableCell>
                     </TableRow>
                   ))}
                   {capital.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-gray-500">No capital contributions recorded yet.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No capital contributions recorded yet.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
