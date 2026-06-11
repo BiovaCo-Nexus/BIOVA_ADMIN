@@ -817,10 +817,10 @@ export function FinanceManagement() {
                 <TableHeader className="bg-gray-50">
                   <TableRow>
                     <TableHead>Date / ID</TableHead>
-                    <TableHead>Source & Client</TableHead>
-                    <TableHead>Description</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead className="hidden md:table-cell">Description</TableHead>
                     <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden sm:table-cell">Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -833,14 +833,14 @@ export function FinanceManagement() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="mb-1">{inc.source}</Badge>
-                        <div className="text-xs font-medium">{inc.client_name}</div>
+                        <div className="text-xs font-medium hidden sm:block">{inc.client_name}</div>
                       </TableCell>
-                      <TableCell className="max-w-[200px] truncate text-sm" title={inc.description}>{inc.description}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-sm hidden md:table-cell" title={inc.description}>{inc.description}</TableCell>
                       <TableCell>
                         <div className="font-bold text-emerald-700">₹{Number(inc.total_amount).toLocaleString('en-IN')}</div>
-                        <div className="text-xs text-gray-500">{inc.payment_mode || 'Cash'} {inc.transaction_reference && `(${inc.transaction_reference})`}</div>
+                        <div className="text-xs text-gray-500">{inc.payment_mode || 'Cash'}</div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <Badge className={inc.status === 'Received' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}>{inc.status}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -963,11 +963,11 @@ export function FinanceManagement() {
               <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
-                      <TableHead>Date & ID</TableHead>
+                      <TableHead>Date</TableHead>
                       <TableHead>Details</TableHead>
-                      <TableHead>Paid By</TableHead>
+                      <TableHead className="hidden md:table-cell">Paid By</TableHead>
                       <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead className="hidden sm:table-cell">Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -979,19 +979,17 @@ export function FinanceManagement() {
                           <div className="text-xs text-gray-500">{expense.expense_id}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium text-sm">{expense.category}{expense.sub_category ? ` › ${expense.sub_category}` : ''}</div>
-                          <div className="text-xs text-gray-500 truncate max-w-[200px]">{expense.description}</div>
-                          {expense.vendor_name && <div className="text-[10px] text-gray-400">Vendor: {expense.vendor_name}</div>}
+                          <div className="font-medium text-sm">{expense.category}</div>
+                          <div className="text-xs text-gray-500 truncate max-w-[150px] hidden sm:block">{expense.description}</div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                           <div className="text-sm font-medium">{expense.paid_by_name}</div>
                           <div className="text-xs text-gray-500">{expense.paid_by_role}</div>
                         </TableCell>
                         <TableCell>
                           <div className="font-bold text-gray-900">₹{Number(expense.total_amount).toLocaleString('en-IN')}</div>
-                          <div className="text-xs text-gray-500">{expense.payment_mode}</div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           <Badge className={
                             expense.reimbursement_status === 'Approved' ? 'bg-blue-100 text-blue-800' :
                             expense.reimbursement_status === 'Reimbursed' ? 'bg-green-100 text-green-800' :
@@ -1083,9 +1081,9 @@ export function FinanceManagement() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Equity %</TableHead>
-                    <TableHead>Payment Mode</TableHead>
+                    <TableHead className="hidden sm:table-cell">Type</TableHead>
+                    <TableHead className="hidden md:table-cell">Equity</TableHead>
+                    <TableHead className="hidden lg:table-cell">Mode</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -1095,11 +1093,10 @@ export function FinanceManagement() {
                     <TableRow key={c.id}>
                       <TableCell>{new Date(c.date).toLocaleDateString('en-IN')}</TableCell>
                       <TableCell className="font-medium text-gray-900">{c.founder_name}</TableCell>
-                      <TableCell><Badge variant="outline">{c.capital_type || 'Equity'}</Badge></TableCell>
-                      <TableCell>{c.equity_percentage ? `${c.equity_percentage}%` : '-'}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell"><Badge variant="outline">{c.capital_type || 'Equity'}</Badge></TableCell>
+                      <TableCell className="hidden md:table-cell">{c.equity_percentage ? `${c.equity_percentage}%` : '-'}</TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         <div className="text-sm font-medium">{c.payment_mode || '-'}</div>
-                        {c.transaction_reference && <div className="text-xs text-gray-500">{c.transaction_reference}</div>}
                       </TableCell>
                       <TableCell className="font-bold text-gray-900">₹{Number(c.capital_contributed).toLocaleString('en-IN')}</TableCell>
                       <TableCell>
