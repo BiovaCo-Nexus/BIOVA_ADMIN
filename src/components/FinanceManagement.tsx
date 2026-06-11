@@ -111,6 +111,7 @@ export function FinanceManagement() {
 
   // New Expense State
   const [isAddingExpense, setIsAddingExpense] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [newExpense, setNewExpense] = useState<Partial<ExpenseRecord>>({
     date: new Date().toISOString().split('T')[0],
     category: "",
@@ -174,23 +175,56 @@ export function FinanceManagement() {
 
     try {
       const total = Number(newExpense.amount) + Number(newExpense.gst_amount || 0);
-      const expenseId = generateExpenseId();
 
-      const { error } = await supabase.from('expense_records').insert([{
-        ...newExpense,
-        expense_id: expenseId,
-        total_amount: total
-      }]);
+      if (editingExpenseId) {
+        const { error } = await supabase.from('expense_records').update({
+          ...newExpense,
+          total_amount: total
+        }).eq('id', editingExpenseId);
+        if (error) throw error;
+        toast({ title: "Success", description: "Expense record updated." });
+      } else {
+        const expenseId = generateExpenseId();
+        const { error } = await supabase.from('expense_records').insert([{
+          ...newExpense,
+          expense_id: expenseId,
+          total_amount: total
+        }]);
+        if (error) throw error;
+        toast({ title: "Success", description: "Expense record created." });
+      }
 
-      if (error) throw error;
-
-      toast({ title: "Success", description: "Expense record created." });
       setIsAddingExpense(false);
+      setEditingExpenseId(null);
+      setNewExpense({
+        date: new Date().toISOString().split('T')[0],
+        category: "",
+        sub_category: "",
+        description: "",
+        amount: 0,
+        gst_amount: 0,
+        total_amount: 0,
+        payment_mode: "",
+        paid_by_role: "",
+        paid_by_name: "",
+        beneficiary_name: "",
+        vendor_name: "",
+        invoice_number: "",
+        project_department: "",
+        remarks: "",
+        reimbursement_status: "Pending"
+      });
       fetchData();
     } catch (error: any) {
-      console.error("Error adding expense:", error);
+      console.error("Error saving expense:", error);
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
+  };
+
+  const handleEditExpense = (expenseItem: ExpenseRecord) => {
+    setNewExpense({ ...expenseItem });
+    setEditingExpenseId(expenseItem.id);
+    setIsAddingExpense(true);
   };
 
   const handleUpdateStatus = async (id: string, status: string) => {
@@ -562,7 +596,27 @@ export function FinanceManagement() {
               <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}><Filter className="w-4 h-4 mr-1" /> Filters</Button>
               <Button variant="outline" size="sm" onClick={exportCSV}><Download className="w-4 h-4 mr-1" /> CSV</Button>
               <Button variant="outline" size="sm" onClick={() => generatePDFReport("Expense Ledger")}><FileText className="w-4 h-4 mr-1" /> PDF</Button>
-              <Button onClick={() => setIsAddingExpense(!isAddingExpense)} className="bg-blue-600 hover:bg-blue-700" size="sm">
+              <Button onClick={() => {
+                if (isAddingExpense) {
+                  setIsAddingExpense(false);
+                  setEditingExpenseId(null);
+                  setNewExpense({
+                    date: new Date().toISOString().split('T')[0],
+                    category: "",
+                    sub_category: "",
+                    description: "",
+                    amount: 0,
+                    gst_amount: 0,
+                    total_amount: 0,
+                    payment_mode: "",
+                    paid_by_role: "",
+                    paid_by_name: "",
+                    reimbursement_status: "Pending"
+                  });
+                } else {
+                  setIsAddingExpense(true);
+                }
+              }} className="bg-blue-600 hover:bg-blue-700" size="sm">
                 {isAddingExpense ? "Cancel" : <><Plus className="w-4 h-4 mr-1" /> Record Expense</>}
               </Button>
             </div>
@@ -589,7 +643,7 @@ export function FinanceManagement() {
 
           {isAddingExpense && (
             <Card className="border-blue-100 bg-blue-50/30">
-              <CardHeader><CardTitle className="text-blue-900">New Expense Entry</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-blue-900">{editingExpenseId ? "Edit Expense Entry" : "New Expense Entry"}</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Date *</label><Input type="date" value={newExpense.date} onChange={e => setNewExpense({...newExpense, date: e.target.value})} /></div>
@@ -622,7 +676,7 @@ export function FinanceManagement() {
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Project / Department</label><Input value={newExpense.project_department || ''} onChange={e => setNewExpense({...newExpense, project_department: e.target.value})} placeholder="e.g. R&D" /></div>
                   <div className="md:col-span-2"><label className="text-xs font-medium text-gray-600 mb-1 block">Remarks</label><Input value={newExpense.remarks || ''} onChange={e => setNewExpense({...newExpense, remarks: e.target.value})} placeholder="Any additional notes..." /></div>
                 </div>
-                <Button onClick={handleAddExpense} className="w-full sm:w-auto bg-blue-600">Save Expense Record</Button>
+                <Button onClick={handleAddExpense} className="w-full sm:w-auto bg-blue-600">{editingExpenseId ? "Update Expense Record" : "Save Expense Record"}</Button>
               </CardContent>
             </Card>
           )}
@@ -680,6 +734,7 @@ export function FinanceManagement() {
                             {expense.reimbursement_status === 'Approved' && (
                               <Button size="sm" variant="outline" className="h-7 text-xs bg-green-50 text-green-600" onClick={() => handleUpdateStatus(expense.id, 'Reimbursed')}>Mark Paid</Button>
                             )}
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-blue-600" onClick={() => handleEditExpense(expense)}><Edit className="w-3 h-3" /></Button>
                             <Button size="sm" variant="outline" className="h-7 text-xs text-red-400" onClick={() => handleDeleteExpense(expense.id)}><Trash2 className="w-3 h-3" /></Button>
                           </div>
                         </TableCell>
