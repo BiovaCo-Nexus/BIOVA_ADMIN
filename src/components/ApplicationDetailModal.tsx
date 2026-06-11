@@ -180,9 +180,9 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
       logAdminActivity("INTERNAL_NOTE", `Applicant: ${application.full_name} [${application.application_id}]`, `Added an internal discussion note.`);
       setNewNote("")
       toast({ title: "Note Posted", description: "Internal note added successfully." })
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Error posting note:", e)
-      toast({ title: "Error", description: e.message || "Could not post note.", variant: "destructive" })
+      toast({ title: "Error", description: (e as Error).message || "Could not post note.", variant: "destructive" })
     } finally {
       setPostingNote(false)
     }
@@ -309,18 +309,18 @@ export function ApplicationDetailModal({ application, isOpen, onClose }: Applica
         parsedAnalysis = JSON.parse(aiData.choices[0].message.content);
       } catch (e) {
         // Fallback cleanup if the AI wrapped it in markdown codeblocks
-        const cleaned = aiData.choices[0].message.content.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '');
+        const cleaned = aiData.choices[0].message.content.replace(/```json/g, '').replace(/```/g, '');
         parsedAnalysis = JSON.parse(cleaned);
       }
       
       setAiAnalysis(parsedAnalysis);
       toast({ title: "Analysis Complete", description: "Deep AI scan finished successfully." });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("AI Analysis Error:", error);
       toast({
         title: "Analysis Failed",
-        description: error.message || "Could not complete the AI analysis. Please try again.",
+        description: (error as Error).message || "Could not complete the AI analysis. Please try again.",
         variant: "destructive"
       });
     } finally {

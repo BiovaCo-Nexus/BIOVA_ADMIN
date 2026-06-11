@@ -202,7 +202,7 @@ export function FinanceManagement() {
       setExpenses(expenseRes.data || []);
       setCapital(capitalRes.data || []);
       setIncomes(incomeRes.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching finance data:", error);
       toast({ title: "Error", description: "Failed to load financial data", variant: "destructive" });
     } finally {
@@ -266,9 +266,9 @@ export function FinanceManagement() {
         reimbursement_status: "Pending"
       });
       fetchData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving expense:", error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
     }
   };
 
@@ -280,7 +280,7 @@ export function FinanceManagement() {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      const updateData: any = { reimbursement_status: status };
+      const updateData: Partial<ExpenseRecord> = { reimbursement_status: status };
       if (status === 'Approved') updateData.approval_date = new Date().toISOString().split('T')[0];
       if (status === 'Reimbursed') updateData.reimbursement_date = new Date().toISOString().split('T')[0];
 
@@ -289,8 +289,8 @@ export function FinanceManagement() {
       
       toast({ title: "Status Updated", description: `Expense marked as ${status}` });
       fetchData();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
     }
   };
 
@@ -325,8 +325,8 @@ export function FinanceManagement() {
         paid_up_capital_allocation: undefined,
       });
       fetchData();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
     }
   };
 
@@ -343,8 +343,8 @@ export function FinanceManagement() {
       if (error) throw error;
       toast({ title: 'Deleted', description: 'Capital contribution removed.' });
       fetchData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -398,9 +398,9 @@ export function FinanceManagement() {
         status: "Received"
       });
       fetchData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving income:", error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
     }
   };
 
@@ -417,8 +417,8 @@ export function FinanceManagement() {
       if (error) throw error;
       toast({ title: 'Deleted', description: 'Income record removed.' });
       fetchData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -428,8 +428,8 @@ export function FinanceManagement() {
       if (error) throw error;
       toast({ title: "Status Updated", description: `Income marked as ${status}` });
       fetchData();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
     }
   };
 
@@ -489,8 +489,8 @@ export function FinanceManagement() {
     doc.text(`Report No: ${reportNo}`, pageWidth - 14, 18, { align: 'right' });
     doc.text(`Date: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`, pageWidth - 14, 23, { align: 'right' });
 
-    let head: any[] = [];
-    let body: any[] = [];
+    let head: string[][] = [];
+    let body: (string | number)[][] = [];
     let title = "";
     let totalLabel = "";
     let totalValue = 0;
@@ -567,7 +567,7 @@ export function FinanceManagement() {
       styles: { cellPadding: 2.5 },
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || 52;
+    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY || 52;
 
     // Total line
     doc.setDrawColor(0);
@@ -641,8 +641,8 @@ export function FinanceManagement() {
       if (error) throw error;
       toast({ title: 'Deleted', description: 'Expense record removed.' });
       fetchData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -757,7 +757,7 @@ export function FinanceManagement() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" fontSize={12} />
                       <YAxis fontSize={12} />
-                      <RechartsTooltip formatter={(v: any) => `₹${Number(v).toLocaleString('en-IN')}`} />
+                      <RechartsTooltip formatter={(v: number) => `₹${Number(v).toLocaleString('en-IN')}`} />
                       <Bar dataKey="amount" fill="#032E63" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -776,7 +776,7 @@ export function FinanceManagement() {
                         <Pie data={catData} cx="50%" cy="50%" outerRadius={75} dataKey="value" label={({ name, percent }) => `${name.substring(0,12)} ${(percent*100).toFixed(0)}%`}>
                           {catData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
-                        <RechartsTooltip formatter={(v: any) => `₹${v}`} />
+                        <RechartsTooltip formatter={(v: number) => `₹${v}`} />
                       </RechartsPieChart>
                     </ResponsiveContainer>
                   ) : <p className="text-center text-gray-400 py-16">No expense data yet</p>;
@@ -830,8 +830,8 @@ export function FinanceManagement() {
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Source *</label>
                     <Select value={newIncome.source} onValueChange={val => setNewIncome({...newIncome, source: val})}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{INCOME_SOURCES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
                   </div>
-                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Base Amount (₹) *</label><Input type="number" value={newIncome.amount || ''} onChange={e => setNewIncome({...newIncome, amount: Number(e.target.value)})} placeholder="0.00" /></div>
-                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">GST Amount (₹)</label><Input type="number" value={newIncome.gst_amount || ''} onChange={e => setNewIncome({...newIncome, gst_amount: Number(e.target.value)})} placeholder="0.00" /></div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Base Amount (₹) *</label><Input type="number" value={newIncome.amount || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewIncome({...newIncome, amount: Number(e.target.value)})} placeholder="0.00" /></div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">GST Amount (₹)</label><Input type="number" value={newIncome.gst_amount || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewIncome({...newIncome, gst_amount: Number(e.target.value)})} placeholder="0.00" /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Payment Mode</label>
                     <Select value={newIncome.payment_mode} onValueChange={val => setNewIncome({...newIncome, payment_mode: val})}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{PAYMENT_MODES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select>
                   </div>
@@ -1006,8 +1006,8 @@ export function FinanceManagement() {
                   <div className="md:col-span-2"><label className="text-xs font-medium text-gray-600 mb-1 block">Description *</label><Input value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})} placeholder="What was this expense for?" /></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Amount (Base) *</label><Input type="number" value={newExpense.amount || ''} onChange={e => setNewExpense({...newExpense, amount: Number(e.target.value)})} placeholder="0.00" /></div>
-                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">GST Amount</label><Input type="number" value={newExpense.gst_amount || ''} onChange={e => setNewExpense({...newExpense, gst_amount: Number(e.target.value)})} placeholder="0.00" /></div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Amount (Base) *</label><Input type="number" value={newExpense.amount || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewExpense({...newExpense, amount: Number(e.target.value)})} placeholder="0.00" /></div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">GST Amount</label><Input type="number" value={newExpense.gst_amount || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewExpense({...newExpense, gst_amount: Number(e.target.value)})} placeholder="0.00" /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Total Amount</label><div className="p-2 bg-gray-100 rounded-md font-bold text-gray-800 border">₹ {(Number(newExpense.amount || 0) + Number(newExpense.gst_amount || 0)).toFixed(2)}</div></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -1177,7 +1177,7 @@ export function FinanceManagement() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Date *</label><Input type="date" value={newCapital.date} onChange={e => setNewCapital({...newCapital, date: e.target.value})} /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Founder / Investor Name *</label><Input value={newCapital.founder_name} onChange={e => setNewCapital({...newCapital, founder_name: e.target.value})} placeholder="Name" /></div>
-                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Amount Contributed *</label><Input type="number" value={newCapital.capital_contributed || ''} onChange={e => setNewCapital({...newCapital, capital_contributed: Number(e.target.value)})} placeholder="0.00" /></div>
+                  <div><label className="text-xs font-medium text-gray-600 mb-1 block">Amount Contributed *</label><Input type="number" value={newCapital.capital_contributed || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCapital({...newCapital, capital_contributed: Number(e.target.value)})} placeholder="0.00" /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Equity %</label><Input type="number" value={newCapital.equity_percentage || ''} onChange={e => setNewCapital({...newCapital, equity_percentage: Number(e.target.value)})} placeholder="e.g. 50" /></div>
                   <div><label className="text-xs font-medium text-gray-600 mb-1 block">Capital Type</label>
                     <Select value={newCapital.capital_type} onValueChange={val => setNewCapital({...newCapital, capital_type: val})}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="Equity">Equity</SelectItem><SelectItem value="Debt">Debt (Loan)</SelectItem><SelectItem value="Convertible Note">Convertible Note</SelectItem></SelectContent></Select>
