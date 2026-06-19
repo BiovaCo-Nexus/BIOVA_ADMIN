@@ -50,9 +50,9 @@ const PageContentManagement = () => {
   const fetchPageContent = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase.from("page_content").select("*").eq("page_name", "our-story").single()
+      const { data, error } = await supabase.from("page_content").select("*").eq("page_name", "our-story").maybeSingle()
 
-      if (error && error.code !== "PGRST116") throw error
+      if (error) throw error
 
       if (data) {
         setPageContent(data as any)

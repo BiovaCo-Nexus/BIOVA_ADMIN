@@ -41,7 +41,7 @@ export function LocationManagement() {
 
   const fetchLocation = async () => {
     try {
-      const { data, error } = await supabase.from("contact_location").select("*").eq("is_active", true).single()
+      const { data, error } = await supabase.from("contact_location").select("*").eq("is_active", true).maybeSingle()
 
       if (error) {
         console.error("Error fetching location:", error)

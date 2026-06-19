@@ -64,11 +64,11 @@ const PostCountdownManagement = () => {
         { data: contentData, error: contentError },
         { data: countdownsData, error: countdownsError }
       ] = await Promise.all([
-        supabase.from('post_countdown_content').select('*').single(),
+        supabase.from('post_countdown_content').select('*').maybeSingle(),
         supabase.from('countdown_settings').select('*').order('created_at', { ascending: false })
       ]);
 
-      if (contentError && contentError.code !== 'PGRST116') throw contentError;
+      if (contentError) throw contentError;
       if (countdownsError) throw countdownsError;
 
       if (contentData) {

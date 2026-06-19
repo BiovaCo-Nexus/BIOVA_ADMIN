@@ -40,10 +40,9 @@ export function MaintenanceManagement() {
 
   const fetchSettings = async () => {
     try {
-      const { data, error } = await supabase.from("maintenance_settings").select("*").single()
+      const { data, error } = await supabase.from("maintenance_settings").select("*").maybeSingle()
 
-      if (error && error.code !== "PGRST116") {
-        // PGRST116 = no rows returned
+      if (error) {
         throw error
       }
 

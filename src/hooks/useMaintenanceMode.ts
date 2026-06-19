@@ -40,9 +40,9 @@ export function useMaintenanceMode() {
 
   const fetchMaintenanceSettings = async () => {
     try {
-      const { data, error } = await supabase.from("maintenance_settings").select("*").single()
+      const { data, error } = await supabase.from("maintenance_settings").select("*").maybeSingle()
 
-      if (error && error.code !== "PGRST116") {
+      if (error) {
         throw error
       }
 

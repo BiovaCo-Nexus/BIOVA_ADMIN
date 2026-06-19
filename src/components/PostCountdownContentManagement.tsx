@@ -50,9 +50,9 @@ const PostCountdownContentManagement = () => {
       const { data, error } = await supabase
         .from('post_countdown_content')
         .select('*')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) throw error;
 
       if (data) {
         setContent(data);
