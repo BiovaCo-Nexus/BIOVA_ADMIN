@@ -112,62 +112,177 @@ export function InvoiceGenerator() {
   const generatePDF = async (inv: InvoiceRecord) => {
     const doc = new jsPDF();
     
+    const margin = 10;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const rightMargin = pageWidth - margin;
+    
+    // Outer border
+    doc.setLineWidth(0.2);
+    doc.rect(margin, margin, pageWidth - 2 * margin, pageHeight - 2 * margin);
+
+    // Row 1: Header
+    doc.setFontSize(8);
+    doc.text("Page No. 1 of 1", margin + 2, margin + 4);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${inv.invoice_type.toUpperCase()} INVOICE`, pageWidth / 2, margin + 4, { align: 'center' });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Original Copy", rightMargin - 2, margin + 4, { align: 'right' });
+    doc.line(margin, margin + 6, rightMargin, margin + 6);
+
+    // Row 2: Company Info & Logo
     try {
-      const imgData = await fetch('/pwa-192x192.png')
+      const imgData = await fetch('/uploads/Logo.png')
         .then(res => res.blob())
         .then(blob => new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
           reader.readAsDataURL(blob);
         }));
-      
-      doc.addImage(imgData, 'PNG', 14, 10, 25, 25);
+      doc.addImage(imgData, 'PNG', margin + 2, margin + 8, 25, 25);
     } catch (e) {
       console.warn('Could not load logo for invoice', e);
+      doc.rect(margin + 2, margin + 8, 25, 25);
+      doc.setFontSize(10);
+      doc.text("Add\nLogo", margin + 14, margin + 20, { align: 'center' });
     }
-
-    doc.setFontSize(24);
-    doc.setTextColor(3, 46, 99); // #032E63 BiovaCo blue
-    doc.text("BIOVACO NEXUS", 45, 20);
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text("123 Innovation Drive, Tech Park", 45, 26);
-    doc.text("City, State 400001, India", 45, 31);
-    doc.text("GSTIN: 27AABCU9603R1ZX", 45, 36);
-
-    doc.setFontSize(16);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`${inv.invoice_type.toUpperCase()} INVOICE`, 140, 20);
-    doc.setFontSize(10);
-    doc.text(`Invoice Number: ${inv.invoice_number}`, 140, 26);
-    doc.text(`Date: ${new Date(inv.issue_date).toLocaleDateString()}`, 140, 31);
     
-    // Client details
+    const centerX = pageWidth / 2;
+    let currentY = margin + 10;
     doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    doc.text("Billed To:", 14, 55);
-    doc.setFontSize(10);
-    doc.text(inv.client_name, 14, 61);
+    doc.setFont("helvetica", "bold");
+    doc.text("BiovaCo Nexus Private Limited", centerX, currentY, { align: 'center' });
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    currentY += 4;
+    doc.text("Business Off: 1st Floor, RBU, TBI, Katol Rd, Bupeshnagar, Nagpur, Maharashtra 440013", centerX, currentY, { align: 'center' });
+    currentY += 3;
+    doc.text("Reg Off: H. No. 72, Bhagchand Nagar, Dhamangaon Railway, Maharashtra 444709", centerX, currentY, { align: 'center' });
+    currentY += 4;
+    doc.text("Mobile: +91 9226595332 | Email: hello@biovaco.in", centerX, currentY, { align: 'center' });
+    currentY += 4;
+    doc.text("GSTIN: 27AABCU9603R1ZX | PAN: AABCU9603R", centerX, currentY, { align: 'center' });
+    currentY += 4;
+    doc.text("CIN: U46300ME2026PTC475352", centerX, currentY, { align: 'center' });
+
+    currentY = margin + 35;
+    doc.line(margin, currentY, rightMargin, currentY);
+
+    // Row 3: Invoice Details & Transporter
+    const midX = pageWidth / 2;
+    doc.line(midX, currentY, midX, currentY + 30);
+    
+    let leftY = currentY + 5;
+    const labelX = margin + 2;
+    const valueX = margin + 35;
+    doc.setFont("helvetica", "bold"); doc.text("Invoice Number", labelX, leftY); doc.text(`: ${inv.invoice_number}`, valueX, leftY);
+    leftY += 5;
+    doc.text("Invoice Date", labelX, leftY); doc.setFont("helvetica", "normal"); doc.text(`: ${new Date(inv.issue_date).toLocaleDateString()}`, valueX, leftY);
+    leftY += 5;
+    doc.setFont("helvetica", "bold"); doc.text("Due Date", labelX, leftY); doc.setFont("helvetica", "normal"); doc.text(`: ${inv.due_date ? new Date(inv.due_date).toLocaleDateString() : 'N/A'}`, valueX, leftY);
+    leftY += 5;
+    doc.setFont("helvetica", "bold"); doc.text("Place of Supply", labelX, leftY); doc.setFont("helvetica", "normal"); doc.text(`: 27 - Maharashtra`, valueX, leftY);
+    leftY += 5;
+    doc.setFont("helvetica", "bold"); doc.text("Reverse Charge", labelX, leftY); doc.setFont("helvetica", "normal"); doc.text(`: No`, valueX, leftY);
+    
+    let rightY = currentY + 5;
+    const rLabelX = midX + 2;
+    const rValueX = midX + 35;
+    doc.setFont("helvetica", "bold"); doc.text("Transporter Details", rLabelX, rightY);
+    rightY += 5;
+    doc.text("Transporter", rLabelX, rightY); doc.setFont("helvetica", "normal"); doc.text(`: N/A`, rValueX, rightY);
+    rightY += 5;
+    doc.setFont("helvetica", "bold"); doc.text("Vehicle No.", rLabelX, rightY); doc.setFont("helvetica", "normal"); doc.text(`: N/A`, rValueX, rightY);
+    
+    currentY += 30;
+    doc.line(margin, currentY, rightMargin, currentY);
+
+    // Row 4: Billing & Shipping
+    doc.line(midX, currentY, midX, currentY + 25);
+    
+    leftY = currentY + 5;
+    doc.setFont("helvetica", "bold"); doc.text("Billing Details", labelX, leftY);
+    leftY += 5; doc.text("Name", labelX, leftY);
+    leftY += 5; doc.setFont("helvetica", "normal"); doc.text(inv.client_name, labelX, leftY);
+    leftY += 5; doc.text("GSTIN: Unregistered  | Mobile: N/A", labelX, leftY);
+
+    rightY = currentY + 5;
+    doc.setFont("helvetica", "bold"); doc.text("Shipping Details", rLabelX, rightY);
+    rightY += 5; doc.text("Name", rLabelX, rightY);
+    rightY += 5; doc.setFont("helvetica", "normal"); doc.text(inv.client_name, rLabelX, rightY);
+    rightY += 5; doc.text("GSTIN: Unregistered  | Mobile: N/A", rLabelX, rightY);
+
+    currentY += 25;
+    doc.line(margin, currentY, rightMargin, currentY);
+
+    // IRN Row
+    currentY += 5;
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.text(`IRN- N/A | Ack No.- N/A | Ack Date- N/A`, labelX, currentY);
+    currentY += 2;
     
     autoTable(doc, {
-      startY: 70,
-      headStyles: { fillColor: [8, 160, 75] }, // #08A04B
-      head: [['Description', 'Subtotal (Rs)', 'GST (Rs)', 'Total (Rs)']],
+      startY: currentY,
+      margin: { left: margin, right: margin },
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.2, textColor: [0,0,0] },
+      headStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+      columnStyles: { 0: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' } },
+      head: [['Sr.', 'Item Description', 'HSN/SAC', 'Qty', 'Unit', 'List Price', 'Disc.', 'Tax %', 'Amount (Rs)']],
       body: [
-        ['Professional Services / Products', inv.subtotal.toFixed(2), inv.gst_amount.toFixed(2), inv.total_amount.toFixed(2)]
-      ],
+        ['1', 'Professional Services / Goods', '9983', '1.00', 'Nos', inv.subtotal.toFixed(2), '0.00', '18.00', inv.subtotal.toFixed(2)]
+      ]
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || 70;
+    const finalY = (doc as any).lastAutoTable.finalY || currentY + 10;
     
-    doc.setFontSize(12);
-    doc.text(`Grand Total: Rs. ${inv.total_amount.toLocaleString('en-IN')}`, 140, finalY + 10);
+    // Totals
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("Total", midX, finalY + 5, { align: 'center' });
+    doc.text(inv.total_amount.toFixed(2), rightMargin - 2, finalY + 5, { align: 'right' });
+    doc.line(margin, finalY + 7, rightMargin, finalY + 7);
     
-    // Footer
     doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text("Thank you for your business!", 105, 280, { align: "center" });
+    doc.text(`Rs. ${inv.total_amount.toLocaleString('en-IN')} Only`, margin + 2, finalY + 12);
+    doc.text(`Settled by - Bank : 0.00 | Invoice Balance : ${inv.total_amount.toFixed(2)}`, margin + 2, finalY + 17);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Sale @18% = ${inv.subtotal.toFixed(2)}, IGST = ${inv.gst_amount.toFixed(2)} | Total Sale = ${inv.subtotal.toFixed(2)}, Tax = ${inv.gst_amount.toFixed(2)}`, margin + 2, finalY + 22);
+    doc.line(margin, finalY + 24, rightMargin, finalY + 24);
+
+    const bottomY = finalY + 24;
+    const colWidth = (pageWidth - 2 * margin) / 3;
+    doc.line(margin + colWidth, bottomY, margin + colWidth, pageHeight - margin);
+    doc.line(margin + 2 * colWidth, bottomY, margin + 2 * colWidth, pageHeight - margin);
     
+    // Left
+    doc.setFont("helvetica", "bold"); doc.text("Terms and Conditions", margin + 2, bottomY + 5);
+    doc.setFontSize(7); doc.text("E & O.E", margin + 2, bottomY + 9);
+    doc.text("1. Goods once sold will not be taken back.", margin + 2, bottomY + 13, { maxWidth: colWidth - 4 });
+    doc.text("2. Interest @ 18% p.a. will be charged if", margin + 2, bottomY + 21, { maxWidth: colWidth - 4 });
+    doc.text("   payment is not made within time.", margin + 2, bottomY + 25, { maxWidth: colWidth - 4 });
+    doc.text("3. Subject to jurisdiction only.", margin + 2, bottomY + 33, { maxWidth: colWidth - 4 });
+
+    // Middle
+    doc.rect(margin + colWidth + 20, bottomY + 5, 20, 20); // Bank QR placeholder
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold"); doc.text("Account Number:", margin + colWidth + 2, bottomY + 33);
+    doc.setFont("helvetica", "normal"); doc.text("123456789", margin + colWidth + 2, bottomY + 37);
+    doc.setFont("helvetica", "bold"); doc.text("Bank:", margin + colWidth + 2, bottomY + 43); doc.setFont("helvetica", "normal"); doc.text(" ICICI Bank", margin + colWidth + 12, bottomY + 43);
+    doc.setFont("helvetica", "bold"); doc.text("IFSC:", margin + colWidth + 2, bottomY + 49); doc.setFont("helvetica", "normal"); doc.text(" ICIC0001234", margin + colWidth + 12, bottomY + 49);
+    doc.setFont("helvetica", "bold"); doc.text("Branch:", margin + colWidth + 2, bottomY + 55); doc.setFont("helvetica", "normal"); doc.text(" Noida", margin + colWidth + 15, bottomY + 55);
+    doc.setFont("helvetica", "bold"); doc.text("Name:", margin + colWidth + 2, bottomY + 61); doc.setFont("helvetica", "normal"); doc.text(" BiovaCo Nexus", margin + colWidth + 12, bottomY + 61);
+
+    // Right
+    doc.setFont("helvetica", "bold");
+    doc.text("E-Invoice QR", margin + 2 * colWidth + colWidth/2, bottomY + 5, { align: 'center' });
+    doc.rect(margin + 2 * colWidth + 20, bottomY + 8, 20, 20); // E-Invoice QR placeholder
+    doc.text("For BiovaCo Nexus Pvt Ltd", rightMargin - 2, bottomY + 35, { align: 'right' });
+    doc.text("Signature", rightMargin - 2, bottomY + 61, { align: 'right' });
+
     doc.save(`${inv.invoice_number}.pdf`);
   };
 
