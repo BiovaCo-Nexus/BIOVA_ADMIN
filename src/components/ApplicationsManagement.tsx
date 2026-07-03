@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Mail, Eye, Clock, Calendar, CheckCircle, XCircle, Download } from "lucide-react"
+import { Mail, Eye, Clock, Calendar, CheckCircle, XCircle, Download, FileText } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { ContactRemarkModal } from "@/components/ContactRemarkModal"
@@ -38,9 +38,10 @@ const SENDER_NAME = "BiovaCo Nexus"
 interface ApplicationsManagementProps {
   initialTargetId?: string;
   onClearTargetId?: () => void;
+  onNavigateToTab?: (tab: string, payload?: string) => void;
 }
 
-export function ApplicationsManagement({ initialTargetId, onClearTargetId }: ApplicationsManagementProps = {}) {
+export function ApplicationsManagement({ initialTargetId, onClearTargetId, onNavigateToTab }: ApplicationsManagementProps = {}) {
   const [applications, setApplications] = useState<JobApplication[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -756,6 +757,20 @@ export function ApplicationsManagement({ initialTargetId, onClearTargetId }: App
                     <Download className="h-4 w-4 mr-2" />
                     Resume
                   </Button>
+                  {(optimisticStatus[app.application_id] || app.status) === 'accepted' && onNavigateToTab && (
+                    <Button 
+                      size="sm" 
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                      onClick={() => onNavigateToTab("documents", JSON.stringify({
+                        type: 'offer_letter',
+                        name: app.full_name,
+                        role: getJobRoleLabel(app.role)
+                      }))}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Offer
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

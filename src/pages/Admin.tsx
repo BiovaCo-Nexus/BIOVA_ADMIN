@@ -56,6 +56,8 @@ import { DashboardAnalytics } from "@/components/DashboardAnalytics"
 import { ApplicationsManagement } from "@/components/ApplicationsManagement"
 import { AdminActivityLogs } from "@/components/AdminActivityLogs"
 import { FinanceManagement } from "@/components/FinanceManagement"
+import { NewsManagement } from "@/components/NewsManagement"
+import { DocumentGenerator } from "@/components/DocumentGenerator"
 
 interface NewsletterSubscription {
   id: string
@@ -77,6 +79,7 @@ const INITIAL_TABS = [
   { id: "newsletter", label: "Newsletter", icon: Mail },
   { id: "interns", label: "Interns", icon: Users },
   { id: "content", label: "Our Story", icon: FileText },
+  { id: "documents", label: "Document Generator", icon: FileText, className: "text-purple-700 bg-purple-50/50 hover:bg-purple-100" },
   { id: "jobs", label: "Job Positions", icon: Briefcase },
   { id: "videos", label: "Videos", icon: Video },
   { id: "location", label: "Location", icon: MapPin },
@@ -88,6 +91,7 @@ const INITIAL_TABS = [
   { id: "social", label: "Social Links", icon: Share2 },
   { id: "finance", label: "Finance & Expenses", icon: IndianRupee, className: "text-[#08A04B] bg-[#08A04B]/10 hover:bg-[#08A04B]/20" },
   { id: "audit", label: "Audit Logs", icon: Activity, className: "text-blue-700 bg-blue-50/50 hover:bg-blue-100" },
+  { id: "news", label: "News & Press", icon: FileText, className: "text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100" },
 ];
 
 const Admin = () => {
@@ -95,6 +99,7 @@ const Admin = () => {
   const [targetApplicationId, setTargetApplicationId] = useState<string | undefined>()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [documentPayload, setDocumentPayload] = useState<string | undefined>()
   const navigate = useNavigate()
   const { toast } = useToast()
 
@@ -175,6 +180,9 @@ const Admin = () => {
   const handleNavigateToTab = (tab: string, payload?: string) => {
     if (tab === "applications" && payload) {
       setTargetApplicationId(payload)
+    }
+    if (tab === "documents" && payload) {
+      setDocumentPayload(payload)
     }
     setActiveTab(tab)
   }
@@ -274,11 +282,12 @@ const Admin = () => {
 
             {activeTab === "dashboard" && <DashboardAnalytics user={user} onNavigateToTab={handleNavigateToTab} />}
             {activeTab === "audit" && <AdminActivityLogs onNavigateToTab={handleNavigateToTab} />}
-            {activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} />}
+            {activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} onNavigateToTab={handleNavigateToTab} />}
             {activeTab === "posts" && <MarketingPostsManagement />}
             {activeTab === "newsletter" && <NewsletterManagement />}
-            {activeTab === "interns" && <InternManagement />}
-            {activeTab === "content" && <PageContentManagement />}
+            { activeTab === "interns" && <InternManagement /> }
+            { activeTab === "documents" && <DocumentGenerator initialPayload={documentPayload} onClearPayload={() => setDocumentPayload(undefined)} /> }
+            { activeTab === "content" && <PageContentManagement /> }
             {activeTab === "jobs" && <JobPositionsManagement />}
             {activeTab === "videos" && <VideoManagement />}
             {activeTab === "location" && <LocationManagement />}
@@ -288,6 +297,7 @@ const Admin = () => {
             {activeTab === "models3d" && <Model3DManagement />}
             {activeTab === "social" && <SocialLinksManagement />}
             {activeTab === "finance" && <FinanceManagement />}
+            {activeTab === "news" && <NewsManagement />}
           </div>
         </main>
       </div>
