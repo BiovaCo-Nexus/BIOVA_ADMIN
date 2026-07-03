@@ -33,6 +33,11 @@ import {
   Share2,
   Activity,
   IndianRupee,
+  ShoppingCart,
+  Receipt,
+  Package,
+  Truck,
+  CreditCard
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 import { supabase } from "@/integrations/supabase/client"
@@ -54,10 +59,9 @@ import { NewsletterManagement } from "@/components/NewsletterManagement"
 import { MarketingPostsManagement } from "@/components/MarketingPostsManagement"
 import { DashboardAnalytics } from "@/components/DashboardAnalytics"
 import { ApplicationsManagement } from "@/components/ApplicationsManagement"
-import { AdminActivityLogs } from "@/components/AdminActivityLogs"
-import { FinanceManagement } from "@/components/FinanceManagement"
-import { NewsManagement } from "@/components/NewsManagement"
 import { DocumentGenerator } from "@/components/DocumentGenerator"
+import { BusinessManagement } from "@/components/BusinessManagement"
+import { NewsManagement } from "@/components/NewsManagement"
 
 interface NewsletterSubscription {
   id: string
@@ -89,7 +93,7 @@ const INITIAL_TABS = [
   { id: "posts", label: "Marketing Posts", icon: FileText },
   { id: "models3d", label: "3D Models", icon: Box },
   { id: "social", label: "Social Links", icon: Share2 },
-  { id: "finance", label: "Finance & Expenses", icon: IndianRupee, className: "text-[#08A04B] bg-[#08A04B]/10 hover:bg-[#08A04B]/20" },
+  { id: "business", label: "Business & ERP", icon: Briefcase, className: "text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 font-bold border border-indigo-200" },
   { id: "audit", label: "Audit Logs", icon: Activity, className: "text-blue-700 bg-blue-50/50 hover:bg-blue-100" },
   { id: "news", label: "News & Press", icon: FileText, className: "text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100" },
 ];
@@ -296,7 +300,7 @@ const Admin = () => {
             {activeTab === "maintenance" && <MaintenanceManagement />}
             {activeTab === "models3d" && <Model3DManagement />}
             {activeTab === "social" && <SocialLinksManagement />}
-            {activeTab === "finance" && <FinanceManagement />}
+            {activeTab === "business" && <BusinessManagement />}
             {activeTab === "news" && <NewsManagement />}
           </div>
         </main>

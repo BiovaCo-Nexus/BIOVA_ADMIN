@@ -27,7 +27,12 @@ import {
   Upload,
   Edit,
   Wallet,
-  Printer
+  Printer,
+  ShoppingCart,
+  BarChart3,
+  Calculator,
+  Receipt,
+  MapPin
 } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, CartesianGrid, Legend } from "recharts";
 import jsPDF from "jspdf";
@@ -93,16 +98,19 @@ export interface CapitalContribution {
 }
 
 const EXPENSE_CATEGORIES = [
+  "Raw Materials",
+  "Packaging",
+  "Shipping",
+  "Marketing",
   "Office Supplies",
   "Travel & Transport",
   "Software & Subscriptions",
-  "Marketing & Advertising",
   "Meals & Entertainment",
   "Legal & Professional Fees",
   "Rent & Utilities",
   "Company Registration",
   "Hardware & Equipment",
-  "Miscellaneous"
+  "Miscellaneous Expenses"
 ];
 
 const INCOME_SOURCES = [
@@ -131,6 +139,39 @@ export function FinanceManagement() {
   const [incomes, setIncomes] = useState<IncomeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingFile(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+      const filePath = `expense_bills/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('documents') // Ensure you have a 'documents' bucket created in Supabase
+        .upload(filePath, file);
+
+      if (uploadError) {
+        // Fallback: If 'documents' bucket doesn't exist, try 'public' bucket or similar, but for now just throw
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
+      
+      setNewExpense(prev => ({ ...prev, bill_url: data.publicUrl }));
+      toast({ title: "Success", description: "Bill uploaded successfully." });
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast({ title: "Upload Failed", description: error.message || "Please ensure the 'documents' bucket exists in Supabase Storage and is public.", variant: "destructive" });
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
 
   // --- Printing Settings State ---
   const [printMode, setPrintMode] = useState(() => localStorage.getItem("printMode") || "standard");
@@ -881,6 +922,19 @@ const calculateValuation = () => {
 
 const valuationMetrics = calculateValuation();
 
+// --- Advanced Financial Calculations (P&L, GST, Cash Flow) ---
+const cogsExpenses = expenses.filter(e => ['Raw Materials', 'Packaging', 'Shipping'].includes(e.category));
+const totalCOGS = cogsExpenses.reduce((sum, e) => sum + Number(e.total_amount), 0);
+const operatingExpenses = totalExpenses - totalCOGS;
+const grossProfit = totalIncome - totalCOGS;
+
+const gstCollected = incomes.filter(i => i.status === 'Received').reduce((sum, i) => sum + Number(i.gst_amount || 0), 0);
+const gstPaid = expenses.filter(e => e.reimbursement_status !== 'Rejected').reduce((sum, e) => sum + Number(e.gst_amount || 0), 0);
+const netGstPayable = gstCollected - gstPaid;
+
+const totalReceivables = pendingIncome;
+const totalPayables = pendingReimbursements;
+
 // Filtered Expenses
 const filteredExpenses = expenses.filter(e => {
   if (filterDateFrom && e.date < filterDateFrom) return false;
@@ -904,6 +958,55 @@ const monthlyData = (() => {
 // Registration Expenses
 const registrationExpenses = expenses.filter(e => e.category === 'Company Registration');
 const totalRegistration = registrationExpenses.reduce((s, e) => s + Number(e.total_amount), 0);
+
+// --- Sales Dashboard Calculations ---
+const salesIncomes = incomes.filter(i => i.source === "Product Sales" && i.status === 'Received');
+
+const todayStr = new Date().toISOString().split('T')[0];
+const todaySales = salesIncomes.filter(i => i.date === todayStr).reduce((sum, i) => sum + Number(i.total_amount), 0);
+
+const sevenDaysAgo = new Date();
+sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+const weekStr = sevenDaysAgo.toISOString().split('T')[0];
+const weekSales = salesIncomes.filter(i => i.date >= weekStr).reduce((sum, i) => sum + Number(i.total_amount), 0);
+
+const thirtyDaysAgo = new Date();
+thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+const monthStr = thirtyDaysAgo.toISOString().split('T')[0];
+const monthSales = salesIncomes.filter(i => i.date >= monthStr).reduce((sum, i) => sum + Number(i.total_amount), 0);
+
+const ordersCount = salesIncomes.length;
+
+// Top Selling Products (Group by description)
+const productSalesMap: Record<string, { count: number; total: number }> = {};
+salesIncomes.forEach(inc => {
+  const productName = inc.description || "Unknown Product";
+  if (!productSalesMap[productName]) {
+    productSalesMap[productName] = { count: 0, total: 0 };
+  }
+  productSalesMap[productName].count += 1;
+  productSalesMap[productName].total += Number(inc.total_amount);
+});
+
+const topSellingProducts = Object.entries(productSalesMap)
+  .map(([name, data]) => ({ name, ...data }))
+  .sort((a, b) => b.total - a.total)
+  .slice(0, 5);
+
+// Revenue Graph (Daily)
+const salesGraphData = (() => {
+  const dates: Record<string, number> = {};
+  salesIncomes.forEach(i => {
+    const key = new Date(i.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    dates[key] = (dates[key] || 0) + Number(i.total_amount);
+  });
+  // Sort dates chronologically before slicing
+  return Object.entries(dates)
+    .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+    .map(([name, amount]) => ({ name, amount }))
+    .slice(-14);
+})();
+// ------------------------------------
 
 // Delete Expense
 const handleDeleteExpense = async (id: string) => {
@@ -932,7 +1035,6 @@ const exportCSV = () => {
   a.click();
 };
 
-// CSV Export for Income
 const exportIncomeCSV = () => {
   const headers = 'Date,Income ID,Source,Description,Client,Amount,GST,Total,Payment Mode,Status,Invoice\n';
   const rows = incomes.map(inc =>
@@ -946,6 +1048,68 @@ const exportIncomeCSV = () => {
   a.click();
 };
 
+const exportTaxCSV = () => {
+  const headers = 'Date,Type,Category/Source,Description,Amount,GST Amount,Total Amount\n';
+  const expenseRows = expenses.map(e => 
+    `${e.date},Expense (Input),${e.category},"${e.description}",${e.amount},${e.gst_amount},${e.total_amount}`
+  ).join('\n');
+  const incomeRows = incomes.map(i => 
+    `${i.date},Income (Output),${i.source},"${i.description}",${i.amount},${i.gst_amount},${i.total_amount}`
+  ).join('\n');
+  
+  const blob = new Blob([headers + incomeRows + '\n' + expenseRows], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `BiovaCo_GST_Tax_Report_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+};
+
+const downloadCSV = (content: string, filename: string) => {
+  const blob = new Blob([content], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `BiovaCo_${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+};
+
+const exportPnLCSV = () => {
+  const content = `Profit & Loss Statement\nDate,${new Date().toLocaleDateString()}\n\nCategory,Amount\nTotal Revenue,${totalIncome}\nCost of Goods Sold (COGS),-${totalCOGS}\nGross Profit,${grossProfit}\nOperating Expenses,-${operatingExpenses}\nNet Profit,${netProfitLoss}\n`;
+  downloadCSV(content, 'Profit_And_Loss');
+};
+
+const exportBalanceSheetCSV = () => {
+  const content = `Balance Sheet\nDate,${new Date().toLocaleDateString()}\n\nAssets,Amount\nCash & Bank (Net Cash),${cashFlow}\nAccounts Receivable,${totalReceivables}\nTotal Assets,${cashFlow + totalReceivables}\n\nLiabilities & Equity,Amount\nAccounts Payable,${totalPayables}\nCapital/Equity,${totalCapital}\nRetained Earnings,${netProfitLoss}\nTotal Liabilities & Equity,${totalPayables + totalCapital + netProfitLoss}\n`;
+  downloadCSV(content, 'Balance_Sheet');
+};
+
+const exportCashFlowCSV = () => {
+  const content = `Cash Flow Statement\nDate,${new Date().toLocaleDateString()}\n\nCategory,Amount\nOperating Cash Inflow (Sales/Income),${totalIncome}\nFinancing Cash Inflow (Capital),${totalCapital}\nTotal Cash Inflow,${totalIncome + totalCapital}\nTotal Cash Outflow (Expenses),-${totalExpenses}\nNet Cash Available,${cashFlow}\n`;
+  downloadCSV(content, 'Cash_Flow_Statement');
+};
+
+const exportSalesByProductCSV = () => {
+  const content = `Sales by Product\nDate,${new Date().toLocaleDateString()}\n\nProduct,Quantity Sold,Total Revenue\n` + 
+    topSellingProducts.map(p => `"${p.name}",${p.count},${p.total}`).join('\n');
+  downloadCSV(content, 'Sales_By_Product');
+};
+
+const exportSalesByCityCSV = () => {
+  const cityMap: Record<string, number> = {};
+  salesIncomes.forEach(i => {
+    let city = "Unknown / Online";
+    if (i.client_name) {
+       const parts = i.client_name.split('-');
+       city = parts.length > 1 ? parts[parts.length - 1].trim() : i.client_name;
+    }
+    cityMap[city] = (cityMap[city] || 0) + Number(i.total_amount);
+  });
+  const content = `Sales by City / Client\nDate,${new Date().toLocaleDateString()}\n\nCity/Client,Total Revenue\n` +
+    Object.entries(cityMap).map(([city, total]) => `"${city}",${total}`).join('\n');
+  downloadCSV(content, 'Sales_By_City');
+};
+
 if (loading) {
   return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>;
 }
@@ -957,6 +1121,9 @@ return (
       <Button variant={activeTab === "dashboard" ? "default" : "outline"} onClick={() => setActiveTab("dashboard")} className="flex-1 sm:flex-none">
         <PieChart className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Dashboard</span>
       </Button>
+      <Button variant={activeTab === "sales" ? "default" : "outline"} onClick={() => setActiveTab("sales")} className="flex-1 sm:flex-none bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-200">
+        <ShoppingCart className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Sales</span>
+      </Button>
       <Button variant={activeTab === "income" ? "default" : "outline"} onClick={() => setActiveTab("income")} className="flex-1 sm:flex-none">
         <Wallet className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Income</span>
       </Button>
@@ -965,6 +1132,9 @@ return (
       </Button>
       <Button variant={activeTab === "capital" ? "default" : "outline"} onClick={() => setActiveTab("capital")} className="flex-1 sm:flex-none">
         <Building2 className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Capital</span>
+      </Button>
+      <Button variant={activeTab === "analytics" ? "default" : "outline"} onClick={() => setActiveTab("analytics")} className="flex-1 sm:flex-none bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-200">
+        <BarChart3 className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Analytics & GST</span>
       </Button>
       <Button variant={activeTab === "reports" ? "default" : "outline"} onClick={() => setActiveTab("reports")} className="flex-1 sm:flex-none">
         <Download className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Reports</span>
@@ -1087,6 +1257,80 @@ return (
                   </ResponsiveContainer>
                 ) : <p className="text-center text-gray-400 py-16">No expense data yet</p>;
               })()}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )}
+
+    {/* SALES DASHBOARD TAB */}
+    {activeTab === "sales" && (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-l-4 border-l-blue-500 shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium text-gray-500 mb-1">Today's Sales</p>
+              <div className="flex items-center"><IndianRupee className="w-4 h-4 text-gray-400 mr-1" /><h3 className="text-xl font-bold text-gray-800">{todaySales.toLocaleString('en-IN')}</h3></div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-indigo-500 shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium text-gray-500 mb-1">This Week's Sales</p>
+              <div className="flex items-center"><IndianRupee className="w-4 h-4 text-gray-400 mr-1" /><h3 className="text-xl font-bold text-indigo-700">{weekSales.toLocaleString('en-IN')}</h3></div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-emerald-500 shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium text-gray-500 mb-1">This Month's Sales</p>
+              <div className="flex items-center"><IndianRupee className="w-4 h-4 text-emerald-500 mr-1" /><h3 className="text-xl font-bold text-emerald-700">{monthSales.toLocaleString('en-IN')}</h3></div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-orange-500 shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium text-gray-500 mb-1">Total Orders Count</p>
+              <div className="flex items-center"><ShoppingCart className="w-4 h-4 text-orange-500 mr-2" /><h3 className="text-xl font-bold text-orange-700">{ordersCount}</h3></div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2">
+            <CardHeader><CardTitle className="text-lg">Revenue Graph (Product Sales)</CardTitle></CardHeader>
+            <CardContent className="h-80">
+              {salesGraphData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={salesGraphData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
+                    <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} formatter={(v: number) => `₹${Number(v).toLocaleString('en-IN')}`} />
+                    <Bar dataKey="amount" fill="#f97316" radius={[4, 4, 0, 0]} barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <p className="text-center text-gray-400 py-24">No sales data available to chart.</p>}
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Top Selling Products</CardTitle></CardHeader>
+            <CardContent>
+              {topSellingProducts.length > 0 ? (
+                <div className="space-y-4">
+                  {topSellingProducts.map((product, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                      <div className="flex flex-col overflow-hidden mr-2">
+                        <span className="text-sm font-semibold text-gray-800 truncate" title={product.name}>{product.name}</span>
+                        <span className="text-xs text-gray-500">{product.count} Order{product.count > 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="text-sm font-bold text-emerald-600 whitespace-nowrap">
+                        ₹{product.total.toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-400 py-16">No products sold yet.</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -1333,7 +1577,14 @@ return (
                 <div><label className="text-xs font-medium text-gray-600 mb-1 block">Vendor Name</label><Input value={newExpense.vendor_name || ''} onChange={e => setNewExpense({ ...newExpense, vendor_name: e.target.value })} placeholder="Vendor" /></div>
                 <div><label className="text-xs font-medium text-gray-600 mb-1 block">Invoice Number</label><Input value={newExpense.invoice_number || ''} onChange={e => setNewExpense({ ...newExpense, invoice_number: e.target.value })} placeholder="INV-123" /></div>
                 <div><label className="text-xs font-medium text-gray-600 mb-1 block">Project / Department</label><Input value={newExpense.project_department || ''} onChange={e => setNewExpense({ ...newExpense, project_department: e.target.value })} placeholder="e.g. R&D" /></div>
-                <div className="md:col-span-2"><label className="text-xs font-medium text-gray-600 mb-1 block">Remarks</label><Input value={newExpense.remarks || ''} onChange={e => setNewExpense({ ...newExpense, remarks: e.target.value })} placeholder="Any additional notes..." /></div>
+                <div><label className="text-xs font-medium text-gray-600 mb-1 block">Upload Bill / Invoice (PDF/Image)</label>
+                  <div className="flex gap-2 items-center">
+                    <Input type="file" onChange={handleFileUpload} accept=".pdf,.png,.jpg,.jpeg" disabled={isUploadingFile} className="text-xs" />
+                    {isUploadingFile && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+                  </div>
+                  {newExpense.bill_url && <a href={newExpense.bill_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline mt-1 inline-block">View Uploaded Bill</a>}
+                </div>
+                <div className="md:col-span-1"><label className="text-xs font-medium text-gray-600 mb-1 block">Remarks</label><Input value={newExpense.remarks || ''} onChange={e => setNewExpense({ ...newExpense, remarks: e.target.value })} placeholder="Any notes..." /></div>
               </div>
               <Button onClick={handleAddExpense} className="w-full sm:w-auto bg-blue-600">{editingExpenseId ? "Update Expense Record" : "Save Expense Record"}</Button>
             </CardContent>
@@ -1362,6 +1613,11 @@ return (
                     <div className="font-medium text-sm text-gray-800">{expense.category}</div>
                     <div className="text-xs text-gray-600 mt-1">{expense.description}</div>
                     <div className="text-xs text-gray-500 mt-1">Paid by: {expense.paid_by_name} • {expense.payment_mode} {expense.transaction_ref_number ? `(${expense.transaction_ref_number})` : ''}</div>
+                    {expense.bill_url && (
+                      <div className="mt-2">
+                        <a href={expense.bill_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1"><FileText className="w-3 h-3" /> View Bill</a>
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-between items-center pt-1">
                     <div className="font-bold text-gray-900 text-lg">₹{Number(expense.total_amount).toLocaleString('en-IN')}</div>
@@ -1407,6 +1663,9 @@ return (
                       <TableCell>
                         <div className="font-medium text-sm">{expense.category}</div>
                         <div className="text-xs text-gray-500 truncate max-w-[150px] hidden sm:block">{expense.description}</div>
+                        {expense.bill_url && (
+                          <a href={expense.bill_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1"><FileText className="w-3 h-3" /> View Bill</a>
+                        )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <div className="text-sm font-medium">{expense.paid_by_name}</div>
@@ -1572,12 +1831,140 @@ return (
       </div>
     )}
 
+    {/* ANALYTICS & GST TAB */}
+    {activeTab === "analytics" && (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Profit & Loss Statement */}
+          <Card className="border-t-4 border-t-indigo-600 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center"><Calculator className="w-5 h-5 mr-2 text-indigo-600" /> Profit & Loss Statement</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 mt-4">
+                <div className="flex justify-between text-sm"><span>Total Revenue</span><span className="font-semibold">₹{totalIncome.toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-sm text-red-500"><span>Cost of Goods Sold (COGS)</span><span>- ₹{totalCOGS.toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-sm font-bold border-t pt-2 border-gray-100"><span>Gross Profit</span><span>₹{grossProfit.toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-sm text-red-500 mt-2"><span>Operating Expenses</span><span>- ₹{operatingExpenses.toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-base font-black border-t-2 pt-2 border-gray-200 mt-2">
+                  <span>Net Profit</span>
+                  <span className={netProfitLoss >= 0 ? "text-emerald-600" : "text-rose-600"}>₹{netProfitLoss.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Cash Flow */}
+          <Card className="border-t-4 border-t-emerald-500 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center"><Wallet className="w-5 h-5 mr-2 text-emerald-500" /> Cash Flow Statement</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 mt-4">
+                <div className="flex justify-between text-sm text-emerald-600"><span>Cash Inflow (Income + Capital)</span><span className="font-semibold">₹{(totalIncome + totalCapital).toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-sm text-rose-500"><span>Cash Outflow (Expenses)</span><span>- ₹{totalExpenses.toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-base font-black border-t-2 pt-2 border-gray-200 mt-2">
+                  <span>Net Cash Available</span>
+                  <span className={cashFlow >= 0 ? "text-blue-600" : "text-rose-600"}>₹{cashFlow.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* GST Module */}
+          <Card className="border-t-4 border-t-orange-500 shadow-sm">
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-lg flex items-center"><Receipt className="w-5 h-5 mr-2 text-orange-500" /> GST Tax Module</CardTitle>
+                  <CardDescription>Estimated input/output tax summary</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={exportTaxCSV} className="text-xs">
+                  <Download className="w-3 h-3 mr-1"/> Export Report
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 mt-2">
+                <div className="flex justify-between text-sm text-emerald-600"><span>GST Collected (Output Tax)</span><span className="font-semibold">₹{gstCollected.toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-sm text-rose-500"><span>GST Paid (Input Tax Credit)</span><span>- ₹{gstPaid.toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-sm font-bold border-t pt-2 border-gray-100 mt-2">
+                  <span>Net GST Payable</span>
+                  <span className={netGstPayable > 0 ? "text-orange-600" : "text-emerald-600"}>
+                    {netGstPayable > 0 ? `₹${netGstPayable.toLocaleString('en-IN')} (Payable)` : `₹${Math.abs(netGstPayable).toLocaleString('en-IN')} (Credit)`}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Receivables & Payables */}
+          <Card className="border-t-4 border-t-purple-500 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center"><Activity className="w-5 h-5 mr-2 text-purple-500" /> Receivables & Payables</CardTitle>
+              <CardDescription>Pending dues and obligations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 mt-2">
+                <div className="flex justify-between text-sm">
+                  <span className="flex flex-col">
+                    <span className="text-emerald-600 font-medium">Accounts Receivable (A/R)</span>
+                    <span className="text-xs text-gray-400">Customers who haven't paid</span>
+                  </span>
+                  <span className="font-semibold text-emerald-600">₹{totalReceivables.toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between text-sm pt-2 border-t border-gray-100">
+                  <span className="flex flex-col">
+                    <span className="text-rose-600 font-medium">Accounts Payable (A/P)</span>
+                    <span className="text-xs text-gray-400">Suppliers/Staff you need to pay</span>
+                  </span>
+                  <span className="font-semibold text-rose-600">₹{totalPayables.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )}
+
     {/* REPORTS TAB */}
     {activeTab === "reports" && (
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h3 className="text-lg font-semibold text-gray-800">Generate Professional PDF Reports</h3>
+          <h3 className="text-lg font-semibold text-gray-800">Generate Professional PDF & CSV Reports</h3>
         </div>
+
+        {/* Financial Report Exports */}
+        <Card className="border border-emerald-100 bg-emerald-50/10 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-emerald-900 flex items-center gap-2">
+              <Download className="w-5 h-5 text-emerald-600" />
+              Core Financial Reports (CSV Exports)
+            </CardTitle>
+            <CardDescription>
+              Download detailed breakdown of your business financials.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              <Button variant="outline" className="w-full flex justify-start border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={exportPnLCSV}>
+                <FileText className="w-4 h-4 mr-2" /> Profit & Loss
+              </Button>
+              <Button variant="outline" className="w-full flex justify-start border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={exportBalanceSheetCSV}>
+                <Building2 className="w-4 h-4 mr-2" /> Balance Sheet
+              </Button>
+              <Button variant="outline" className="w-full flex justify-start border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={exportCashFlowCSV}>
+                <Wallet className="w-4 h-4 mr-2" /> Cash Flow
+              </Button>
+              <Button variant="outline" className="w-full flex justify-start border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={exportSalesByProductCSV}>
+                <ShoppingCart className="w-4 h-4 mr-2" /> Sales by Product
+              </Button>
+              <Button variant="outline" className="w-full flex justify-start border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={exportSalesByCityCSV}>
+                <MapPin className="w-4 h-4 mr-2" /> Sales by City
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Printing & Layout settings */}
         <Card className="border border-indigo-100 bg-indigo-50/10 shadow-sm">
