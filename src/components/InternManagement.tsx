@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Plus, CheckCircle, XCircle, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, CheckCircle, XCircle, Edit, Trash2, Clock } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Define interfaces
@@ -39,12 +39,14 @@ interface Intern {
   project_department?: string;
   joining_date?: string;
   end_date?: string;
-  status: 'Active' | 'Completed' | 'Terminated';
+  status: 'Active' | 'Completed' | 'Terminated' | 'Pending Onboarding';
   photo_url?: string;
   position: string;
   bio?: string;
   is_featured?: boolean;
   created_at: string;
+  is_from_application?: boolean;
+  application_id?: string;
 }
 
 export default function TeamManagement() {
@@ -73,20 +75,42 @@ export default function TeamManagement() {
       setLoading(true);
       const [
         { data: internsData, error: internsError },
-        { data: membersData, error: membersError }
+        { data: membersData, error: membersError },
+        { data: applicationsData, error: applicationsError }
       ] = await Promise.all([
         supabase.from('interns').select('*').order('created_at', { ascending: false }),
-        supabase.from('team_members').select('*').order('created_at', { ascending: false })
+        supabase.from('team_members').select('*').order('created_at', { ascending: false }),
+        supabase.from('job_applications').select('*').eq('status', 'Accepted')
       ]);
 
       if (internsError) throw internsError;
       if (membersError) throw membersError;
+      if (applicationsError) throw applicationsError;
 
-      setInterns((internsData || []).map(intern => ({
-        ...intern,
-        status: intern.status as 'Active' | 'Completed' | 'Terminated',
-        created_at: intern.created_at
-      })));
+      const existingEmails = new Set((internsData || []).map(i => i.email));
+      
+      const acceptedApplications = (applicationsData || [])
+        .filter(app => !existingEmails.has(app.email))
+        .map(app => ({
+          id: `app_${app.id}`,
+          name: app.full_name,
+          email: app.email,
+          contact: app.phone,
+          status: 'Pending Onboarding' as const,
+          position: app.role || 'Intern',
+          created_at: app.created_at,
+          is_from_application: true,
+          application_id: app.id
+        }));
+
+      setInterns([
+        ...acceptedApplications,
+        ...(internsData || []).map(intern => ({
+          ...intern,
+          status: intern.status as 'Active' | 'Completed' | 'Terminated',
+          created_at: intern.created_at
+        }))
+      ]);
       setTeamMembers((membersData || []).map(member => ({
         ...member,
         email: member.email || '',
@@ -251,7 +275,7 @@ export default function TeamManagement() {
         photo_url: photoUrl || null
       };
 
-      if (currentIntern.id) {
+      if (currentIntern.id && !currentIntern.is_from_application) {
         // Update
         const { error } = await supabase
           .from('interns')
@@ -260,12 +284,17 @@ export default function TeamManagement() {
         if (error) throw error;
         toast({ title: 'Success', description: 'Intern updated' });
       } else {
-        // Create
+        // Create (whether brand new or onboarded from application)
+        // Set a default status if it's 'Pending Onboarding' during save
+        if (internData.status === 'Pending Onboarding' as any) {
+            internData.status = 'Active';
+        }
+        
         const { error } = await supabase
           .from('interns')
           .insert([internData]);
         if (error) throw error;
-        toast({ title: 'Success', description: 'Intern added' });
+        toast({ title: 'Success', description: 'Intern added successfully' });
       }
 
       setIsInternDialogOpen(false);
@@ -285,8 +314,13 @@ export default function TeamManagement() {
     const confirm = window.confirm('Delete this intern?');
     if (!confirm) return;
 
+    const intern = interns.find(i => i.id === id);
+    if (intern?.is_from_application) {
+      toast({ title: 'Notice', description: 'This is an accepted application. To remove, change its status in the Job Applications tab.' });
+      return;
+    }
+
     try {
-      const intern = interns.find(i => i.id === id);
       if (intern?.photo_url) {
         const photoPath = intern.photo_url.split('/').pop();
         await supabase.storage.from('intern-photos').remove([`public/${photoPath}`]);
@@ -309,7 +343,13 @@ export default function TeamManagement() {
     }
   };
 
-  const updateInternStatus = async (id: string, status: 'Active' | 'Completed' | 'Terminated') => {
+  const updateInternStatus = async (id: string, status: 'Active' | 'Completed' | 'Terminated' | 'Pending Onboarding') => {
+    const intern = interns.find(i => i.id === id);
+    if (intern?.is_from_application) {
+      toast({ title: 'Notice', description: 'Please click Edit and save this profile to complete onboarding before changing status.' });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('interns')
@@ -343,7 +383,8 @@ export default function TeamManagement() {
   const statusColors = {
     Active: 'bg-green-100 text-green-800',
     Completed: 'bg-blue-100 text-blue-800',
-    Terminated: 'bg-red-100 text-red-800'
+    Terminated: 'bg-red-100 text-red-800',
+    'Pending Onboarding': 'bg-yellow-100 text-yellow-800'
   };
 
   const roleColors = {
@@ -443,6 +484,8 @@ export default function TeamManagement() {
                           <Badge className={statusColors[intern.status]}>
                             {intern.status === 'Active' ? (
                               <CheckCircle className="mr-1 h-3 w-3" />
+                            ) : intern.status === 'Pending Onboarding' ? (
+                              <Clock className="mr-1 h-3 w-3" />
                             ) : (
                               <XCircle className="mr-1 h-3 w-3" />
                             )}
@@ -459,21 +502,23 @@ export default function TeamManagement() {
                             }}
                           >
                             <Edit className="mr-1 h-4 w-4" />
-                            Edit
+                            {intern.is_from_application ? 'Onboard' : 'Edit'}
                           </Button>
                           <Button
                             variant="destructive"
                             size="sm"
                             onClick={() => deleteIntern(intern.id)}
+                            disabled={intern.is_from_application}
                           >
                             <Trash2 className="mr-1 h-4 w-4" />
                             Delete
                           </Button>
                           <Select
                             value={intern.status}
-                            onValueChange={(value: 'Active' | 'Completed' | 'Terminated') =>
+                            onValueChange={(value: 'Active' | 'Completed' | 'Terminated' | 'Pending Onboarding') =>
                               updateInternStatus(intern.id, value)
                             }
+                            disabled={intern.is_from_application}
                           >
                             <SelectTrigger className="w-[120px]">
                               <SelectValue />
@@ -482,6 +527,7 @@ export default function TeamManagement() {
                               <SelectItem value="Active">Set Active</SelectItem>
                               <SelectItem value="Completed">Set Completed</SelectItem>
                               <SelectItem value="Terminated">Set Terminated</SelectItem>
+                              <SelectItem value="Pending Onboarding" disabled>Pending Onboarding</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
@@ -518,9 +564,10 @@ export default function TeamManagement() {
                     <div className="flex flex-col gap-2">
                       <Select
                         value={intern.status}
-                        onValueChange={(value: 'Active' | 'Completed' | 'Terminated') =>
+                        onValueChange={(value: 'Active' | 'Completed' | 'Terminated' | 'Pending Onboarding') =>
                           updateInternStatus(intern.id, value)
                         }
+                        disabled={intern.is_from_application}
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Update Status" />
@@ -529,14 +576,15 @@ export default function TeamManagement() {
                           <SelectItem value="Active">Set Active</SelectItem>
                           <SelectItem value="Completed">Set Completed</SelectItem>
                           <SelectItem value="Terminated">Set Terminated</SelectItem>
+                          <SelectItem value="Pending Onboarding" disabled>Pending Onboarding</SelectItem>
                         </SelectContent>
                       </Select>
 
                       <div className="flex gap-2">
                         <Button variant="secondary" size="sm" className="flex-1" onClick={() => { setCurrentIntern(intern); setIsInternDialogOpen(true); }}>
-                          <Edit className="mr-1 h-4 w-4" /> Edit
+                          <Edit className="mr-1 h-4 w-4" /> {intern.is_from_application ? 'Onboard' : 'Edit'}
                         </Button>
-                        <Button variant="destructive" size="sm" className="flex-1" onClick={() => deleteIntern(intern.id)}>
+                        <Button variant="destructive" size="sm" className="flex-1" onClick={() => deleteIntern(intern.id)} disabled={intern.is_from_application}>
                           <Trash2 className="mr-1 h-4 w-4" /> Delete
                         </Button>
                       </div>
