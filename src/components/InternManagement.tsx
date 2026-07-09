@@ -80,7 +80,7 @@ export default function TeamManagement() {
       ] = await Promise.all([
         supabase.from('interns').select('*').order('created_at', { ascending: false }),
         supabase.from('team_members').select('*').order('created_at', { ascending: false }),
-        supabase.from('job_applications').select('*').eq('status', 'Accepted')
+        supabase.from('job_applications').select('*').eq('status', 'accepted')
       ]);
 
       if (internsError) throw internsError;
