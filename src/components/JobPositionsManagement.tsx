@@ -193,7 +193,9 @@ export function JobPositionsManagement() {
 
     try {
       const roleKey = formData.role_key.trim() || slugify(formData.title || formData.department || "new_position")
-      const coreData = {
+      
+      // Build the full payload with ALL fields — core + extended
+      const fullPayload = {
         role_key: roleKey,
         title: formData.title.trim(),
         department: formData.department.trim(),
@@ -202,12 +204,23 @@ export function JobPositionsManagement() {
         description: buildDescription(formData).trim(),
         is_active: formData.is_active,
         display_order: formData.display_order,
+        // Extended fields — these were previously missing from the payload
+        salary_range: formData.salary_range.trim() || null,
+        experience_level: formData.experience_level.trim() || null,
+        contact_email: formData.contact_email.trim() || null,
+        application_deadline: formData.application_deadline || null,
+        remote_work_available: formData.remote_work_available,
+        detailed_description: formData.detailed_description.trim() || null,
+        requirements: formData.requirements.trim() || null,
+        responsibilities: formData.responsibilities.trim() || null,
+        qualifications: formData.qualifications.trim() || null,
+        benefits: formData.benefits.trim() || null,
       }
 
       if (editingId) {
         const { data, error } = await supabase
           .from("job_positions")
-          .update(coreData)
+          .update(fullPayload)
           .eq("id", editingId)
           .select("*")
           .single()
@@ -222,6 +235,11 @@ export function JobPositionsManagement() {
           return
         }
 
+        // Update the local positions state immediately for instant UI feedback
+        setPositions((prev) =>
+          prev.map((p) => (p.id === editingId ? (data as JobPosition) : p))
+        )
+
         toast({
           title: "Success",
           description: "Job position updated successfully",
@@ -229,13 +247,22 @@ export function JobPositionsManagement() {
       } else {
         // Set display_order to max + 1 for new positions
         const maxOrder = Math.max(...positions.map((p) => p.display_order), 0)
-        const insertData = {
-          ...coreData,
+        const insertPayload = {
+          ...fullPayload,
           display_order: maxOrder + 1,
         }
-        const { error } = await supabase.from("job_positions").insert([insertData])
+        const { data, error } = await supabase
+          .from("job_positions")
+          .insert([insertPayload])
+          .select("*")
 
         if (error) throw error
+
+        // Add new position to local state immediately
+        if (data && data.length > 0) {
+          setPositions((prev) => [...prev, data[0] as JobPosition])
+        }
+
         toast({
           title: "Success",
           description: "Job position created successfully",
@@ -247,6 +274,7 @@ export function JobPositionsManagement() {
       })
       setPasteText("")
       setEditingId(null)
+      // Re-fetch to ensure consistency with backend
       fetchPositions()
     } catch (error) {
       console.error("Error saving position:", error)
@@ -626,13 +654,38 @@ export function JobPositionsManagement() {
                           ) : (
                             <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-md font-medium shrink-0">Inactive</span>
                           )}
+                          {position.remote_work_available && (
+                            <span className="bg-blue-50 text-blue-600 text-xs px-2 py-1 rounded-md font-medium shrink-0">Remote</span>
+                          )}
                         </div>
                       </div>
-                      <div className="text-sm font-medium text-gray-600 flex flex-wrap gap-1">
+                      <div className="text-sm font-medium text-gray-600 flex flex-wrap gap-x-2 gap-y-1">
                         <span>{position.department}</span>
                         <span className="text-gray-400">•</span>
                         <span>{position.location}</span>
+                        {position.salary_range && (
+                          <>
+                            <span className="text-gray-400">•</span>
+                            <span className="text-[#08A04B]">{position.salary_range}</span>
+                          </>
+                        )}
+                        {position.experience_level && (
+                          <>
+                            <span className="text-gray-400">•</span>
+                            <span>{position.experience_level}</span>
+                          </>
+                        )}
                       </div>
+                      {(position.application_deadline || position.contact_email) && (
+                        <div className="text-xs text-gray-400 flex flex-wrap gap-x-3 gap-y-1">
+                          {position.application_deadline && (
+                            <span>Deadline: {new Date(position.application_deadline).toLocaleDateString()}</span>
+                          )}
+                          {position.contact_email && (
+                            <span>Contact: {position.contact_email}</span>
+                          )}
+                        </div>
+                      )}
                       <p className="text-sm text-gray-500 line-clamp-2">{position.description}</p>
                     </div>
                     
