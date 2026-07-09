@@ -60,6 +60,7 @@ export default function TeamManagement() {
   const [isInternDialogOpen, setIsInternDialogOpen] = useState(false);
   const [currentMember, setCurrentMember] = useState<TeamMember | null>(null);
   const [currentIntern, setCurrentIntern] = useState<Intern | null>(null);
+  const [internFormStatus, setInternFormStatus] = useState<string>('Active');
   const { toast } = useToast();
 
   // Get Supabase URL
@@ -73,23 +74,26 @@ export default function TeamManagement() {
   const fetchData = async () => {
     try {
       setLoading(true);
+      
+      // Fetch interns and accepted applications (these tables exist for sure)
       const [
         { data: internsData, error: internsError },
-        { data: membersData, error: membersError },
         { data: applicationsData, error: applicationsError }
       ] = await Promise.all([
         supabase.from('interns').select('*').order('created_at', { ascending: false }),
-        supabase.from('team_members').select('*').order('created_at', { ascending: false }),
         supabase.from('job_applications').select('*').eq('status', 'accepted')
       ]);
 
-      if (internsError) throw internsError;
-      if (membersError) throw membersError;
-      if (applicationsError) throw applicationsError;
+      if (internsError) {
+        console.error('Interns fetch error:', internsError);
+        throw internsError;
+      }
+      if (applicationsError) {
+        console.error('Applications fetch error:', applicationsError);
+      }
 
+      // Build accepted applications list (exclude already-onboarded emails)
       const existingEmails = new Set((internsData || []).map(i => i.email));
-      console.log('existingEmails:', existingEmails);
-      console.log('applicationsData:', applicationsData);
       
       const acceptedApplications = (applicationsData || [])
         .filter(app => !existingEmails.has(app.email))
@@ -104,8 +108,6 @@ export default function TeamManagement() {
           is_from_application: true,
           application_id: app.id
         }));
-      
-      console.log('acceptedApplications:', acceptedApplications);
 
       setInterns([
         ...acceptedApplications,
@@ -115,14 +117,31 @@ export default function TeamManagement() {
           created_at: intern.created_at
         }))
       ]);
-      setTeamMembers((membersData || []).map(member => ({
-        ...member,
-        email: member.email || '',
-        role: member.role || '',
-        is_executive: member.is_executive === 'true',
-        is_founder: member.is_founder === 'true',
-        created_at: member.created_at
-      })));
+
+      // Fetch team_members separately — table may not exist yet
+      try {
+        const { data: membersData, error: membersError } = await supabase
+          .from('team_members')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (membersError) {
+          console.warn('team_members table not available:', membersError.message);
+          setTeamMembers([]);
+        } else {
+          setTeamMembers((membersData || []).map(member => ({
+            ...member,
+            email: member.email || '',
+            role: member.role || '',
+            is_executive: member.is_executive === 'true',
+            is_founder: member.is_founder === 'true',
+            created_at: member.created_at
+          })));
+        }
+      } catch {
+        console.warn('team_members fetch failed, skipping');
+        setTeamMembers([]);
+      }
     } catch (error) {
       console.error('Fetch data error:', error);
       toast({
@@ -273,7 +292,7 @@ export default function TeamManagement() {
         project_department: (formData.get('project_department') as string) || null,
         joining_date: (formData.get('joining_date') as string) || null,
         end_date: (formData.get('end_date') as string) || null,
-        status: formData.get('status') as 'Active' | 'Completed' | 'Terminated',
+        status: (internFormStatus || 'Active') as 'Active' | 'Completed' | 'Terminated',
         position: (formData.get('position') as string) || 'Intern',
         bio: (formData.get('bio') as string) || null,
         is_featured: formData.get('is_featured') === 'on',
@@ -429,6 +448,7 @@ export default function TeamManagement() {
                   position: 'Intern',
                   created_at: new Date().toISOString()
                 });
+                setInternFormStatus('Active');
                 setIsInternDialogOpen(true);
               } else {
                 setCurrentMember({
@@ -504,6 +524,7 @@ export default function TeamManagement() {
                             size="sm"
                             onClick={() => {
                               setCurrentIntern(intern);
+                              setInternFormStatus(intern.status);
                               setIsInternDialogOpen(true);
                             }}
                           >
@@ -587,7 +608,7 @@ export default function TeamManagement() {
                       </Select>
 
                       <div className="flex gap-2">
-                        <Button variant="secondary" size="sm" className="flex-1" onClick={() => { setCurrentIntern(intern); setIsInternDialogOpen(true); }}>
+                        <Button variant="secondary" size="sm" className="flex-1" onClick={() => { setCurrentIntern(intern); setInternFormStatus(intern.status); setIsInternDialogOpen(true); }}>
                           <Edit className="mr-1 h-4 w-4" /> {intern.is_from_application ? 'Onboard' : 'Edit'}
                         </Button>
                         <Button variant="destructive" size="sm" className="flex-1" onClick={() => deleteIntern(intern.id)} disabled={intern.is_from_application}>
@@ -936,8 +957,8 @@ export default function TeamManagement() {
               <div>
                 <Label htmlFor="status">Status</Label>
                 <Select
-                  name="status"
-                  defaultValue={currentIntern?.status || 'Active'}
+                  value={internFormStatus}
+                  onValueChange={setInternFormStatus}
                 >
                   <SelectTrigger>
                     <SelectValue />
