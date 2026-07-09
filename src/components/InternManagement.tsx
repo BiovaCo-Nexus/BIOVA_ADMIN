@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Plus, CheckCircle, XCircle, Edit, Trash2, Clock } from 'lucide-react';
+import { Search, Plus, CheckCircle, XCircle, Edit, Trash2, Clock, ImageOff } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Define interfaces
@@ -252,6 +252,46 @@ export default function TeamManagement() {
         description: error.message,
         variant: 'destructive'
       });
+    }
+  };
+
+  const deleteMemberPhoto = async (memberId: string, photoUrl: string) => {
+    if (!window.confirm('Remove this profile photo?')) return;
+    try {
+      const photoPath = photoUrl.split('/intern-photos/').pop();
+      if (photoPath) {
+        await supabase.storage.from('intern-photos').remove([photoPath]);
+      }
+      const { error } = await supabase
+        .from('team_members')
+        .update({ photo_url: null })
+        .eq('id', memberId);
+      if (error) throw error;
+      setCurrentMember(prev => prev ? { ...prev, photo_url: undefined } : null);
+      toast({ title: 'Success', description: 'Photo removed' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const deleteInternPhoto = async (internId: string, photoUrl: string) => {
+    if (!window.confirm('Remove this profile photo?')) return;
+    try {
+      const photoPath = photoUrl.split('/intern-photos/').pop();
+      if (photoPath) {
+        await supabase.storage.from('intern-photos').remove([photoPath]);
+      }
+      const { error } = await supabase
+        .from('interns')
+        .update({ photo_url: null })
+        .eq('id', internId);
+      if (error) throw error;
+      setCurrentIntern(prev => prev ? { ...prev, photo_url: undefined } : null);
+      toast({ title: 'Success', description: 'Photo removed' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -823,12 +863,21 @@ export default function TeamManagement() {
                 className="cursor-pointer"
               />
               {currentMember?.photo_url && (
-                <div className="mt-2">
+                <div className="mt-2 flex items-center gap-3">
                   <img
                     src={currentMember.photo_url}
                     alt="Current profile"
                     className="h-20 w-20 rounded-full object-cover border"
                   />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => currentMember.id && deleteMemberPhoto(currentMember.id, currentMember.photo_url!)}
+                  >
+                    <ImageOff className="mr-1 h-4 w-4" />
+                    Remove Photo
+                  </Button>
                 </div>
               )}
             </div>
@@ -992,12 +1041,23 @@ export default function TeamManagement() {
                 className="cursor-pointer"
               />
               {currentIntern?.photo_url && (
-                <div className="mt-2">
+                <div className="mt-2 flex items-center gap-3">
                   <img
                     src={currentIntern.photo_url}
                     alt="Current profile"
                     className="h-20 w-20 rounded-full object-cover border"
                   />
+                  {currentIntern.id && !currentIntern.is_from_application && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => deleteInternPhoto(currentIntern.id, currentIntern.photo_url!)}
+                    >
+                      <ImageOff className="mr-1 h-4 w-4" />
+                      Remove Photo
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
