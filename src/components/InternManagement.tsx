@@ -88,6 +88,8 @@ export default function TeamManagement() {
       if (applicationsError) throw applicationsError;
 
       const existingEmails = new Set((internsData || []).map(i => i.email));
+      console.log('existingEmails:', existingEmails);
+      console.log('applicationsData:', applicationsData);
       
       const acceptedApplications = (applicationsData || [])
         .filter(app => !existingEmails.has(app.email))
@@ -102,6 +104,8 @@ export default function TeamManagement() {
           is_from_application: true,
           application_id: app.id
         }));
+      
+      console.log('acceptedApplications:', acceptedApplications);
 
       setInterns([
         ...acceptedApplications,
@@ -120,6 +124,7 @@ export default function TeamManagement() {
         created_at: member.created_at
       })));
     } catch (error) {
+      console.error('Fetch data error:', error);
       toast({
         title: 'Error',
         description: 'Failed to load data',
@@ -374,10 +379,11 @@ export default function TeamManagement() {
     member.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredInterns = interns.filter(intern => 
-    intern.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    intern.project_department?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredInterns = interns.filter(intern => {
+    const nameMatch = (intern.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const deptMatch = (intern.project_department || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return nameMatch || deptMatch;
+  });
 
   // Badge colors
   const statusColors = {
