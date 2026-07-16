@@ -20,10 +20,9 @@ import {
   Edit, 
   Trash2, 
   Loader2, 
-  AlertTriangle, 
   Info,
   Check,
-  Share2
+  User
 } from "lucide-react"
 
 type FileType = "drive_link" | "investor_doc" | "contact_sheet" | "specification" | "sop" | "other"
@@ -37,6 +36,8 @@ interface SharedFile {
   contact_number?: string
   notes?: string
   uploaded_by: string
+  created_by?: string
+  assigned_to?: string
   created_at: string
   updated_at: string
 }
@@ -67,12 +68,13 @@ export function SharedFilesManager() {
   const [investorName, setInvestorName] = useState("")
   const [contactNumber, setContactNumber] = useState("")
   const [notes, setNotes] = useState("")
+  const [assignedTo, setAssignedTo] = useState("")
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
 
-  // Interns list for email broadcast
+  // Interns list for email broadcast and assignment
   const [interns, setInterns] = useState<{ name: string; email: string }[]>([])
 
   useEffect(() => {
@@ -83,7 +85,7 @@ export function SharedFilesManager() {
       }
     })
 
-    // Fetch active interns for mailing list
+    // Fetch active interns for mailing list & assignments
     supabase
       .from("interns")
       .select("name, email")
@@ -94,6 +96,8 @@ export function SharedFilesManager() {
 
     fetchFiles()
   }, [])
+
+  const isExecutive = userEmail === "ceo@biovaco.in" || userEmail === "md@biovaco.in"
 
   const fetchFiles = async () => {
     try {
@@ -147,10 +151,18 @@ export function SharedFilesManager() {
     coreEmails.forEach(c => allRecipientsMap.set(c.email.toLowerCase(), c.name))
     internEmails.forEach(i => allRecipientsMap.set(i.email.toLowerCase(), i.name))
     
-    const recipientsList = Array.from(allRecipientsMap.entries()).map(([email, name]) => ({
-      email,
-      name
-    }))
+    // Filter recipients list by who is actually assigned/has permission
+    const recipientsList = Array.from(allRecipientsMap.entries())
+      .map(([email, name]) => ({ email, name }))
+      .filter(recipient => {
+        // CEO/MD always get email, otherwise only get email if assigned or created
+        const emailLower = recipient.email.toLowerCase()
+        const isCoreExec = emailLower === "ceo@biovaco.in" || emailLower === "md@biovaco.in"
+        const isAssigned = (updatedFile.assigned_to || '').toLowerCase().includes(emailLower)
+        const isCreator = (updatedFile.created_by || '').toLowerCase() === emailLower
+        
+        return isCoreExec || isAssigned || isCreator
+      })
 
     const senderName = userEmail.split("@")[0]
     const actionText = isNew ? "added a new resource to" : "updated a resource in"
@@ -186,7 +198,7 @@ export function SharedFilesManager() {
       </div>
     `
 
-    // Broadcast email to all recipients in batches or direct send
+    // Broadcast email to all allowed recipients
     try {
       await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
@@ -225,6 +237,8 @@ export function SharedFilesManager() {
       contact_number: (fileType === "contact_sheet" || fileType === "investor_doc") ? contactNumber : "",
       notes,
       uploaded_by: userEmail || "Anonymous",
+      created_by: userEmail,
+      assigned_to: isExecutive ? (assignedTo || userEmail) : userEmail,
       updated_at: new Date().toISOString()
     }
 
@@ -331,6 +345,7 @@ export function SharedFilesManager() {
     setInvestorName(file.investor_name || "")
     setContactNumber(file.contact_number || "")
     setNotes(file.notes || "")
+    setAssignedTo(file.assigned_to || "")
     setIsEditing(true)
   }
 
@@ -342,6 +357,7 @@ export function SharedFilesManager() {
     setInvestorName("")
     setContactNumber("")
     setNotes("")
+    setAssignedTo("")
     setIsEditing(false)
   }
 
@@ -352,6 +368,17 @@ export function SharedFilesManager() {
 
   const filteredFiles = useMemo(() => {
     return files.filter(file => {
+      // SECURITY: Admins (CEO/MD) can see all. Other users see what they created or what is explicitly assigned to them.
+      const isUserExecutive = userEmail === "ceo@biovaco.in" || userEmail === "md@biovaco.in"
+      
+      const hasAccess = 
+        isUserExecutive || 
+        (file.created_by === userEmail) || 
+        (file.uploaded_by === userEmail) || 
+        (file.assigned_to || '').includes(userEmail)
+
+      if (!hasAccess) return false
+
       const matchSearch = 
         file.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (file.investor_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -361,16 +388,16 @@ export function SharedFilesManager() {
 
       return matchSearch && matchType
     })
-  }, [files, searchQuery, filterType])
+  }, [files, searchQuery, filterType, userEmail])
 
   const stats = useMemo(() => {
     return {
-      total: files.length,
-      driveLinks: files.filter(f => f.file_type === "drive_link").length,
-      investors: files.filter(f => f.file_type === "investor_doc").length,
-      contacts: files.filter(f => f.file_type === "contact_sheet").length,
+      total: filteredFiles.length,
+      driveLinks: filteredFiles.filter(f => f.file_type === "drive_link").length,
+      investors: filteredFiles.filter(f => f.file_type === "investor_doc").length,
+      contacts: filteredFiles.filter(f => f.file_type === "contact_sheet").length,
     }
-  }, [files])
+  }, [filteredFiles])
 
   return (
     <div className="space-y-6">
@@ -501,6 +528,39 @@ export function SharedFilesManager() {
                     />
                   </div>
                 )}
+
+                {/* Assignment selection (CEO/MD only) */}
+                {isExecutive && (
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Assign/Restrict Visibility to (Select Multiple)</label>
+                    <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-gray-50/50 max-h-40 overflow-y-auto">
+                      {[
+                        { label: 'CEO', email: 'ceo@biovaco.in' },
+                        { label: 'MD', email: 'md@biovaco.in' },
+                        { label: 'Food Technologist (R&D)', email: 'food@biovaco.in' },
+                        ...interns.map(i => ({ label: `${i.name} (Intern)`, email: i.email }))
+                      ].map(opt => {
+                        const isSelected = (assignedTo || '').split(',').includes(opt.email);
+                        return (
+                          <Badge 
+                            key={opt.email} 
+                            variant={isSelected ? "default" : "outline"} 
+                            className={`cursor-pointer transition-colors ${isSelected ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'hover:bg-gray-100 bg-white'}`}
+                            onClick={() => {
+                              let current = (assignedTo || '').split(',').filter(Boolean);
+                              if (current.includes(opt.email)) current = current.filter(e => e !== opt.email);
+                              else current.push(opt.email);
+                              setAssignedTo(current.join(','));
+                            }}
+                          >
+                            {opt.label}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">If no options are selected, only you (the creator) will have visibility.</p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -610,6 +670,21 @@ export function SharedFilesManager() {
                           <strong>Notes:</strong> {file.notes}
                         </p>
                       )}
+                    </div>
+                  )}
+
+                  {/* Assignees badges */}
+                  {file.assigned_to && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Authorized Viewers</p>
+                      <div className="flex flex-wrap gap-1">
+                        {file.assigned_to.split(',').filter(Boolean).map(email => (
+                          <Badge key={email} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0">
+                            <User className="h-3 w-3 mr-1" />
+                            {email.split('@')[0]}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   )}
 
