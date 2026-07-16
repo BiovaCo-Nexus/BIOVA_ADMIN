@@ -22,7 +22,8 @@ export async function registerServiceWorkerAndSubscribe(email: string): Promise<
   try {
     // 1. Register service worker
     const registration = await navigator.serviceWorker.register("/sw.js", {
-      scope: "/"
+      scope: "/",
+      type: import.meta.env.DEV ? "module" : "classic"
     })
     console.log("Service Worker registered successfully:", registration)
 
