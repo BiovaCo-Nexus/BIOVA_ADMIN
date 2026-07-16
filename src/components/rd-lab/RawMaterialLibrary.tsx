@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
-import { Plus, Edit, Trash2, X, Check, Loader2, PackageSearch } from "lucide-react"
+import { Plus, Edit, Trash2, X, Check, Loader2, PackageSearch, ClipboardCheck } from "lucide-react"
 
 interface Spec { key: string; value: string }
 interface RawMaterial {
@@ -27,6 +27,8 @@ export function RawMaterialLibrary() {
   const [materials, setMaterials] = useState<RawMaterial[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
+  const [isPasting, setIsPasting] = useState(false)
+  const [pasteText, setPasteText] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [form, setForm] = useState(emptyForm())
 
@@ -53,6 +55,78 @@ export function RawMaterialLibrary() {
   }
 
   useEffect(() => { fetchMaterials() }, [])
+
+  const handlePasteImport = async () => {
+    const lines = pasteText.split(/\r?\n/).filter(line => line.trim() !== "");
+    if (lines.length < 2) {
+      toast({ title: "Invalid Data", description: "Please paste a header row and at least one data row from Excel.", variant: "destructive" });
+      return;
+    }
+
+    setIsSaving(true);
+    const headers = lines[0].split("\t").map(h => h.trim().toLowerCase());
+    const rows = lines.slice(1);
+
+    const mappings = {
+      name: ['name', 'materialname', 'ingredientname', 'material', 'ingredient', 'rawmaterial'],
+      supplier: ['supplier', 'vendor', 'source'],
+      cost_per_kg: ['costperkg', 'cost/kg', 'cost', 'rate', 'price', 'unitprice', 'costperkg'],
+      moq: ['moq', 'minimumorderquantity', 'minimumorder'],
+      shelf_life: ['shelflife', 'shelf_life', 'expiry'],
+      fssai_category: ['fssaicategory', 'fssai_category', 'category'],
+      coa_url: ['coaurl', 'coa_url', 'coa'],
+      notes: ['notes', 'note', 'description']
+    };
+
+    const dbRows: any[] = [];
+
+    for (const row of rows) {
+      const cols = row.split("\t");
+      const dbRow: any = {};
+      
+      headers.forEach((header, index) => {
+        const normHeader = header.replace(/[^a-z0-9]/g, '');
+        const val = cols[index]?.trim() || '';
+
+        for (const [dbCol, synonyms] of Object.entries(mappings)) {
+          if (synonyms.includes(normHeader)) {
+            if (dbCol === 'cost_per_kg') {
+              const parsedNum = Number(val.replace(/[^0-9.-]+/g, ""));
+              dbRow[dbCol] = isNaN(parsedNum) ? 0 : parsedNum;
+            } else {
+              dbRow[dbCol] = val;
+            }
+            break;
+          }
+        }
+      });
+
+      if (dbRow.name) {
+        // Default specifications to empty array for rd_raw_materials
+        dbRow.specifications = JSON.stringify([]);
+        dbRows.push(dbRow);
+      }
+    }
+
+    if (dbRows.length === 0) {
+      toast({ title: "Import Failed", description: "Could not auto-detect the 'name' column. Please check your headers.", variant: "destructive" });
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("rd_raw_materials").insert(dbRows);
+      if (error) throw error;
+      toast({ title: "Import Successful", description: `Successfully imported ${dbRows.length} materials.` });
+      fetchMaterials();
+      setIsPasting(false);
+      setPasteText("");
+    } catch (err: any) {
+      toast({ title: "Import Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -105,10 +179,47 @@ export function RawMaterialLibrary() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-[#032E63]">Raw Material Library</h2>
-        {!isEditing && <Button onClick={() => { resetForm(); setIsEditing(true) }} className="bg-[#08A04B] hover:bg-[#069a43]"><Plus className="h-4 w-4 mr-2" />Add Material</Button>}
+        {!isEditing && !isPasting && (
+          <div className="flex gap-2">
+            <Button onClick={() => { setPasteText(""); setIsPasting(true) }} variant="outline" className="border-indigo-500 text-indigo-600 hover:bg-indigo-50">
+              <ClipboardCheck className="h-4 w-4 mr-2" />Bulk Paste (Excel)
+            </Button>
+            <Button onClick={() => { resetForm(); setIsEditing(true) }} className="bg-[#08A04B] hover:bg-[#069a43]"><Plus className="h-4 w-4 mr-2" />Add Material</Button>
+          </div>
+        )}
       </div>
 
-      {isEditing ? (
+      {isPasting ? (
+        <Card className="border-l-4 border-l-indigo-500 shadow-md">
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-[#032E63] flex items-center gap-2">
+                <ClipboardCheck className="h-5 w-5 text-indigo-500" /> Excel/Sheets Bulk Paste
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setIsPasting(false)}><X className="h-4 w-4" /></Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-500">
+              Copy rows from your Excel/Google Sheet (including the header row) and paste them below. 
+              The system will auto-detect columns like <strong>Name, Supplier, Cost per Kg, MOQ, Shelf Life, Category, Notes</strong>.
+            </p>
+            <Textarea
+              value={pasteText}
+              onChange={e => setPasteText(e.target.value)}
+              placeholder="Name&#9;Supplier&#9;Cost per Kg&#9;MOQ&#10;Sugar&#9;Local Vendor&#9;45&#9;50 kg&#10;Salt&#9;Tata Salt&#9;20&#9;100 kg"
+              rows={10}
+              className="font-mono text-xs"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsPasting(false)}>Cancel</Button>
+              <Button onClick={handlePasteImport} disabled={isSaving || !pasteText.trim()} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />} Import Data
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : isEditing ? (
         <Card className="border-l-4 border-l-[#08A04B] shadow-md">
           <CardHeader className="pb-3">
             <div className="flex justify-between items-center">
