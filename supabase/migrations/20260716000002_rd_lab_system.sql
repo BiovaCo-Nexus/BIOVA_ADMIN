@@ -214,6 +214,7 @@ CREATE TABLE IF NOT EXISTS public.rd_documents (
 DO $$ 
 DECLARE
   tbl TEXT;
+  auth_condition TEXT := '(auth.jwt() ->> ''email'' = ''ceo@biovaco.in'' OR auth.jwt() ->> ''email'' = ''md@biovaco.in'' OR auth.jwt() ->> ''email'' = ''food@biovaco.in'')';
 BEGIN
   FOREACH tbl IN ARRAY ARRAY[
     'rd_recipes', 'rd_batch_trials', 'rd_raw_materials', 'rd_ingredient_inventory',
@@ -227,10 +228,11 @@ BEGIN
     EXECUTE format('DROP POLICY IF EXISTS "auth_update_%s" ON public.%I', tbl, tbl);
     EXECUTE format('DROP POLICY IF EXISTS "auth_delete_%s" ON public.%I', tbl, tbl);
     
-    EXECUTE format('CREATE POLICY "auth_select_%s" ON public.%I FOR SELECT TO authenticated USING (true)', tbl, tbl);
-    EXECUTE format('CREATE POLICY "auth_insert_%s" ON public.%I FOR INSERT TO authenticated WITH CHECK (true)', tbl, tbl);
-    EXECUTE format('CREATE POLICY "auth_update_%s" ON public.%I FOR UPDATE TO authenticated USING (true) WITH CHECK (true)', tbl, tbl);
-    EXECUTE format('CREATE POLICY "auth_delete_%s" ON public.%I FOR DELETE TO authenticated USING (true)', tbl, tbl);
+    -- High Security: Enforce access ONLY for authorized emails at the database level
+    EXECUTE format('CREATE POLICY "auth_select_%s" ON public.%I FOR SELECT TO authenticated USING (%s)', tbl, tbl, auth_condition);
+    EXECUTE format('CREATE POLICY "auth_insert_%s" ON public.%I FOR INSERT TO authenticated WITH CHECK (%s)', tbl, tbl, auth_condition);
+    EXECUTE format('CREATE POLICY "auth_update_%s" ON public.%I FOR UPDATE TO authenticated USING (%s) WITH CHECK (%s)', tbl, tbl, auth_condition, auth_condition);
+    EXECUTE format('CREATE POLICY "auth_delete_%s" ON public.%I FOR DELETE TO authenticated USING (%s)', tbl, tbl, auth_condition);
   END LOOP;
 END $$;
 
