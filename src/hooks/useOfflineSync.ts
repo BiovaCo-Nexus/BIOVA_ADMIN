@@ -30,6 +30,8 @@ export interface KnowledgeItem {
   source: string | null
   validation_notes: string | null
   due_date: string | null
+  created_by: string | null
+  assigned_to: string | null
   created_at: string
   updated_at: string
 }
@@ -218,6 +220,7 @@ export function useOfflineSync() {
           id: newItem.id, title: newItem.title, description: newItem.description,
           category: newItem.category, priority: newItem.priority, status: newItem.status,
           source: newItem.source, validation_notes: newItem.validation_notes, due_date: newItem.due_date,
+          created_by: newItem.created_by, assigned_to: newItem.assigned_to
         }])
         if (error) throw error
       } catch {

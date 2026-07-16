@@ -43,7 +43,7 @@ const STATUSES: { value: Status; label: string; icon: any; color: string }[] = [
 
 const emptyForm = () => ({
   title: "", description: "", category: "system" as Category, priority: "medium" as Priority,
-  status: "pending" as Status, source: "", validation_notes: "", due_date: "",
+  status: "pending" as Status, source: "", validation_notes: "", due_date: "", assigned_to: ""
 })
 
 export function KnowledgeTracker() {
@@ -58,6 +58,17 @@ export function KnowledgeTracker() {
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [filterPriority, setFilterPriority] = useState<string>("all")
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  import { useEffect } from "react"
+  
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUserEmail(data.session?.user?.email || null)
+    })
+  }, [])
+  
+  const isExecutive = userEmail === "ceo@biovaco.in" || userEmail === "md@biovaco.in"
 
   const stats = useMemo(() => {
     const total = items.length
@@ -92,16 +103,22 @@ export function KnowledgeTracker() {
     setIsSaving(true)
     if (editId) {
       await updateItem(editId, {
-        title: form.title, description: form.description || null, category: form.category,
-        priority: form.priority, status: form.status, source: form.source || null,
-        validation_notes: form.validation_notes || null, due_date: form.due_date || null,
+        ...form,
+        description: form.description || null,
+        source: form.source || null,
+        validation_notes: form.validation_notes || null,
+        due_date: form.due_date || null,
       })
       toast({ title: isOnline ? "Item updated" : "Item updated (will sync when online)" })
     } else {
       await addItem({
-        title: form.title, description: form.description || null, category: form.category,
-        priority: form.priority, status: form.status, source: form.source || null,
-        validation_notes: form.validation_notes || null, due_date: form.due_date || null,
+        ...form,
+        created_by: userEmail,
+        assigned_to: form.assigned_to || userEmail,
+        description: form.description || null,
+        source: form.source || null,
+        validation_notes: form.validation_notes || null,
+        due_date: form.due_date || null,
       })
       toast({ title: isOnline ? "Item created" : "Item saved offline (will sync when online)" })
     }
@@ -124,7 +141,7 @@ export function KnowledgeTracker() {
     setForm({
       title: item.title, description: item.description || "", category: item.category as Category,
       priority: item.priority as Priority, status: item.status as Status, source: item.source || "",
-      validation_notes: item.validation_notes || "", due_date: item.due_date || "",
+      validation_notes: item.validation_notes || "", due_date: item.due_date || "", assigned_to: item.assigned_to || ""
     })
     setEditId(item.id)
     setIsEditing(true)
@@ -141,7 +158,6 @@ export function KnowledgeTracker() {
 
   return (
     <div className="space-y-6">
-      {/* ── Offline/Sync Status Banner ── */}
       {(!isOnline || pendingCount > 0) && (
         <div className={`flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg border ${
           !isOnline
@@ -174,7 +190,6 @@ export function KnowledgeTracker() {
         </div>
       )}
 
-      {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -192,7 +207,6 @@ export function KnowledgeTracker() {
         )}
       </div>
 
-      {/* ── Stats Row ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { label: "Total", value: stats.total, icon: BarChart3, bg: "bg-[#032E63]", text: "text-white", accent: "text-blue-200" },
@@ -214,7 +228,6 @@ export function KnowledgeTracker() {
         ))}
       </div>
 
-      {/* ── Form ── */}
       {isEditing && (
         <Card className="border-l-4 border-l-[#08A04B] shadow-md animate-in slide-in-from-top-2 duration-300">
           <CardHeader className="pb-3">
@@ -256,6 +269,20 @@ export function KnowledgeTracker() {
                   <label className="text-sm font-medium text-gray-700">Due Date</label>
                   <Input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} />
                 </div>
+                
+                {isExecutive && (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Assign To</label>
+                    <Select value={form.assigned_to} onValueChange={(v) => setForm({ ...form, assigned_to: v })}>
+                      <SelectTrigger><SelectValue placeholder="Assignee..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ceo@biovaco.in">CEO</SelectItem>
+                        <SelectItem value="md@biovaco.in">MD</SelectItem>
+                        <SelectItem value="food@biovaco.in">Food Technologist (R&D)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-gray-700">Description</label>
@@ -277,7 +304,6 @@ export function KnowledgeTracker() {
         </Card>
       )}
 
-      {/* ── Filters ── */}
       <Card className="shadow-sm"><CardContent className="p-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
@@ -299,7 +325,6 @@ export function KnowledgeTracker() {
         </div>
       </CardContent></Card>
 
-      {/* ── Items List ── */}
       {filteredItems.length === 0 ? (
         <Card className="shadow-sm"><CardContent className="p-12 text-center">
           <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -330,6 +355,12 @@ export function KnowledgeTracker() {
                         <Badge variant="outline" className={`${cat.color} text-[11px] px-1.5 py-0 border`}><CatIcon className="h-3 w-3 mr-1" />{cat.label}</Badge>
                         <Badge variant="outline" className={`${pri.color} text-[11px] px-1.5 py-0 border`}>{pri.label}</Badge>
                         <Badge variant="outline" className={`${sta.color} text-[11px] px-1.5 py-0`}>{sta.label}</Badge>
+                        {item.assigned_to && (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0">
+                            <User className="h-3 w-3 mr-1" />
+                            {item.assigned_to.split('@')[0]}
+                          </Badge>
+                        )}
                         {item.due_date && <span className="text-[11px] text-gray-400">Due: {item.due_date}</span>}
                         {item.source && <span className="text-[11px] text-gray-400 hidden sm:inline">· {item.source}</span>}
                       </div>

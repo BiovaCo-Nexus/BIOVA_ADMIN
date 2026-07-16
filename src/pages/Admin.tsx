@@ -208,7 +208,7 @@ const Admin = () => {
   }
 
   const visibleTabs = user?.email === "food@biovaco.in" 
-    ? tabs.filter(t => t.id === "rdlab") 
+    ? tabs.filter(t => t.id === "rdlab" || t.id === "knowledge") 
     : tabs;
 
   const handleNavigateToTab = (tab: string, payload?: string) => {

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/integrations/supabase/client"
-import { Beaker, FlaskConical, Package, ClipboardCheck, Truck, FileText, BarChart3, TestTubes, ShieldCheck, Factory, Users, Calculator, AlertTriangle } from "lucide-react"
+import { Beaker, FlaskConical, Package, ClipboardCheck, Truck, FileText, BarChart3, TestTubes, ShieldCheck, Factory, Users, Calculator, AlertTriangle, BookOpen, WifiOff } from "lucide-react"
 
 interface DashboardStats {
   totalRecipes: number; approvedRecipes: number; devRecipes: number;
@@ -70,6 +70,48 @@ export function RDDashboard({ onNavigate }: { onNavigate: (tab: string) => void 
           </Card>
         ))}
       </div>
+
+      <Card className="mt-8 shadow-sm border border-blue-100">
+        <CardHeader className="bg-blue-50/50 pb-4 border-b border-blue-100">
+          <CardTitle className="text-[#032E63] flex items-center gap-2 text-lg">
+            <BookOpen className="h-5 w-5 text-blue-600" />
+            How to Use This System (Guide for Food Technologists)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="bg-indigo-100 p-2 rounded-full text-indigo-700 shrink-0"><FlaskConical className="h-4 w-4" /></div>
+                <div><h4 className="font-semibold text-gray-900 text-sm">1. Recipe Formulation</h4><p className="text-sm text-gray-600 leading-relaxed">Design your seasoning and coating recipes here. Enter ingredients, percentages, and mixing steps. Save them as 'draft' until approved.</p></div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="bg-blue-100 p-2 rounded-full text-blue-700 shrink-0"><TestTubes className="h-4 w-4" /></div>
+                <div><h4 className="font-semibold text-gray-900 text-sm">2. Batch Trials</h4><p className="text-sm text-gray-600 leading-relaxed">After physically making a sample, log it here. Record your organoleptic scores (Taste, Color, Aroma) out of 10 and note any physical problems.</p></div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="bg-teal-100 p-2 rounded-full text-teal-700 shrink-0"><BookOpen className="h-4 w-4" /></div>
+                <div><h4 className="font-semibold text-gray-900 text-sm">3. Knowledge Tracker</h4><p className="text-sm text-gray-600 leading-relaxed">Create your personal To-Do list, save research notes, or track market trends. You can also see tasks assigned directly to you by the Directors.</p></div>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="bg-red-100 p-2 rounded-full text-red-700 shrink-0"><AlertTriangle className="h-4 w-4" /></div>
+                <div><h4 className="font-semibold text-gray-900 text-sm">4. Demand To Directors</h4><p className="text-sm text-gray-600 leading-relaxed">If you face critical raw material shortages, equipment breakdown, or budget needs, use this tab. It sends an instant Email to CEO/MD and logs the issue.</p></div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="bg-green-100 p-2 rounded-full text-green-700 shrink-0"><ShieldCheck className="h-4 w-4" /></div>
+                <div><h4 className="font-semibold text-gray-900 text-sm">5. QC & Shelf Life</h4><p className="text-sm text-gray-600 leading-relaxed">Manage your quality checklists before production and track how long samples last in different temperatures (Shelf-Life Testing).</p></div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="bg-gray-100 p-2 rounded-full text-gray-700 shrink-0"><WifiOff className="h-4 w-4" /></div>
+                <div><h4 className="font-semibold text-gray-900 text-sm">6. Offline Work Mode</h4><p className="text-sm text-gray-600 leading-relaxed">If the Lab WiFi disconnects, don't stop working! Just hit 'Save' normally. The system will hold your data safely and auto-upload it when internet returns.</p></div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
