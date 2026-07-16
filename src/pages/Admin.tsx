@@ -70,6 +70,7 @@ import { KnowledgeTracker } from "@/components/KnowledgeTracker"
 import { RDLabManagement } from "@/components/RDLabManagement"
 import { MarketResearchHub } from "@/components/rd-lab/MarketResearchHub"
 import { SharedFilesManager } from "@/components/SharedFilesManager"
+import { CeoMdTimetable } from "@/components/CeoMdTimetable"
 
 interface NewsletterSubscription {
   id: string
@@ -87,6 +88,7 @@ interface ApplicationStatus {
 
 const INITIAL_TABS = [
   { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+  { id: "timetable", label: "CEO & MD Timetable", icon: Calendar, className: "text-rose-700 bg-rose-50/50 hover:bg-rose-100 font-semibold border border-rose-200" },
   { id: "applications", label: "Applications", icon: FileText },
   { id: "newsletter", label: "Newsletter", icon: Mail },
   { id: "interns", label: "Interns", icon: Users },
@@ -357,6 +359,7 @@ const Admin = () => {
             ) : (
               <>
                 {activeTab === "dashboard" && <DashboardAnalytics user={user} onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "timetable" && <CeoMdTimetable />}
                 {activeTab === "audit" && <AdminActivityLogs onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "posts" && <MarketingPostsManagement />}
