@@ -14,7 +14,7 @@ CREATE POLICY "knowledge_select_policy"
   ON public.knowledge_items FOR SELECT 
   TO authenticated 
   USING (
-    (auth.jwt() ->> 'email' IN ('ceo@biovaco.in', 'md@biovaco.in', 'food@biovaco.in')) OR
+    (auth.jwt() ->> 'email' IN ('ceo@biovaco.in', 'md@biovaco.in')) OR
     (created_by = auth.jwt() ->> 'email') OR 
     (assigned_to LIKE '%' || (auth.jwt() ->> 'email') || '%')
   );
@@ -28,7 +28,7 @@ CREATE POLICY "knowledge_update_policy"
   ON public.knowledge_items FOR UPDATE 
   TO authenticated 
   USING (
-    (auth.jwt() ->> 'email' IN ('ceo@biovaco.in', 'md@biovaco.in', 'food@biovaco.in')) OR
+    (auth.jwt() ->> 'email' IN ('ceo@biovaco.in', 'md@biovaco.in')) OR
     (created_by = auth.jwt() ->> 'email') OR 
     (assigned_to LIKE '%' || (auth.jwt() ->> 'email') || '%')
   )
@@ -38,7 +38,7 @@ CREATE POLICY "knowledge_delete_policy"
   ON public.knowledge_items FOR DELETE 
   TO authenticated 
   USING (
-    (auth.jwt() ->> 'email' IN ('ceo@biovaco.in', 'md@biovaco.in', 'food@biovaco.in')) OR
+    (auth.jwt() ->> 'email' IN ('ceo@biovaco.in', 'md@biovaco.in')) OR
     (created_by = auth.jwt() ->> 'email')
   );
 
