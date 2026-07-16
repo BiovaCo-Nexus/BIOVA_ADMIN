@@ -37,7 +37,10 @@ import {
   Receipt,
   Package,
   Truck,
-  CreditCard
+  CreditCard,
+  BookOpen,
+  FlaskConical,
+  Loader2
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 import { supabase } from "@/integrations/supabase/client"
@@ -62,6 +65,8 @@ import { ApplicationsManagement } from "@/components/ApplicationsManagement"
 import { DocumentGenerator } from "@/components/DocumentGenerator"
 import { BusinessManagement } from "@/components/BusinessManagement"
 import { NewsManagement } from "@/components/NewsManagement"
+import { KnowledgeTracker } from "@/components/KnowledgeTracker"
+import { RDLabManagement } from "@/components/RDLabManagement"
 
 interface NewsletterSubscription {
   id: string
@@ -94,6 +99,8 @@ const INITIAL_TABS = [
   { id: "models3d", label: "3D Models", icon: Box },
   { id: "social", label: "Social Links", icon: Share2 },
   { id: "business", label: "Business & ERP", icon: Briefcase, className: "text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 font-bold border border-indigo-200" },
+  { id: "knowledge", label: "Knowledge Tracker", icon: BookOpen, className: "text-teal-700 bg-teal-50/50 hover:bg-teal-100 font-semibold border border-teal-200" },
+  { id: "rdlab", label: "R&D Lab", icon: FlaskConical, className: "text-[#08A04B] bg-green-50/50 hover:bg-green-100 font-bold border border-green-200" },
   { id: "audit", label: "Audit Logs", icon: Activity, className: "text-blue-700 bg-blue-50/50 hover:bg-blue-100" },
   { id: "news", label: "News & Press", icon: FileText, className: "text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100" },
 ];
@@ -103,6 +110,8 @@ const Admin = () => {
   const [targetApplicationId, setTargetApplicationId] = useState<string | undefined>()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [documentPayload, setDocumentPayload] = useState<string | undefined>()
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -158,11 +167,28 @@ const Admin = () => {
         navigate("/auth")
         return
       }
+
+      const email = session.user.email?.toLowerCase();
+      
+      // SECURITY: Hardcoded RBAC
+      if (!email || !["ceo@biovaco.in", "md@biovaco.in", "food@biovaco.in"].includes(email)) {
+        toast({ title: "Access Denied", description: "You do not have permission to access the admin portal.", variant: "destructive" });
+        await supabase.auth.signOut();
+        navigate("/auth");
+        return;
+      }
+
       setUser(session.user)
+
+      if (email === "food@biovaco.in") {
+        setActiveTab("rdlab")
+      }
+      
+      setIsCheckingAuth(false)
     }
 
     checkAuth()
-  }, [navigate])
+  }, [navigate, toast])
 
   const handleSignOut = async () => {
     try {
@@ -181,6 +207,10 @@ const Admin = () => {
     }
   }
 
+  const visibleTabs = user?.email === "food@biovaco.in" 
+    ? tabs.filter(t => t.id === "rdlab") 
+    : tabs;
+
   const handleNavigateToTab = (tab: string, payload?: string) => {
     if (tab === "applications" && payload) {
       setTargetApplicationId(payload)
@@ -191,12 +221,19 @@ const Admin = () => {
     setActiveTab(tab)
   }
 
+  if (isCheckingAuth) {
+    return <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-10 w-10 animate-spin text-green-600" /></div>
+  }
+
   return (
     <div className="min-h-screen bg-[#f8fafc]">
       <header className="bg-white shadow-sm border-b-4 border-[#08A04B] sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden lg:flex -ml-2 text-gray-500 hover:text-[#032E63]">
+                <Menu className="h-5 w-5" />
+              </Button>
               <BiovaCoLogo className="h-10 w-auto" />
               <span className="text-xl font-bold text-[#032E63] hidden sm:block">BiovaCo Nexus Admin</span>
               <span className="text-lg font-bold text-[#032E63] sm:hidden">Admin</span>
@@ -242,9 +279,9 @@ const Admin = () => {
       </header>
 
       <div className="flex min-h-screen">
-        <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-white shadow-sm border-r border-gray-200">
+        <aside className={`${sidebarOpen ? 'hidden lg:flex' : 'hidden'} lg:flex-col lg:w-64 bg-white shadow-sm border-r border-gray-200 transition-all duration-300`}>
           <nav className="flex-1 px-4 py-6 space-y-2">
-            {tabs.map((tab, index) => {
+            {visibleTabs.map((tab, index) => {
               const Icon = tab.icon;
               return (
                 <div
@@ -278,30 +315,38 @@ const Admin = () => {
                 onChange={(e) => setActiveTab(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               >
-                {tabs.map((tab) => (
+                {visibleTabs.map((tab) => (
                   <option key={tab.id} value={tab.id}>{tab.label}</option>
                 ))}
               </select>
             </div>
 
-            {activeTab === "dashboard" && <DashboardAnalytics user={user} onNavigateToTab={handleNavigateToTab} />}
-            {activeTab === "audit" && <AdminActivityLogs onNavigateToTab={handleNavigateToTab} />}
-            {activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} onNavigateToTab={handleNavigateToTab} />}
-            {activeTab === "posts" && <MarketingPostsManagement />}
-            {activeTab === "newsletter" && <NewsletterManagement />}
-            { activeTab === "interns" && <InternManagement /> }
-            { activeTab === "documents" && <DocumentGenerator initialPayload={documentPayload} onClearPayload={() => setDocumentPayload(undefined)} /> }
-            { activeTab === "content" && <PageContentManagement /> }
-            {activeTab === "jobs" && <JobPositionsManagement />}
-            {activeTab === "videos" && <VideoManagement />}
-            {activeTab === "location" && <LocationManagement />}
-            {activeTab === "countdown" && <CountdownManagement />}
-            {activeTab === "postcountdown" && <PostCountdownManagement />}
-            {activeTab === "maintenance" && <MaintenanceManagement />}
-            {activeTab === "models3d" && <Model3DManagement />}
-            {activeTab === "social" && <SocialLinksManagement />}
-            {activeTab === "business" && <BusinessManagement />}
-            {activeTab === "news" && <NewsManagement />}
+            {user?.email === "food@biovaco.in" ? (
+              <RDLabManagement />
+            ) : (
+              <>
+                {activeTab === "dashboard" && <DashboardAnalytics user={user} onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "audit" && <AdminActivityLogs onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "posts" && <MarketingPostsManagement />}
+                {activeTab === "newsletter" && <NewsletterManagement />}
+                { activeTab === "interns" && <InternManagement /> }
+                { activeTab === "documents" && <DocumentGenerator initialPayload={documentPayload} onClearPayload={() => setDocumentPayload(undefined)} /> }
+                { activeTab === "content" && <PageContentManagement /> }
+                {activeTab === "jobs" && <JobPositionsManagement />}
+                {activeTab === "videos" && <VideoManagement />}
+                {activeTab === "location" && <LocationManagement />}
+                {activeTab === "countdown" && <CountdownManagement />}
+                {activeTab === "postcountdown" && <PostCountdownManagement />}
+                {activeTab === "maintenance" && <MaintenanceManagement />}
+                {activeTab === "models3d" && <Model3DManagement />}
+                {activeTab === "social" && <SocialLinksManagement />}
+                {activeTab === "business" && <BusinessManagement />}
+                {activeTab === "knowledge" && <KnowledgeTracker />}
+                {activeTab === "rdlab" && <RDLabManagement />}
+                {activeTab === "news" && <NewsManagement />}
+              </>
+            )}
           </div>
         </main>
       </div>

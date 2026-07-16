@@ -34,7 +34,7 @@ const Auth = () => {
     setError('');
 
     // Restrict to specific email
-    const allowedEmails = ['ceo@biovaco.in', 'md@biovaco.in'];
+    const allowedEmails = ['ceo@biovaco.in', 'md@biovaco.in', 'food@biovaco.in'];
     if (!allowedEmails.includes(email.toLowerCase().trim())) {
       setError('Access restricted to authorized executive emails only.');
       setLoading(false);
