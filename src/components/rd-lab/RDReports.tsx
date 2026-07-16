@@ -27,9 +27,18 @@ export function RDReports() {
 
   const formatValCSV = (key: string, val: any): string => {
     if (val === null || val === undefined) return '';
-    if (typeof val === 'object') {
+    
+    let parsed = val;
+    if (typeof val === 'string' && (val.trim().startsWith('[') || val.trim().startsWith('{'))) {
       try {
-        const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+        parsed = JSON.parse(val);
+      } catch (e) {
+        // Fallback to original
+      }
+    }
+
+    if (typeof parsed === 'object') {
+      try {
         if (key === 'ingredients' && Array.isArray(parsed)) {
           return parsed.map((ing: any) => `${ing.name || ing}${ing.percentage ? ` (${ing.percentage})` : ''}`).join('; ');
         }
@@ -60,10 +69,18 @@ export function RDReports() {
     if (typeof val === 'boolean') {
       return `<strong style="color: ${val ? '#08A04B' : '#e53e3e'}">${val ? 'YES' : 'NO'}</strong>`;
     }
-    if (typeof val === 'object') {
+
+    let parsed = val;
+    if (typeof val === 'string' && (val.trim().startsWith('[') || val.trim().startsWith('{'))) {
       try {
-        const parsed = typeof val === 'string' ? JSON.parse(val) : val;
-        
+        parsed = JSON.parse(val);
+      } catch (e) {
+        // Fallback to original
+      }
+    }
+
+    if (typeof parsed === 'object') {
+      try {
         if (key === 'ingredients' && Array.isArray(parsed)) {
           if (parsed.length === 0) return `<span style="color:#cbd5e1">-</span>`;
           return `<ul style="margin: 0; padding-left: 15px; font-size: 8.5pt; text-align: left; list-style-type: disc;">
