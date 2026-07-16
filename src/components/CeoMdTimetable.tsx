@@ -732,44 +732,54 @@ export function CeoMdTimetable() {
     };
   }, [filteredEvents]);
 
-  // Native PDF exporter using jsPDF and jspdf-autotable
+  // Native PDF exporter — professional corporate format
   const handlePrintSchedule = () => {
     try {
-      const doc = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4"
-      });
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
-      const roleName = activeRole.toUpperCase();
-      const pageWidth = doc.internal.pageSize.getWidth(); // 297mm
-      const pageHeight = doc.internal.pageSize.getHeight(); // 210mm
-      const margin = 12;
+      const roleName  = activeRole === "ceo" ? "Chief Executive Officer (CEO)" : "Managing Director (MD)";
+      const roleShort = activeRole.toUpperCase();
+      const pageW     = doc.internal.pageSize.getWidth();
+      const pageH     = doc.internal.pageSize.getHeight();
+      const M         = 14;
+      const generated = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
 
-      // Draw Header Title & Branding
+      // ── HEADER BAR ──────────────────────────────────────────────────
+      doc.setFillColor(25, 35, 55);
+      doc.rect(0, 0, pageW, 28, "F");
+
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(18);
-      doc.setTextColor(3, 46, 99); // #032E63 (Dark Blue)
-      doc.text(`BiovaCo Nexus — Executive Weekly Schedule`, margin, 15);
-
-      doc.setFontSize(11);
-      doc.setTextColor(8, 160, 75); // #08A04B (Green)
-      doc.text(`Official Hour-Wise Allocation Plan for: ${roleName}`, margin, 21);
+      doc.setFontSize(14);
+      doc.setTextColor(255, 255, 255);
+      doc.text("BiovaCo Nexus Private Limited", M, 11);
 
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(100, 116, 139); // Slate Gray
-      doc.text(
-        `Generated on: ${new Date().toLocaleString("en-IN")} | Status: Verified Official`,
-        pageWidth - margin,
-        21,
-        { align: "right" }
-      );
+      doc.setFontSize(8);
+      doc.setTextColor(170, 182, 196);
+      doc.text("Advancing Agriculture Through Innovation", M, 17);
 
-      // Line Separator
-      doc.setDrawColor(226, 232, 240); // Border Gray
-      doc.setLineWidth(0.3);
-      doc.line(margin, 24, pageWidth - margin, 24);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(255, 255, 255);
+      doc.text("WEEKLY SCHEDULE", pageW - M, 11, { align: "right" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(170, 182, 196);
+      doc.text(roleName, pageW - M, 17, { align: "right" });
+
+      // ── META ROW ───────────────────────────────────────────────────
+      const metaY = 33;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`Prepared for : ${roleName}`,     M,        metaY);
+      doc.text(`Document     : Weekly Planner`,   M + 90,   metaY);
+      doc.text(`Generated on : ${generated}`,     M + 185,  metaY);
+
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.2);
+      doc.line(M, metaY + 3, pageW - M, metaY + 3);
 
       // Build Table: one row per visible hour label, events matched by time overlap
       const head = [["Time", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]];
@@ -804,84 +814,105 @@ export function CeoMdTimetable() {
       });
 
       autoTable(doc, {
-        startY: 28,
-        margin: { left: margin, right: margin, bottom: 15 },
-        theme: "grid",
+        startY: metaY + 7,
+        margin: { left: M, right: M, bottom: 18 },
+        theme: "plain",
         head,
         body,
         styles: {
-          fontSize: 7.5,
-          cellPadding: 2.5,
-          lineColor: [203, 213, 225], // border-slate-300
-          lineWidth: 0.15,
-          textColor: [15, 23, 42], // Slate 900
+          fontSize: 7,
+          cellPadding: { top: 2.5, right: 2, bottom: 2.5, left: 2 },
+          lineColor: [210, 210, 210],
+          lineWidth: 0.18,
+          textColor: [30, 30, 30],
           font: "helvetica",
           valign: "top",
-          overflow: "linebreak"
+          overflow: "linebreak",
         },
         headStyles: {
-          fillColor: activeRole === "ceo" ? [3, 46, 99] : [8, 160, 75], // CEO: Dark Blue, MD: Green
+          fillColor: [25, 35, 55],
           textColor: [255, 255, 255],
           fontStyle: "bold",
           halign: "center",
-          fontSize: 8.5,
-          cellPadding: 3
+          fontSize: 7.5,
+          cellPadding: { top: 3, right: 2, bottom: 3, left: 2 },
         },
         columnStyles: {
-          0: { cellWidth: 16, fontStyle: "bold", halign: "center", fillColor: [248, 250, 252] }, // Time col
+          0: { cellWidth: 14, halign: "center", fontStyle: "bold", fillColor: [238, 240, 244], textColor: [40, 40, 40] },
           1: { cellWidth: "auto" },
           2: { cellWidth: "auto" },
           3: { cellWidth: "auto" },
           4: { cellWidth: "auto" },
           5: { cellWidth: "auto" },
           6: { cellWidth: "auto" },
-          7: { cellWidth: "auto" }
+          7: { cellWidth: "auto" },
         },
         didParseCell: (data) => {
-          // Highlight filled cells with a very light background tint
-          if (data.column.index > 0 && data.cell.section === "body") {
-            const hasText = data.cell.text && data.cell.text.length > 0 && data.cell.text[0] !== "";
+          if (data.cell.section === "body" && data.column.index > 0) {
+            const hasText = data.cell.text?.length > 0 && data.cell.text[0] !== "";
+            const isEven  = data.row.index % 2 === 0;
             if (hasText) {
-              data.cell.styles.fillColor = activeRole === "ceo" ? [240, 249, 255] : [240, 253, 244]; // Soft blue / soft green
+              data.cell.styles.fillColor = [248, 249, 250];
+            } else {
+              data.cell.styles.fillColor = isEven ? [255, 255, 255] : [250, 250, 250];
             }
           }
-        }
+        },
       });
 
-      // Add a footer page number on each page
+      // ── FOOTER on every page ───────────────────────────────────────
       const totalPages = (doc as any).internal.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        
-        // Footer Line
-        doc.setDrawColor(241, 245, 249);
-        doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
-        
+
+        // Navy footer bar
+        doc.setFillColor(25, 35, 55);
+        doc.rect(0, pageH - 13, pageW, 13, "F");
+
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(7.5);
-        doc.setTextColor(148, 163, 184); // Slate 400
-        
-        // Left footer
-        doc.text("BiovaCo Nexus Admin Portal — Confidential", margin, pageHeight - 8);
-        
-        // Center footer
-        doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: "center" });
-        
-        // Right footer
-        doc.text("Approved by Board", pageWidth - margin, pageHeight - 8, { align: "right" });
+        doc.setFontSize(6.5);
+        doc.setTextColor(170, 182, 196);
+        doc.text("BiovaCo Nexus Pvt. Ltd.  |  Confidential — Internal Use Only", M, pageH - 6);
+        doc.text(`Page ${i} of ${totalPages}`, pageW / 2, pageH - 6, { align: "center" });
+        doc.text(`${roleShort} Weekly Planner  |  ${generated}`, pageW - M, pageH - 6, { align: "right" });
+
+        // Signature lines on last page
+        if (i === totalPages) {
+          const lastTableY = (doc as any).lastAutoTable?.finalY ?? (pageH - 40);
+          const sigY = lastTableY + 5;
+          if (sigY < pageH - 28) {
+            doc.setDrawColor(130, 130, 130);
+            doc.setLineWidth(0.25);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7);
+            doc.setTextColor(70, 70, 70);
+
+            // CEO signature
+            doc.line(M, sigY + 10, M + 52, sigY + 10);
+            doc.text("Authorised Signatory — CEO", M, sigY + 14);
+
+            // MD signature
+            doc.line(M + 70, sigY + 10, M + 122, sigY + 10);
+            doc.text("Authorised Signatory — MD", M + 70, sigY + 14);
+
+            // Date
+            doc.line(pageW - M - 52, sigY + 10, pageW - M, sigY + 10);
+            doc.text("Date", pageW - M - 52, sigY + 14);
+          }
+        }
       }
 
-      doc.save(`BiovaCo_Nexus_${roleName}_Weekly_Schedule.pdf`);
-      
+      doc.save(`BiovaCo_${roleShort}_WeeklySchedule.pdf`);
+
       toast({
-        title: "PDF Export Complete",
-        description: `Successfully downloaded the ${roleName} Weekly Schedule PDF.`
+        title: "PDF Downloaded",
+        description: `${roleShort} Weekly Schedule saved successfully.`
       });
     } catch (err: any) {
       console.error("PDF generation failed:", err);
       toast({
         title: "PDF Export Failed",
-        description: err.message || "Failed to render PDF format.",
+        description: err.message || "Failed to generate PDF.",
         variant: "destructive"
       });
     }
