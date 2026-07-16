@@ -7,10 +7,23 @@ import Admin from "./pages/Admin"
 import AuthProtectedRoute from "@/components/AuthProtectedRoute"
 
 /**
- * Root redirect: always send to login first.
- * After login, Auth page handles the redirect to /admin.
- * This way visiting any URL (including /) never shows 404.
+ * SECURITY DESIGN:
+ *
+ * - "/" and any unknown URL → silent blank page (portal existence hidden)
+ * - "/nexus-portal-login"   → login page (only people with this link can access)
+ * - "/admin"                → protected dashboard (session required)
+ *
+ * If someone accidentally discovers /admin but has no session,
+ * they get a silent blank page — NOT a login redirect.
+ * Only authorised staff who already have the login URL can authenticate.
  */
+
+/** Silent blank page — reveals nothing about the portal */
+const SilentBlank = () => (
+  <div className="min-h-screen bg-white" aria-hidden="true" />
+);
+
+/** Root: if already authenticated → go to admin, else → silent blank */
 const RootRedirect = () => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -25,17 +38,14 @@ const RootRedirect = () => {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-        <p className="text-[#032E63] font-medium">Loading...</p>
-      </div>
-    );
+    return <div className="min-h-screen bg-white" />;
   }
 
-  // Already logged in → go to admin; else → login page
+  // Authenticated staff → admin dashboard
+  // Unknown visitor → blank page (no hint that admin portal exists)
   return isAuthenticated
     ? <Navigate to="/admin" replace />
-    : <Navigate to="/nexus-portal-login" replace />;
+    : <SilentBlank />;
 };
 
 const App = () => {
@@ -44,10 +54,10 @@ const App = () => {
       <BrowserRouter>
         <div id="main-content">
           <Routes>
-            {/* Root → smart redirect (never 404) */}
+            {/* Root: authenticated → admin, else → silent blank */}
             <Route path="/" element={<RootRedirect />} />
 
-            {/* Login page */}
+            {/* Login — only people with this exact URL can reach it */}
             <Route path="/nexus-portal-login" element={<Auth />} />
 
             {/* Protected admin dashboard */}
@@ -60,8 +70,11 @@ const App = () => {
               }
             />
 
-            {/* Catch-all: ANY unknown URL → login page (not a scary 404) */}
-            <Route path="*" element={<Navigate to="/nexus-portal-login" replace />} />
+            {/*
+             * Catch-all: ANY unknown URL → silent blank page.
+             * We do NOT redirect to login — that would expose the portal.
+             */}
+            <Route path="*" element={<SilentBlank />} />
           </Routes>
         </div>
       </BrowserRouter>
