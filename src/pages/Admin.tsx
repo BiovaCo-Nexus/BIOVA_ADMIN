@@ -235,8 +235,12 @@ const Admin = () => {
                 <Menu className="h-5 w-5" />
               </Button>
               <BiovaCoLogo className="h-10 w-auto" />
-              <span className="text-xl font-bold text-[#032E63] hidden sm:block">BiovaCo Nexus Admin</span>
-              <span className="text-lg font-bold text-[#032E63] sm:hidden">Admin</span>
+              <span className="text-xl font-bold text-[#032E63] hidden sm:block">
+                {user?.email === "ceo@biovaco.in" || user?.email === "md@biovaco.in" ? "BiovaCo Nexus Admin" : "BiovaCo Nexus Portal"}
+              </span>
+              <span className="text-lg font-bold text-[#032E63] sm:hidden">
+                {user?.email === "ceo@biovaco.in" || user?.email === "md@biovaco.in" ? "Admin" : "Portal"}
+              </span>
             </div>
 
             <div className="hidden md:flex items-center space-x-4">
