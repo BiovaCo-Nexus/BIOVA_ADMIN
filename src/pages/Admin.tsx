@@ -40,7 +40,8 @@ import {
   CreditCard,
   BookOpen,
   FlaskConical,
-  Loader2
+  Loader2,
+  FolderOpen
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 import { supabase } from "@/integrations/supabase/client"
@@ -68,6 +69,7 @@ import { NewsManagement } from "@/components/NewsManagement"
 import { KnowledgeTracker } from "@/components/KnowledgeTracker"
 import { RDLabManagement } from "@/components/RDLabManagement"
 import { MarketResearchHub } from "@/components/rd-lab/MarketResearchHub"
+import { SharedFilesManager } from "@/components/SharedFilesManager"
 
 interface NewsletterSubscription {
   id: string
@@ -101,6 +103,7 @@ const INITIAL_TABS = [
   { id: "social", label: "Social Links", icon: Share2 },
   { id: "business", label: "Business & ERP", icon: Briefcase, className: "text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 font-bold border border-indigo-200" },
   { id: "market_research", label: "Market Research & BD", icon: Briefcase, className: "text-amber-700 bg-amber-50/50 hover:bg-amber-100 font-bold border border-amber-200" },
+  { id: "shared_files", label: "Shared Files Portal", icon: FolderOpen, className: "text-[#032E63] bg-[#f0f4f8] hover:bg-[#e1e8f0] font-bold border border-blue-200" },
   { id: "knowledge", label: "Knowledge Tracker", icon: BookOpen, className: "text-teal-700 bg-teal-50/50 hover:bg-teal-100 font-semibold border border-teal-200" },
   { id: "rdlab", label: "R&D Lab", icon: FlaskConical, className: "text-[#08A04B] bg-green-50/50 hover:bg-green-100 font-bold border border-green-200" },
   { id: "audit", label: "Audit Logs", icon: Activity, className: "text-blue-700 bg-blue-50/50 hover:bg-blue-100" },
@@ -215,13 +218,13 @@ const Admin = () => {
   const visibleTabs = isCEOorMD 
     ? tabs 
     : isFoodTech 
-      ? tabs.filter(t => t.id === "rdlab" || t.id === "knowledge") 
-      : tabs.filter(t => t.id === "knowledge");
+      ? tabs.filter(t => t.id === "rdlab" || t.id === "knowledge" || t.id === "shared_files") 
+      : tabs.filter(t => t.id === "knowledge" || t.id === "shared_files");
 
   useEffect(() => {
-    if (!isCEOorMD && !isFoodTech && activeTab !== "knowledge") {
+    if (!isCEOorMD && !isFoodTech && activeTab !== "knowledge" && activeTab !== "shared_files") {
       setActiveTab("knowledge");
-    } else if (isFoodTech && activeTab !== "rdlab" && activeTab !== "knowledge") {
+    } else if (isFoodTech && activeTab !== "rdlab" && activeTab !== "knowledge" && activeTab !== "shared_files") {
       setActiveTab("rdlab");
     }
   }, [isCEOorMD, isFoodTech, activeTab]);
@@ -342,11 +345,14 @@ const Admin = () => {
 
             {isFoodTech ? (
               <>
-                {activeTab === "knowledge" ? <KnowledgeTracker /> : <RDLabManagement />}
+                {activeTab === "knowledge" && <KnowledgeTracker />}
+                {activeTab === "shared_files" && <SharedFilesManager />}
+                {activeTab === "rdlab" && <RDLabManagement />}
               </>
             ) : !isCEOorMD ? (
               <>
-                <KnowledgeTracker />
+                {activeTab === "knowledge" && <KnowledgeTracker />}
+                {activeTab === "shared_files" && <SharedFilesManager />}
               </>
             ) : (
               <>
@@ -368,6 +374,7 @@ const Admin = () => {
                 {activeTab === "social" && <SocialLinksManagement />}
                 {activeTab === "business" && <BusinessManagement />}
                 {activeTab === "market_research" && <MarketResearchHub />}
+                {activeTab === "shared_files" && <SharedFilesManager />}
                 {activeTab === "knowledge" && <KnowledgeTracker />}
                 {activeTab === "rdlab" && <RDLabManagement />}
                 {activeTab === "news" && <NewsManagement />}
