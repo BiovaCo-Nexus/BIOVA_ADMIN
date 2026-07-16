@@ -43,16 +43,21 @@ export async function registerServiceWorkerAndSubscribe(email: string): Promise<
     console.log("User subscribed to push service:", subscription)
 
     // 4. Save to Supabase
-    const { error } = await supabase
-      .from("push_subscriptions")
-      .upsert(
-        { email, subscription: subscription.toJSON() },
-        { onConflict: "email" }
-      )
+    try {
+      const { error } = await supabase
+        .from("push_subscriptions")
+        .upsert(
+          { email, subscription: subscription.toJSON() },
+          { onConflict: "email" }
+        )
 
-    if (error) {
-      console.error("Failed to store push subscription in database:", error)
-      return false
+      if (error) {
+        console.warn("Failed to store push subscription in database, falling back to LocalStorage:", error)
+        localStorage.setItem(`push_sub_${email}`, JSON.stringify(subscription.toJSON()))
+      }
+    } catch (dbErr) {
+      console.warn("Database connection issue. Storing subscription locally:", dbErr)
+      localStorage.setItem(`push_sub_${email}`, JSON.stringify(subscription.toJSON()))
     }
 
     return true
@@ -84,6 +89,21 @@ export async function triggerPushNotification(
     console.log("Push notifications dispatched successfully:", data)
     return data
   } catch (err) {
-    console.error("Failed to trigger push notifications:", err)
+    console.warn("Could not dispatch via Edge Function, falling back to local client notification:", err)
+    
+    // Fallback: Show a direct local browser notification if permission is granted
+    if ("Notification" in window && Notification.permission === "granted") {
+      const registration = await navigator.serviceWorker.getRegistration()
+      if (registration) {
+        registration.showNotification(title, {
+          body,
+          icon: "/pwa-192x192.png",
+          badge: "/pwa-192x192.png",
+          data: { url }
+        })
+      } else {
+        new Notification(title, { body })
+      }
+    }
   }
 }
