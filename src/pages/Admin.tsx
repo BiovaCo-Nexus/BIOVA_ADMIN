@@ -326,7 +326,9 @@ const Admin = () => {
             </div>
 
             {user?.email === "food@biovaco.in" ? (
-              <RDLabManagement />
+              <>
+                {activeTab === "knowledge" ? <KnowledgeTracker /> : <RDLabManagement />}
+              </>
             ) : (
               <>
                 {activeTab === "dashboard" && <DashboardAnalytics user={user} onNavigateToTab={handleNavigateToTab} />}
