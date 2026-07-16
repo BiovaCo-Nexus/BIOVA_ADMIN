@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { saveWithOfflineSupport } from "./OfflineSyncManager"
-import { Plus, Edit, Trash2, X, Check, Loader2, FlaskConical } from "lucide-react"
+import { Plus, Edit, Trash2, X, Check, Loader2, FlaskConical, ClipboardCheck } from "lucide-react"
 
 interface Ingredient { name: string; percentage: string }
 interface Recipe {
@@ -34,6 +34,10 @@ export function RecipeFormulation() {
   const [materials, setMaterials] = useState<{name: string}[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
+  const [isPasting, setIsPasting] = useState(false)
+  const [pasteText, setPasteText] = useState("")
+  const [isPastingIngredients, setIsPastingIngredients] = useState(false)
+  const [pasteIngredientsText, setPasteIngredientsText] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [form, setForm] = useState(emptyForm())
 
@@ -59,6 +63,120 @@ export function RecipeFormulation() {
   }
 
   useEffect(() => { fetchRecipes() }, [])
+
+  const handlePasteImport = async () => {
+    const lines = pasteText.split(/\r?\n/).filter(line => line.trim() !== "");
+    if (lines.length < 2) {
+      toast({ title: "Invalid Data", description: "Please paste a header row and at least one data row from Excel.", variant: "destructive" });
+      return;
+    }
+
+    setIsSaving(true);
+    const headers = lines[0].split("\t").map(h => h.trim().toLowerCase());
+    const rows = lines.slice(1);
+
+    const mappings = {
+      product_name: ['productname', 'product', 'name', 'recipe', 'recipename'],
+      version: ['version', 'v', 'revision'],
+      category: ['category', 'type', 'class'],
+      batch_size: ['batchsize', 'batch_size', 'size'],
+      cost_per_batch: ['costperbatch', 'cost', 'batchcost', 'price'],
+      status: ['status', 'state'],
+      notes: ['notes', 'note', 'description']
+    };
+
+    const dbRows: any[] = [];
+
+    for (const row of rows) {
+      const cols = row.split("\t");
+      const dbRow: any = {};
+      
+      headers.forEach((header, index) => {
+        const normHeader = header.replace(/[^a-z0-9]/g, '');
+        const val = cols[index]?.trim() || '';
+
+        for (const [dbCol, synonyms] of Object.entries(mappings)) {
+          if (synonyms.includes(normHeader)) {
+            if (dbCol === 'cost_per_batch') {
+              const parsedNum = Number(val.replace(/[^0-9.-]+/g, ""));
+              dbRow[dbCol] = isNaN(parsedNum) ? 0 : parsedNum;
+            } else {
+              dbRow[dbCol] = val;
+            }
+            break;
+          }
+        }
+      });
+
+      if (dbRow.product_name) {
+        dbRow.ingredients = JSON.stringify([]);
+        dbRow.steps = JSON.stringify([]);
+        dbRows.push(dbRow);
+      }
+    }
+
+    if (dbRows.length === 0) {
+      toast({ title: "Import Failed", description: "Could not auto-detect the 'Product Name' column.", variant: "destructive" });
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("rd_recipes").insert(dbRows);
+      if (error) throw error;
+      toast({ title: "Import Successful", description: `Successfully imported ${dbRows.length} recipes.` });
+      fetchRecipes();
+      setIsPasting(false);
+      setPasteText("");
+    } catch (err: any) {
+      toast({ title: "Import Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePasteIngredients = () => {
+    const lines = pasteIngredientsText.split(/\r?\n/).filter(line => line.trim() !== "");
+    if (lines.length === 0) return;
+
+    const newIngredients: Ingredient[] = [];
+    
+    for (const line of lines) {
+      const cols = line.split("\t");
+      if (cols.length === 0) continue;
+      
+      const name = cols[0]?.trim();
+      let percentage = cols[1]?.trim() || "";
+      
+      if (!name) continue;
+      
+      if (name.toLowerCase() === 'ingredient' || name.toLowerCase() === 'item' || name.toLowerCase() === 'name') {
+        continue;
+      }
+      
+      if (percentage && !percentage.includes('%') && !isNaN(Number(percentage))) {
+        percentage = `${percentage}%`;
+      }
+      
+      newIngredients.push({ name, percentage });
+    }
+
+    if (newIngredients.length > 0) {
+      const current = form.ingredients || [];
+      const filteredCurrent = current.filter(ing => ing.name !== "" || ing.percentage !== "");
+      
+      setForm({
+        ...form,
+        ingredients: [...filteredCurrent, ...newIngredients]
+      });
+      toast({ title: "Ingredients Pasted", description: `Added ${newIngredients.length} ingredients.` });
+    } else {
+      toast({ title: "No Ingredients Found", description: "Please ensure you copy two columns: Name and Percentage.", variant: "destructive" });
+    }
+    
+    setIsPastingIngredients(false);
+    setPasteIngredientsText("");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -128,10 +246,47 @@ export function RecipeFormulation() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-[#032E63]">Recipe Formulation</h2>
-        {!isEditing && <Button onClick={() => { resetForm(); setIsEditing(true) }} className="bg-[#08A04B] hover:bg-[#069a43]"><Plus className="h-4 w-4 mr-2" />New Recipe</Button>}
+        {!isEditing && !isPasting && (
+          <div className="flex gap-2">
+            <Button onClick={() => { setPasteText(""); setIsPasting(true) }} variant="outline" className="border-indigo-500 text-indigo-600 hover:bg-indigo-50">
+              <ClipboardCheck className="h-4 w-4 mr-2" />Bulk Paste (Excel)
+            </Button>
+            <Button onClick={() => { resetForm(); setIsEditing(true) }} className="bg-[#08A04B] hover:bg-[#069a43]"><Plus className="h-4 w-4 mr-2" />New Recipe</Button>
+          </div>
+        )}
       </div>
 
-      {isEditing ? (
+      {isPasting ? (
+        <Card className="border-l-4 border-l-indigo-500 shadow-md">
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-[#032E63] flex items-center gap-2">
+                <ClipboardCheck className="h-5 w-5 text-indigo-500" /> Excel/Sheets Recipe Import
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setIsPasting(false)}><X className="h-4 w-4" /></Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-500">
+              Copy rows from your Excel/Google Sheet (including the header row) and paste them below. 
+              The system will auto-detect columns like <strong>Product Name, Version, Category, Batch Size, Cost, Notes, Status</strong>.
+            </p>
+            <Textarea
+              value={pasteText}
+              onChange={e => setPasteText(e.target.value)}
+              placeholder="Product Name&#9;Version&#9;Category&#9;Batch Size&#9;Cost&#10;Sweet Seasoning&#9;V1.2&#9;Seasoning&#9;100 kg&#9;15000"
+              rows={10}
+              className="font-mono text-xs"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsPasting(false)}>Cancel</Button>
+              <Button onClick={handlePasteImport} disabled={isSaving || !pasteText.trim()} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />} Import Recipes
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : isEditing ? (
         <Card className="border-l-4 border-l-[#08A04B] shadow-md">
           <CardHeader className="pb-3">
             <div className="flex justify-between items-center">
@@ -161,7 +316,32 @@ export function RecipeFormulation() {
               {/* Ingredients */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between"><label className="text-sm font-semibold text-[#032E63]">Ingredients</label>
-                  <Button type="button" variant="outline" size="sm" onClick={addIngredient}><Plus className="h-3 w-3 mr-1" />Add</Button></div>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setPasteIngredientsText(""); setIsPastingIngredients(true) }} className="border-indigo-500 text-indigo-600 hover:bg-indigo-50"><ClipboardCheck className="h-3 w-3 mr-1" />Paste List</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={addIngredient}><Plus className="h-3 w-3 mr-1" />Add</Button>
+                  </div>
+                </div>
+
+                {isPastingIngredients && (
+                  <Card className="border border-indigo-200 bg-indigo-50/30 p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-xs font-bold text-indigo-900">Paste Ingredients (Excel format: Ingredient [Tab] Percentage)</h4>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsPastingIngredients(false)}><X className="h-3.5 w-3.5" /></Button>
+                    </div>
+                    <Textarea 
+                      value={pasteIngredientsText}
+                      onChange={e => setPasteIngredientsText(e.target.value)}
+                      placeholder="Sugar&#9;45%&#10;Salt&#9;5%&#10;Garlic Powder&#9;20%"
+                      rows={5}
+                      className="font-mono text-xs bg-white"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setIsPastingIngredients(false)}>Cancel</Button>
+                      <Button type="button" size="sm" onClick={handlePasteIngredients} disabled={!pasteIngredientsText.trim()} className="bg-indigo-600 hover:bg-indigo-700 text-white">Import List</Button>
+                    </div>
+                  </Card>
+                )}
+
                 <div className="border rounded-lg overflow-hidden">
                   <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow><TableHead className="w-8">#</TableHead><TableHead>Ingredient</TableHead><TableHead className="w-28">%</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
                     <TableBody>
