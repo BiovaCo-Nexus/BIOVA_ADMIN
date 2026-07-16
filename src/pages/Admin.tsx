@@ -67,6 +67,7 @@ import { BusinessManagement } from "@/components/BusinessManagement"
 import { NewsManagement } from "@/components/NewsManagement"
 import { KnowledgeTracker } from "@/components/KnowledgeTracker"
 import { RDLabManagement } from "@/components/RDLabManagement"
+import { MarketResearchHub } from "@/components/rd-lab/MarketResearchHub"
 
 interface NewsletterSubscription {
   id: string
@@ -99,6 +100,7 @@ const INITIAL_TABS = [
   { id: "models3d", label: "3D Models", icon: Box },
   { id: "social", label: "Social Links", icon: Share2 },
   { id: "business", label: "Business & ERP", icon: Briefcase, className: "text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 font-bold border border-indigo-200" },
+  { id: "market_research", label: "Market Research & BD", icon: Briefcase, className: "text-amber-700 bg-amber-50/50 hover:bg-amber-100 font-bold border border-amber-200" },
   { id: "knowledge", label: "Knowledge Tracker", icon: BookOpen, className: "text-teal-700 bg-teal-50/50 hover:bg-teal-100 font-semibold border border-teal-200" },
   { id: "rdlab", label: "R&D Lab", icon: FlaskConical, className: "text-[#08A04B] bg-green-50/50 hover:bg-green-100 font-bold border border-green-200" },
   { id: "audit", label: "Audit Logs", icon: Activity, className: "text-blue-700 bg-blue-50/50 hover:bg-blue-100" },
@@ -365,6 +367,7 @@ const Admin = () => {
                 {activeTab === "models3d" && <Model3DManagement />}
                 {activeTab === "social" && <SocialLinksManagement />}
                 {activeTab === "business" && <BusinessManagement />}
+                {activeTab === "market_research" && <MarketResearchHub />}
                 {activeTab === "knowledge" && <KnowledgeTracker />}
                 {activeTab === "rdlab" && <RDLabManagement />}
                 {activeTab === "news" && <NewsManagement />}
