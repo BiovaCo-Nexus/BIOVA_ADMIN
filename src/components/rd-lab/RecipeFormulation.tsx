@@ -135,47 +135,95 @@ export function RecipeFormulation() {
     }
   };
 
-  const handlePasteIngredients = () => {
+  const handlePasteIngredients = async () => {
     const lines = pasteIngredientsText.split(/\r?\n/).filter(line => line.trim() !== "");
     if (lines.length === 0) return;
 
-    const newIngredients: Ingredient[] = [];
-    
-    for (const line of lines) {
-      const cols = line.split("\t");
-      if (cols.length === 0) continue;
-      
-      const name = cols[0]?.trim();
-      let percentage = cols[1]?.trim() || "";
-      
-      if (!name) continue;
-      
-      if (name.toLowerCase() === 'ingredient' || name.toLowerCase() === 'item' || name.toLowerCase() === 'name') {
-        continue;
-      }
-      
-      if (percentage && !percentage.includes('%') && !isNaN(Number(percentage))) {
-        percentage = `${percentage}%`;
-      }
-      
-      newIngredients.push({ name, percentage });
-    }
+    setIsSaving(true);
 
-    if (newIngredients.length > 0) {
-      const current = form.ingredients || [];
-      const filteredCurrent = current.filter(ing => ing.name !== "" || ing.percentage !== "");
-      
-      setForm({
-        ...form,
-        ingredients: [...filteredCurrent, ...newIngredients]
-      });
-      toast({ title: "Ingredients Pasted", description: `Added ${newIngredients.length} ingredients.` });
-    } else {
-      toast({ title: "No Ingredients Found", description: "Please ensure you copy two columns: Name and Percentage.", variant: "destructive" });
+    try {
+      // Fetch latest materials from db to check for existence
+      const { data: rawMaterials, error: matErr } = await supabase
+        .from("rd_raw_materials")
+        .select("name")
+        .order("name");
+
+      if (matErr) throw matErr;
+
+      const newIngredients: Ingredient[] = [];
+      const materialsToAdd: { name: string, specifications: string }[] = [];
+
+      for (const line of lines) {
+        const cols = line.split("\t");
+        if (cols.length === 0) continue;
+        
+        const pastedName = cols[0]?.trim();
+        let percentage = cols[1]?.trim() || "";
+        
+        if (!pastedName) continue;
+        
+        if (pastedName.toLowerCase() === 'ingredient' || pastedName.toLowerCase() === 'item' || pastedName.toLowerCase() === 'name') {
+          continue;
+        }
+        
+        if (percentage && !percentage.includes('%') && !isNaN(Number(percentage))) {
+          percentage = `${percentage}%`;
+        }
+
+        // Check if raw material already exists
+        const match = rawMaterials?.find(m => m.name.toLowerCase().trim() === pastedName.toLowerCase().trim());
+        
+        let finalName = pastedName;
+        if (match) {
+          finalName = match.name; // Use exact DB casing
+        } else {
+          // If it doesn't exist locally in materialsToAdd either, queue it
+          if (!materialsToAdd.some(m => m.name.toLowerCase().trim() === pastedName.toLowerCase().trim())) {
+            materialsToAdd.push({
+              name: pastedName,
+              specifications: JSON.stringify([])
+            });
+          }
+        }
+        
+        newIngredients.push({ name: finalName, percentage });
+      }
+
+      // Add missing materials to raw materials database
+      if (materialsToAdd.length > 0) {
+        const { error: insertErr } = await supabase
+          .from("rd_raw_materials")
+          .insert(materialsToAdd);
+
+        if (insertErr) throw insertErr;
+
+        // Refresh materials in parent/local state
+        await fetchRecipes();
+        toast({ 
+          title: "New Materials Registered", 
+          description: `Automatically created ${materialsToAdd.length} missing ingredients in your Raw Material Library.` 
+        });
+      }
+
+      if (newIngredients.length > 0) {
+        const current = form.ingredients || [];
+        const filteredCurrent = current.filter(ing => ing.name !== "" || ing.percentage !== "");
+        
+        setForm({
+          ...form,
+          ingredients: [...filteredCurrent, ...newIngredients]
+        });
+        toast({ title: "Ingredients Pasted", description: `Added ${newIngredients.length} ingredients to formulation.` });
+      } else {
+        toast({ title: "No Ingredients Found", description: "Please ensure you copy two columns: Name and Percentage.", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Import Error", description: err.message, variant: "destructive" });
+    } finally {
+      setIsPastingIngredients(false);
+      setPasteIngredientsText("");
+      setIsSaving(false);
     }
-    
-    setIsPastingIngredients(false);
-    setPasteIngredientsText("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
