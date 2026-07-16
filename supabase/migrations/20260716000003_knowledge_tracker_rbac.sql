@@ -11,14 +11,11 @@ DROP POLICY IF EXISTS "Authenticated users can insert knowledge items" ON public
 DROP POLICY IF EXISTS "Authenticated users can update knowledge items" ON public.knowledge_items;
 DROP POLICY IF EXISTS "Authenticated users can delete knowledge items" ON public.knowledge_items;
 
--- CEO and MD can see everything. 
--- Regular users (like food@biovaco.in) can only see items they created or items explicitly assigned to them.
+-- All users can only see items they created or items explicitly assigned to them.
 CREATE POLICY "knowledge_select_policy" 
   ON public.knowledge_items FOR SELECT 
   TO authenticated 
   USING (
-    (auth.jwt() ->> 'email' = 'ceo@biovaco.in') OR 
-    (auth.jwt() ->> 'email' = 'md@biovaco.in') OR 
     (created_by = auth.jwt() ->> 'email') OR 
     (assigned_to = auth.jwt() ->> 'email')
   );
@@ -29,25 +26,20 @@ CREATE POLICY "knowledge_insert_policy"
   TO authenticated 
   WITH CHECK (true);
 
--- CEO and MD can update anything.
--- Regular users can only update items they created or are assigned to them.
+-- All users can only update items they created or are assigned to them.
 CREATE POLICY "knowledge_update_policy" 
   ON public.knowledge_items FOR UPDATE 
   TO authenticated 
   USING (
-    (auth.jwt() ->> 'email' = 'ceo@biovaco.in') OR 
-    (auth.jwt() ->> 'email' = 'md@biovaco.in') OR 
     (created_by = auth.jwt() ->> 'email') OR 
     (assigned_to = auth.jwt() ->> 'email')
   )
   WITH CHECK (true);
 
--- Only CEO, MD, or the creator can delete.
+-- Only the creator can delete an item.
 CREATE POLICY "knowledge_delete_policy" 
   ON public.knowledge_items FOR DELETE 
   TO authenticated 
   USING (
-    (auth.jwt() ->> 'email' = 'ceo@biovaco.in') OR 
-    (auth.jwt() ->> 'email' = 'md@biovaco.in') OR 
     (created_by = auth.jwt() ->> 'email')
   );
