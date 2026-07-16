@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { BiovaCoLogo } from './BiovaCoLogo';
 import { useToast } from "@/hooks/use-toast";
+import { useIdleTimeout } from '@/hooks/useIdleTimeout';
 
 interface AuthProtectedRouteProps {
   children: React.ReactNode;
@@ -14,8 +15,10 @@ const AuthProtectedRoute: React.FC<AuthProtectedRouteProps> = ({ children }) => 
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
   const { toast } = useToast();
+
+  // Auto-logout after 15 minutes of inactivity for security
+  useIdleTimeout(15);
 
   useEffect(() => {
     const handleAuthCheck = async (session: Session | null) => {
