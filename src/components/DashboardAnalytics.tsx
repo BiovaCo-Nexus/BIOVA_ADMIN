@@ -169,6 +169,19 @@ export function DashboardAnalytics({ user, onNavigateToTab }: DashboardAnalytics
     }
   }
 
+  const sendTestPush = async () => {
+    if (!user?.email) return
+    toast({
+      title: "Sending test notification...",
+      description: "Please check your desktop/mobile alerts."
+    })
+    await triggerPushNotification(
+      "Test Notification 🔔",
+      "Hello! This is a test push notification from BiovaCo Nexus.",
+      [user.email]
+    )
+  }
+
   // Count overdue or critical tasks
   const criticalCount = pendingTasks.filter(t => t.priority === "critical").length
   const overdueCount = pendingTasks.filter(t => {
@@ -183,10 +196,20 @@ export function DashboardAnalytics({ user, onNavigateToTab }: DashboardAnalytics
         <div className="flex items-center gap-3 mt-1 sm:mt-0">
           <p className="text-sm text-gray-600">Welcome back, {user?.email?.split("@")[0]}</p>
           {isSubscribed ? (
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 text-[10px]">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-              Push Alerts Active
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 text-[10px]">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                Push Alerts Active
+              </Badge>
+              <Button 
+                onClick={sendTestPush} 
+                size="sm" 
+                variant="outline" 
+                className="h-6 text-[10px] px-2 py-0 border-blue-200 text-blue-700 hover:bg-blue-50"
+              >
+                Send Test 🔔
+              </Button>
+            </div>
           ) : null}
         </div>
       </div>
