@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/integrations/supabase/client"
 import { Beaker, FlaskConical, Package, ClipboardCheck, Truck, FileText, BarChart3, TestTubes, ShieldCheck, Factory, Users, Calculator, AlertTriangle, BookOpen, WifiOff } from "lucide-react"
+import { SmartDataImporter } from "./SmartDataImporter"
 
 interface DashboardStats {
   totalRecipes: number; approvedRecipes: number; devRecipes: number;
@@ -69,6 +70,10 @@ export function RDDashboard({ onNavigate }: { onNavigate: (tab: string) => void 
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="mt-8">
+        <SmartDataImporter />
       </div>
 
       <Card className="mt-8 shadow-sm border border-blue-100">
