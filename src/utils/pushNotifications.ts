@@ -82,15 +82,22 @@ export async function triggerPushNotification(
   emails: string[],
   url: string = "/admin"
 ) {
+  const targetEmails = (emails || []).map(e => e.trim().toLowerCase()).filter(Boolean);
+  
+  if (targetEmails.length === 0) {
+    console.log("No target emails provided for push notification. Skipping request.");
+    return;
+  }
+
   try {
     const { data, error } = await supabase.functions.invoke("push-notify", {
-      body: { title, body, emails, url }
+      body: { title, body, emails: targetEmails, url }
     })
     if (error) throw error
     console.log("Push notifications dispatched successfully:", data)
     return data
   } catch (err) {
-    console.warn("Could not dispatch via Edge Function, falling back to local client notification:", err)
+    console.log("Edge Function dispatch not available or failed. Using local client notification fallback.");
     
     // Fallback: Show a direct local browser notification if permission is granted
     if ("Notification" in window && Notification.permission === "granted") {
