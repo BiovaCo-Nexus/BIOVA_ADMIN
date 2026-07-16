@@ -24,7 +24,7 @@ const AuthProtectedRoute: React.FC<AuthProtectedRouteProps> = ({ children }) => 
       
       if (!session?.user) {
         setLoading(false);
-        navigate('/auth');
+        navigate('/unauthorized');
         return;
       }
 
@@ -37,7 +37,7 @@ const AuthProtectedRoute: React.FC<AuthProtectedRouteProps> = ({ children }) => 
           variant: "destructive"
         });
         setLoading(false);
-        navigate('/auth');
+        navigate('/unauthorized');
         return;
       }
 
