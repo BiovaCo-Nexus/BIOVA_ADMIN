@@ -11,7 +11,6 @@ import { useToast } from '@/hooks/use-toast';
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -42,49 +41,18 @@ const Auth = () => {
     }
 
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/admin`
-          }
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // Create profile after signup
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              user_id: user.id,
-              email: user.email!,
-              full_name: 'Admin User'
-            });
-
-          if (profileError) console.error('Profile creation error:', profileError);
-        }
-
-        toast({
-          title: "Account created successfully",
-          description: "Please check your email to confirm your account.",
-        });
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-
-        toast({
-          title: "Signed in successfully",
-          description: "Redirecting to admin panel...",
-        });
-        navigate('/admin');
-      }
+      toast({
+        title: "Signed in successfully",
+        description: "Redirecting to admin panel...",
+      });
+      navigate('/admin');
     } catch (error: any) {
       setError(error.message);
     } finally {
@@ -100,7 +68,7 @@ const Auth = () => {
             <BiovaCoLogo className="h-16 w-auto" />
           </div>
           <CardTitle className="text-2xl text-[#032E63] font-bold">
-            {isSignUp ? 'Create Admin Account' : 'Admin Sign In'}
+            Admin Sign In
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -132,18 +100,8 @@ const Auth = () => {
             </div>
             
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+              {loading ? 'Processing...' : 'Sign In'}
             </Button>
-            
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-primary hover:underline"
-              >
-                {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
-              </button>
-            </div>
           </form>
         </CardContent>
       </Card>
