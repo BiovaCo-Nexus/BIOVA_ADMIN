@@ -61,14 +61,56 @@ export function KnowledgeTracker() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [interns, setInterns] = useState<{name: string, email: string}[]>([])
   
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      setUserEmail(data.session?.user?.email || null)
+      const email = data.session?.user?.email || null
+      setUserEmail(email)
+      
+      if (email === "ceo@biovaco.in" || email === "md@biovaco.in") {
+        supabase.from('interns').select('name, email').eq('status', 'Active')
+          .then(({ data: internData }) => {
+            if (internData) setInterns(internData)
+          })
+      }
     })
   }, [])
   
   const isExecutive = userEmail === "ceo@biovaco.in" || userEmail === "md@biovaco.in"
+
+  const sendAssignmentEmail = async (internEmail: string, title: string, desc: string, prio: string) => {
+    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY
+    if (!BREVO_API_KEY) return
+
+    const internName = interns.find(i => i.email === internEmail)?.name || "Intern"
+
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; border: 1px solid #ddd; border-top: 4px solid #032E63;">
+        <h2 style="color: #032E63;">BiovaCo Nexus - New Task Assigned</h2>
+        <p>Hello <strong>${internName}</strong>,</p>
+        <p>A new task has been assigned to you by the Executive Team.</p>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+          <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9; width: 120px;"><strong>Task Title</strong></td><td style="padding: 8px; border: 1px solid #eee;">${title}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9;"><strong>Priority</strong></td><td style="padding: 8px; border: 1px solid #eee;">${prio.toUpperCase()}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9;"><strong>Details</strong></td><td style="padding: 8px; border: 1px solid #eee;">${desc || "No description provided."}</td></tr>
+        </table>
+        <p style="color: #777; font-size: 12px; margin-top: 20px;">Please login to the BiovaCo Nexus portal to update the status of this task.</p>
+      </div>
+    `
+    const payload = {
+      sender: { name: "BiovaCo Nexus Admin", email: "no-reply@biovaco.in" },
+      to: [{ email: internEmail, name: internName }],
+      subject: `[New Task Assigned] ${title}`,
+      htmlContent: emailHtml
+    }
+    
+    await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
+      body: JSON.stringify(payload)
+    }).catch(console.error)
+  }
 
   const stats = useMemo(() => {
     const total = items.length
@@ -109,6 +151,12 @@ export function KnowledgeTracker() {
         validation_notes: form.validation_notes || null,
         due_date: form.due_date || null,
       })
+      
+      const isNewlyAssignedToIntern = interns.some(i => i.email === form.assigned_to)
+      if (isNewlyAssignedToIntern) {
+        sendAssignmentEmail(form.assigned_to, form.title, form.description, form.priority)
+      }
+      
       toast({ title: isOnline ? "Item updated" : "Item updated (will sync when online)" })
     } else {
       await addItem({
@@ -120,6 +168,12 @@ export function KnowledgeTracker() {
         validation_notes: form.validation_notes || null,
         due_date: form.due_date || null,
       })
+      
+      const isAssignedToIntern = interns.some(i => i.email === form.assigned_to)
+      if (isAssignedToIntern) {
+        sendAssignmentEmail(form.assigned_to || '', form.title, form.description, form.priority)
+      }
+      
       toast({ title: isOnline ? "Item created" : "Item saved offline (will sync when online)" })
     }
     setIsSaving(false)
@@ -279,6 +333,10 @@ export function KnowledgeTracker() {
                         <SelectItem value="ceo@biovaco.in">CEO</SelectItem>
                         <SelectItem value="md@biovaco.in">MD</SelectItem>
                         <SelectItem value="food@biovaco.in">Food Technologist (R&D)</SelectItem>
+                        {interns.length > 0 && <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 mt-2">INTERNS</div>}
+                        {interns.map(i => (
+                          <SelectItem key={i.email} value={i.email}>{i.name} (Intern)</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
