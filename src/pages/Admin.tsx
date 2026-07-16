@@ -207,9 +207,22 @@ const Admin = () => {
     }
   }
 
-  const visibleTabs = user?.email === "food@biovaco.in" 
-    ? tabs.filter(t => t.id === "rdlab" || t.id === "knowledge") 
-    : tabs;
+  const isCEOorMD = user?.email === "ceo@biovaco.in" || user?.email === "md@biovaco.in";
+  const isFoodTech = user?.email === "food@biovaco.in";
+  
+  const visibleTabs = isCEOorMD 
+    ? tabs 
+    : isFoodTech 
+      ? tabs.filter(t => t.id === "rdlab" || t.id === "knowledge") 
+      : tabs.filter(t => t.id === "knowledge");
+
+  useEffect(() => {
+    if (!isCEOorMD && !isFoodTech && activeTab !== "knowledge") {
+      setActiveTab("knowledge");
+    } else if (isFoodTech && activeTab !== "rdlab" && activeTab !== "knowledge") {
+      setActiveTab("rdlab");
+    }
+  }, [isCEOorMD, isFoodTech, activeTab]);
 
   const handleNavigateToTab = (tab: string, payload?: string) => {
     if (tab === "applications" && payload) {
@@ -325,9 +338,13 @@ const Admin = () => {
               </select>
             </div>
 
-            {user?.email === "food@biovaco.in" ? (
+            {isFoodTech ? (
               <>
                 {activeTab === "knowledge" ? <KnowledgeTracker /> : <RDLabManagement />}
+              </>
+            ) : !isCEOorMD ? (
+              <>
+                <KnowledgeTracker />
               </>
             ) : (
               <>
