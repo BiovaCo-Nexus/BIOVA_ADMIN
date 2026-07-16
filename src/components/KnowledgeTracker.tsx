@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { supabase } from "@/integrations/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -60,7 +61,6 @@ export function KnowledgeTracker() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  import { useEffect } from "react"
   
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
