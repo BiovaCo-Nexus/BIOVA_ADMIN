@@ -134,7 +134,7 @@ export function SampleManagement() {
           {samples.length === 0 ? (
             <div className="p-12 text-center"><Users className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No samples dispatched.</p></div>
           ) : (
-            <Table><TableHeader><TableRow>
+            <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow>
               <TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Product</TableHead><TableHead>Tracking</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
               <TableBody>{samples.map(s => (
@@ -154,7 +154,7 @@ export function SampleManagement() {
                   </TableCell>
                 </TableRow>
               ))}</TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent></Card>
       )}

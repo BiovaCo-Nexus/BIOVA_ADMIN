@@ -148,7 +148,7 @@ export function DocumentVault() {
           {docs.length === 0 ? (
             <div className="p-12 text-center"><FolderOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">The vault is empty.</p></div>
           ) : (
-            <Table><TableHeader><TableRow>
+            <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow>
               <TableHead>Document</TableHead><TableHead>Category</TableHead><TableHead>Related To</TableHead><TableHead>Tags</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
               <TableBody>{docs.map(d => (
@@ -180,7 +180,7 @@ export function DocumentVault() {
                   </TableCell>
                 </TableRow>
               ))}</TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent></Card>
       )}

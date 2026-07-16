@@ -146,7 +146,7 @@ export function RawMaterialLibrary() {
                 <div className="flex items-center justify-between"><label className="text-sm font-semibold text-[#032E63]">Specifications</label>
                   <Button type="button" variant="outline" size="sm" onClick={addSpec}><Plus className="h-3 w-3 mr-1" />Add Spec</Button></div>
                 <div className="border rounded-lg overflow-hidden">
-                  <Table><TableHeader><TableRow><TableHead>Property</TableHead><TableHead>Requirement</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                  <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow><TableHead>Property</TableHead><TableHead>Requirement</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
                     <TableBody>
                       {(form.specifications || []).map((spec, i) => (
                         <TableRow key={i}>
@@ -156,7 +156,7 @@ export function RawMaterialLibrary() {
                         </TableRow>
                       ))}
                     </TableBody>
-                  </Table>
+                  </Table></div>
                 </div>
               </div>
 
@@ -177,7 +177,7 @@ export function RawMaterialLibrary() {
           {materials.length === 0 ? (
             <div className="p-12 text-center"><PackageSearch className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No raw materials. Add items to your library.</p></div>
           ) : (
-            <Table><TableHeader><TableRow>
+            <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow>
               <TableHead>Material Name</TableHead><TableHead>Supplier</TableHead><TableHead>Cost/kg</TableHead><TableHead>MOQ</TableHead><TableHead>Shelf Life</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
               <TableBody>{materials.map(m => (
@@ -193,7 +193,7 @@ export function RawMaterialLibrary() {
                   </TableCell>
                 </TableRow>
               ))}</TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent></Card>
       )}

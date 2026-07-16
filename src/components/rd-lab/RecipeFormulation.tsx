@@ -163,7 +163,7 @@ export function RecipeFormulation() {
                 <div className="flex items-center justify-between"><label className="text-sm font-semibold text-[#032E63]">Ingredients</label>
                   <Button type="button" variant="outline" size="sm" onClick={addIngredient}><Plus className="h-3 w-3 mr-1" />Add</Button></div>
                 <div className="border rounded-lg overflow-hidden">
-                  <Table><TableHeader><TableRow><TableHead className="w-8">#</TableHead><TableHead>Ingredient</TableHead><TableHead className="w-28">%</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                  <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow><TableHead className="w-8">#</TableHead><TableHead>Ingredient</TableHead><TableHead className="w-28">%</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
                     <TableBody>
                       {(form.ingredients || []).map((ing, i) => (
                         <TableRow key={i}>
@@ -181,7 +181,7 @@ export function RecipeFormulation() {
                         </TableRow>
                       ))}
                     </TableBody>
-                  </Table>
+                  </Table></div>
                 </div>
               </div>
 
@@ -217,7 +217,7 @@ export function RecipeFormulation() {
           {recipes.length === 0 ? (
             <div className="p-12 text-center"><FlaskConical className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No recipes yet. Create your first recipe.</p></div>
           ) : (
-            <Table><TableHeader><TableRow>
+            <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow>
               <TableHead>Product</TableHead><TableHead>Version</TableHead><TableHead>Category</TableHead><TableHead>Ingredients</TableHead><TableHead>Cost</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
               <TableBody>{recipes.map(r => (
@@ -234,7 +234,7 @@ export function RecipeFormulation() {
                   </TableCell>
                 </TableRow>
               ))}</TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent></Card>
       )}

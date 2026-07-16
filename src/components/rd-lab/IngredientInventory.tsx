@@ -152,7 +152,7 @@ export function IngredientInventory() {
           {inventory.length === 0 ? (
             <div className="p-12 text-center"><Scale className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">Inventory is empty. Add your first stock entry.</p></div>
           ) : (
-            <Table><TableHeader><TableRow>
+            <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow>
               <TableHead>Material</TableHead><TableHead>Stock Level</TableHead><TableHead>Status</TableHead><TableHead>Batch</TableHead><TableHead>Expiry</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
               <TableBody>{inventory.map(item => {
@@ -173,7 +173,7 @@ export function IngredientInventory() {
                 </TableRow>
               )
               })}</TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent></Card>
       )}

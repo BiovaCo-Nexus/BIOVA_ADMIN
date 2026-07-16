@@ -200,7 +200,7 @@ export function ManufacturingSOP() {
           {sops.length === 0 ? (
             <div className="p-12 text-center"><FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No SOPs found.</p></div>
           ) : (
-            <Table><TableHeader><TableRow>
+            <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow>
               <TableHead>Product</TableHead><TableHead>Version</TableHead><TableHead>Steps</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
               <TableBody>{sops.map(s => (
@@ -219,7 +219,7 @@ export function ManufacturingSOP() {
                   </TableCell>
                 </TableRow>
               ))}</TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent></Card>
       )}

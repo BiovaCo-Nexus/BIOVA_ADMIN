@@ -133,7 +133,7 @@ export function SupplierManagement() {
           {suppliers.length === 0 ? (
             <div className="p-12 text-center"><Truck className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No suppliers added.</p></div>
           ) : (
-            <Table><TableHeader><TableRow>
+            <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow>
               <TableHead>Supplier</TableHead><TableHead>Material</TableHead><TableHead>Lead Time</TableHead><TableHead>Rating</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
               <TableBody>{suppliers.map(s => (
@@ -156,7 +156,7 @@ export function SupplierManagement() {
                   </TableCell>
                 </TableRow>
               ))}</TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent></Card>
       )}

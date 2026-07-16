@@ -155,7 +155,7 @@ export function ProductTesting() {
           {tests.length === 0 ? (
             <div className="p-12 text-center"><ClipboardCheck className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No product tests recorded.</p></div>
           ) : (
-            <Table><TableHeader><TableRow>
+            <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow>
               <TableHead>Date</TableHead><TableHead>Product</TableHead><TableHead>Batch</TableHead><TableHead>Tester</TableHead><TableHead>Avg Score</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
               <TableBody>{tests.map(t => {
@@ -174,7 +174,7 @@ export function ProductTesting() {
                 </TableRow>
               )
               })}</TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent></Card>
       )}

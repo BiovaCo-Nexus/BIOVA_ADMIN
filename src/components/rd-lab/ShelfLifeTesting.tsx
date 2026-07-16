@@ -208,7 +208,7 @@ export function ShelfLifeTesting() {
           {tests.length === 0 ? (
             <div className="p-12 text-center"><CalendarClock className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No shelf life tests running.</p></div>
           ) : (
-            <Table><TableHeader><TableRow>
+            <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow>
               <TableHead>Start Date</TableHead><TableHead>Product</TableHead><TableHead>Batch</TableHead><TableHead>Conditions</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
               <TableBody>{tests.map(t => (
@@ -228,7 +228,7 @@ export function ShelfLifeTesting() {
                   </TableCell>
                 </TableRow>
               ))}</TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent></Card>
       )}

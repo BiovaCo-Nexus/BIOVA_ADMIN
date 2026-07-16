@@ -184,7 +184,7 @@ export function QCChecklists() {
           {lists.length === 0 ? (
             <div className="p-12 text-center"><ListChecks className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No QC records.</p></div>
           ) : (
-            <Table><TableHeader><TableRow>
+            <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow>
               <TableHead>Date</TableHead><TableHead>Batch ID</TableHead><TableHead>Product</TableHead><TableHead>Inspector</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
               <TableBody>{lists.map(t => (
@@ -204,7 +204,7 @@ export function QCChecklists() {
                   </TableCell>
                 </TableRow>
               ))}</TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent></Card>
       )}

@@ -170,7 +170,7 @@ export function BatchTrials() {
           {trials.length === 0 ? (
             <div className="p-12 text-center"><TestTubes className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No trials recorded. Log your first batch trial.</p></div>
           ) : (
-            <Table><TableHeader><TableRow>
+            <div className="overflow-x-auto w-full"><Table className="min-w-[600px] mb-4"><TableHeader><TableRow>
               <TableHead>Trial No</TableHead><TableHead>Date</TableHead><TableHead>Product</TableHead><TableHead>Scores (Avg)</TableHead><TableHead>Decision</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
               <TableBody>{trials.map(t => {
@@ -193,7 +193,7 @@ export function BatchTrials() {
                 </TableRow>
               )
               })}</TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent></Card>
       )}
