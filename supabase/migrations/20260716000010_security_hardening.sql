@@ -44,7 +44,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.get_contact_location()
+DROP FUNCTION IF EXISTS public.get_contact_location();
+CREATE FUNCTION public.get_contact_location()
 RETURNS TABLE(address text, map_url text, city text, state text)
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -58,7 +59,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.get_visitor_stats()
+DROP FUNCTION IF EXISTS public.get_visitor_stats();
+CREATE FUNCTION public.get_visitor_stats()
 RETURNS TABLE(total_visitors bigint, today_visitors bigint, unique_countries bigint)
 LANGUAGE plpgsql
 SECURITY DEFINER
