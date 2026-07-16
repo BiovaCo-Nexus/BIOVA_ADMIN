@@ -6,13 +6,11 @@ import Auth from "./pages/Auth"
 import Admin from "./pages/Admin"
 import AuthProtectedRoute from "@/components/AuthProtectedRoute"
 
-const Unauthorized = () => (
-  <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
-    <h1 className="text-4xl font-bold text-gray-800 mb-4">404 - Not Found</h1>
-    <p className="text-gray-600">The page you are looking for does not exist.</p>
-  </div>
-);
-
+/**
+ * Root redirect: always send to login first.
+ * After login, Auth page handles the redirect to /admin.
+ * This way visiting any URL (including /) never shows 404.
+ */
 const RootRedirect = () => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -28,13 +26,16 @@ const RootRedirect = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
-        <p className="text-gray-500 font-medium">Checking authorization...</p>
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <p className="text-[#032E63] font-medium">Loading...</p>
       </div>
     );
   }
 
-  return isAuthenticated ? <Navigate to="/admin" replace /> : <Navigate to="/unauthorized" replace />;
+  // Already logged in → go to admin; else → login page
+  return isAuthenticated
+    ? <Navigate to="/admin" replace />
+    : <Navigate to="/nexus-portal-login" replace />;
 };
 
 const App = () => {
@@ -43,9 +44,13 @@ const App = () => {
       <BrowserRouter>
         <div id="main-content">
           <Routes>
+            {/* Root → smart redirect (never 404) */}
             <Route path="/" element={<RootRedirect />} />
-            <Route path="/unauthorized" element={<Unauthorized />} />
+
+            {/* Login page */}
             <Route path="/nexus-portal-login" element={<Auth />} />
+
+            {/* Protected admin dashboard */}
             <Route
               path="/admin"
               element={
@@ -54,7 +59,9 @@ const App = () => {
                 </AuthProtectedRoute>
               }
             />
-            <Route path="*" element={<Navigate to="/unauthorized" replace />} />
+
+            {/* Catch-all: ANY unknown URL → login page (not a scary 404) */}
+            <Route path="*" element={<Navigate to="/nexus-portal-login" replace />} />
           </Routes>
         </div>
       </BrowserRouter>

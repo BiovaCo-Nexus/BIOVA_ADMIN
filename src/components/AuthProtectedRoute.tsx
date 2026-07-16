@@ -23,7 +23,7 @@ const AuthProtectedRoute: React.FC<AuthProtectedRouteProps> = ({ children }) => 
       
       if (!session?.user) {
         setLoading(false);
-        navigate('/unauthorized');
+        navigate('/nexus-portal-login');
         return;
       }
 
@@ -36,7 +36,7 @@ const AuthProtectedRoute: React.FC<AuthProtectedRouteProps> = ({ children }) => 
           variant: "destructive"
         });
         setLoading(false);
-        navigate('/unauthorized');
+        navigate('/nexus-portal-login');
         return;
       }
 
