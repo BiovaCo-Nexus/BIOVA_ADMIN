@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RDDashboard } from "./rd-lab/RDDashboard"
 import { RecipeFormulation } from "./rd-lab/RecipeFormulation"
@@ -16,13 +16,27 @@ import { DocumentVault } from "./rd-lab/DocumentVault"
 import { RDReports } from "./rd-lab/RDReports"
 import { DemandToDirectors } from "./rd-lab/DemandToDirectors"
 import { OfflineSyncManager } from "./rd-lab/OfflineSyncManager"
-import { LayoutDashboard, FlaskConical, TestTubes, Package, ClipboardCheck, Scale, FileText, Truck, Users, Calculator, FolderOpen, FileBarChart, AlertCircle } from "lucide-react"
+import { MarketResearchHub } from "./rd-lab/MarketResearchHub"
+import { supabase } from "@/integrations/supabase/client"
+import { LayoutDashboard, FlaskConical, TestTubes, Package, ClipboardCheck, Scale, FileText, Truck, Users, Calculator, FolderOpen, FileBarChart, AlertCircle, Briefcase } from "lucide-react"
 
 export function RDLabManagement() {
   const [activeTab, setActiveTab] = useState("dashboard")
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.email) {
+        setUserEmail(data.user.email)
+      }
+    })
+  }, [])
+
+  const isCEOorMD = userEmail === "ceo@biovaco.in" || userEmail === "md@biovaco.in";
 
   const TABS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    ...(isCEOorMD ? [{ id: "market_research", label: "Market & BizDev", icon: Briefcase }] : []),
     { id: "recipes", label: "Recipe Formulation", icon: FlaskConical },
     { id: "trials", label: "Batch Trials", icon: TestTubes },
     { id: "materials", label: "Raw Materials", icon: Package },
@@ -66,6 +80,7 @@ export function RDLabManagement() {
 
       <div className="mt-4">
         {activeTab === "dashboard" && <RDDashboard onNavigate={setActiveTab} />}
+        {activeTab === "market_research" && <MarketResearchHub />}
         {activeTab === "recipes" && <RecipeFormulation />}
         {activeTab === "materials" && <RawMaterialLibrary />}
         {activeTab === "inventory" && <IngredientInventory />}
