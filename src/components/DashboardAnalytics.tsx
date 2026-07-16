@@ -1,7 +1,23 @@
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileText, Mail, AlertCircle, Settings, Briefcase, Wrench } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
+import { 
+  FileText, 
+  Mail, 
+  AlertCircle, 
+  Settings, 
+  Briefcase, 
+  Wrench, 
+  CheckCircle2, 
+  Circle, 
+  Clock, 
+  AlertTriangle, 
+  User, 
+  Calendar,
+  Loader2
+} from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { AdminActivityLogs } from "@/components/AdminActivityLogs"
 
@@ -11,14 +27,15 @@ interface DashboardAnalyticsProps {
 }
 
 export function DashboardAnalytics({ user, onNavigateToTab }: DashboardAnalyticsProps) {
+  const { toast } = useToast()
   const [applicationsCount, setApplicationsCount] = useState(0)
   const [newApplicationsCount, setNewApplicationsCount] = useState(0)
   const [newslettersCount, setNewslettersCount] = useState(0)
   const [confirmedNewslettersCount, setConfirmedNewslettersCount] = useState(0)
 
-  useEffect(() => {
-    fetchDashboardStats()
-  }, [])
+  // Pending Tasks states
+  const [pendingTasks, setPendingTasks] = useState<any[]>([])
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true)
 
   const fetchDashboardStats = async () => {
     try {
@@ -51,12 +68,191 @@ export function DashboardAnalytics({ user, onNavigateToTab }: DashboardAnalytics
     }
   }
 
+  const fetchPendingTasks = async () => {
+    try {
+      setIsLoadingTasks(true)
+      const { data, error } = await supabase
+        .from("knowledge_items")
+        .select("*")
+        .neq("status", "validated")
+        .neq("status", "rejected")
+
+      if (error) throw error
+
+      // Sort: critical first, then high, then medium, then low
+      const sorted = (data || []).sort((a: any, b: any) => {
+        const pOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
+        return (pOrder[a.priority] ?? 9) - (pOrder[b.priority] ?? 9)
+      })
+
+      setPendingTasks(sorted)
+    } catch (err: any) {
+      console.error("Error fetching pending tasks:", err)
+    } finally {
+      setIsLoadingTasks(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchDashboardStats()
+    fetchPendingTasks()
+  }, [])
+
+  const handleValidateTask = async (id: string, title: string) => {
+    try {
+      const { error } = await supabase
+        .from("knowledge_items")
+        .update({ status: "validated" })
+        .eq("id", id)
+
+      if (error) throw error
+
+      toast({
+        title: "Task Completed",
+        description: `"${title}" has been successfully completed and validated.`
+      })
+
+      // Refresh list
+      fetchPendingTasks()
+    } catch (err: any) {
+      toast({
+        title: "Failed to update task",
+        description: err.message,
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Count overdue or critical tasks
+  const criticalCount = pendingTasks.filter(t => t.priority === "critical").length
+  const overdueCount = pendingTasks.filter(t => {
+    if (!t.due_date) return false
+    return new Date(t.due_date) < new Date()
+  }).length
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-[#032E63]">Dashboard Overview</h1>
         <p className="text-sm text-gray-600 mt-1 sm:mt-0">Welcome back, {user?.email?.split("@")[0]}</p>
       </div>
+
+      {/* Urgent Alerts Banner */}
+      {(criticalCount > 0 || overdueCount > 0) && (
+        <div className="bg-red-50 border-l-4 border-l-red-600 p-4 rounded-r-lg shadow-sm flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="font-bold text-red-950 text-sm">Critical Attention Required!</h4>
+            <p className="text-xs text-red-800">
+              You have {criticalCount > 0 ? <span><strong>{criticalCount} critical task(s)</strong></span> : ""} 
+              {criticalCount > 0 && overdueCount > 0 ? " and " : ""}
+              {overdueCount > 0 ? <span><strong>{overdueCount} overdue task(s)</strong></span> : ""} remaining pending. Please resolve them immediately.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Tasks Section (FIRST) */}
+      <Card className="border-l-4 border-l-orange-500 shadow-md">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-[#032E63] text-lg font-bold flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-orange-500" />
+              Urgent Checklist & Pending Work
+            </CardTitle>
+            <CardDescription className="text-xs text-gray-500 mt-0.5">
+              Tasks assigned to you or waiting for validation. Mark them completed directly.
+            </CardDescription>
+          </div>
+          {onNavigateToTab && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onNavigateToTab("knowledge")} 
+              className="text-xs border-orange-200 hover:bg-orange-50 text-[#032E63]"
+            >
+              Manage All Tasks
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="pt-2">
+          {isLoadingTasks ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+            </div>
+          ) : pendingTasks.length === 0 ? (
+            <div className="text-center py-6 text-slate-500 text-xs">
+              🎉 No pending tasks! All clear.
+            </div>
+          ) : (
+            <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+              {pendingTasks.map(task => {
+                const isOverdue = task.due_date && new Date(task.due_date) < new Date()
+                const priorityColors: Record<string, string> = {
+                  critical: "bg-red-100 text-red-800 border-red-300",
+                  high: "bg-orange-100 text-orange-800 border-orange-300",
+                  medium: "bg-yellow-100 text-yellow-800 border-yellow-300",
+                  low: "bg-gray-100 text-gray-700 border-gray-300"
+                }
+
+                return (
+                  <div 
+                    key={task.id} 
+                    className={`flex items-start justify-between gap-3 p-3 rounded-lg border bg-white transition-all hover:border-slate-300 ${
+                      isOverdue ? "border-l-4 border-l-red-500" : task.priority === "critical" ? "border-l-4 border-l-red-500" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleValidateTask(task.id, task.title)}
+                        className="h-5 w-5 rounded-full shrink-0 p-0 text-slate-400 hover:text-green-600 transition-colors"
+                        title="Mark Validated (Completed)"
+                      >
+                        <Circle className="h-4.5 w-4.5" />
+                      </Button>
+                      
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-xs text-slate-900 leading-tight">
+                            {task.title}
+                          </span>
+                          {isOverdue && (
+                            <Badge className="bg-red-600 text-white text-[9px] px-1 py-0 border-0 leading-none">
+                              OVERDUE
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className={`${priorityColors[task.priority] || 'bg-gray-100'} text-[9px] px-1.5 py-0 leading-none`}>
+                            {task.priority.toUpperCase()}
+                          </Badge>
+                        </div>
+                        {task.description && (
+                          <p className="text-xs text-slate-500 line-clamp-1">{task.description}</p>
+                        )}
+                        <div className="flex items-center gap-2.5 flex-wrap text-[10px] text-slate-400">
+                          {task.due_date && (
+                            <span className="flex items-center gap-1 font-medium">
+                              <Calendar className="h-3 w-3" /> Due: {task.due_date}
+                            </span>
+                          )}
+                          {task.assigned_to && (
+                            <span className="flex items-center gap-1">
+                              <User className="h-3 w-3" /> 
+                              Assigned: {task.assigned_to.split(',')[0].split('@')[0]} 
+                              {task.assigned_to.split(',').length > 1 ? ` +${task.assigned_to.split(',').length - 1}` : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
