@@ -25,6 +25,87 @@ export function RDReports() {
   const [selectedModule, setSelectedModule] = useState(MODULES[0].id)
   const [isExporting, setIsExporting] = useState(false)
 
+  const formatValCSV = (key: string, val: any): string => {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'object') {
+      try {
+        const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+        if (key === 'ingredients' && Array.isArray(parsed)) {
+          return parsed.map((ing: any) => `${ing.name || ing}${ing.percentage ? ` (${ing.percentage})` : ''}`).join('; ');
+        }
+        if (key === 'steps' && Array.isArray(parsed)) {
+          return parsed.map((step: any, idx: number) => `${idx + 1}. ${step}`).join('; ');
+        }
+        if (key === 'specifications') {
+          if (Array.isArray(parsed)) {
+            return parsed.map((spec: any) => `${spec.key || spec.property || ''}: ${spec.value || spec.requirement || ''}`).join('; ');
+          }
+          if (typeof parsed === 'object') {
+            return Object.entries(parsed).map(([k, v]) => `${k}: ${v}`).join('; ');
+          }
+        }
+        if (Array.isArray(parsed)) {
+          return parsed.join('; ');
+        }
+        return JSON.stringify(parsed);
+      } catch (err) {
+        return JSON.stringify(val);
+      }
+    }
+    return String(val);
+  };
+
+  const formatValHTML = (key: string, val: any): string => {
+    if (val === null || val === undefined) return `<span style="color:#cbd5e1">-</span>`;
+    if (typeof val === 'boolean') {
+      return `<strong style="color: ${val ? '#08A04B' : '#e53e3e'}">${val ? 'YES' : 'NO'}</strong>`;
+    }
+    if (typeof val === 'object') {
+      try {
+        const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+        
+        if (key === 'ingredients' && Array.isArray(parsed)) {
+          if (parsed.length === 0) return `<span style="color:#cbd5e1">-</span>`;
+          return `<ul style="margin: 0; padding-left: 15px; font-size: 8.5pt; text-align: left; list-style-type: disc;">
+            ${parsed.map((ing: any) => `<li>${ing.name || ing} ${ing.percentage ? `<strong>(${ing.percentage})</strong>` : ''}</li>`).join('')}
+          </ul>`;
+        }
+        
+        if (key === 'steps' && Array.isArray(parsed)) {
+          if (parsed.length === 0) return `<span style="color:#cbd5e1">-</span>`;
+          return `<ol style="margin: 0; padding-left: 15px; font-size: 8.5pt; text-align: left;">
+            ${parsed.map((step: any) => `<li>${step}</li>`).join('')}
+          </ol>`;
+        }
+
+        if (key === 'specifications') {
+          if (Array.isArray(parsed)) {
+            if (parsed.length === 0) return `<span style="color:#cbd5e1">-</span>`;
+            return `<ul style="margin: 0; padding-left: 15px; font-size: 8.5pt; text-align: left; list-style-type: square;">
+              ${parsed.map((spec: any) => `<li><strong>${spec.key || spec.property || ''}:</strong> ${spec.value || spec.requirement || ''}</li>`).join('')}
+            </ul>`;
+          }
+          if (typeof parsed === 'object') {
+            const entries = Object.entries(parsed);
+            if (entries.length === 0) return `<span style="color:#cbd5e1">-</span>`;
+            return `<ul style="margin: 0; padding-left: 15px; font-size: 8.5pt; text-align: left;">
+              ${entries.map(([k, v]) => `<li><strong>${k}:</strong> ${v}</li>`).join('')}
+            </ul>`;
+          }
+        }
+
+        if (Array.isArray(parsed)) {
+          return parsed.join(', ');
+        }
+        
+        return `<div class="json-block">${JSON.stringify(parsed, null, 2)}</div>`;
+      } catch (err) {
+        return `<div class="json-block">${JSON.stringify(val, null, 2)}</div>`;
+      }
+    }
+    return String(val);
+  };
+
   const handleExportCSV = async () => {
     try {
       setIsExporting(true)
@@ -38,15 +119,11 @@ export function RDReports() {
         return
       }
 
-      // Convert JSONB objects to strings for CSV
+      // Convert objects/JSON to formatted strings for CSV
       const processedData = data.map(row => {
         const newRow: any = {}
         Object.keys(row).forEach(key => {
-          if (typeof row[key] === 'object' && row[key] !== null) {
-            newRow[key] = JSON.stringify(row[key])
-          } else {
-            newRow[key] = row[key]
-          }
+          newRow[key] = formatValCSV(key, row[key])
         })
         return newRow
       })
@@ -54,7 +131,7 @@ export function RDReports() {
       // Generate CSV
       const headers = Object.keys(processedData[0])
       const csvRows = [
-        headers.join(","),
+        headers.map(h => `"${h.replace(/_/g, ' ').toUpperCase()}"`).join(","),
         ...processedData.map(row => 
           headers.map(header => {
             const val = row[header]
@@ -168,17 +245,7 @@ export function RDReports() {
               <tbody>
                 ${data.map(row => `
                   <tr>
-                    ${headers.map(h => {
-                      let val = row[h];
-                      if (val === null || val === undefined) return `<td><span style="color:#cbd5e1">-</span></td>`;
-                      if (typeof val === 'object') {
-                        return `<td><div class="json-block">${JSON.stringify(val, null, 2)}</div></td>`;
-                      }
-                      if (typeof val === 'boolean') {
-                        return `<td><strong style="color: ${val ? '#08A04B' : '#e53e3e'}">${val ? 'YES' : 'NO'}</strong></td>`;
-                      }
-                      return `<td>${String(val)}</td>`;
-                    }).join('')}
+                    ${headers.map(h => `<td>${formatValHTML(h, row[h])}</td>`).join('')}
                   </tr>
                 `).join('')}
               </tbody>
