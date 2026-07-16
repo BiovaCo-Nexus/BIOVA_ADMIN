@@ -14,8 +14,9 @@ import { SampleManagement } from "./rd-lab/SampleManagement"
 import { CostCalculator } from "./rd-lab/CostCalculator"
 import { DocumentVault } from "./rd-lab/DocumentVault"
 import { RDReports } from "./rd-lab/RDReports"
+import { DemandToDirectors } from "./rd-lab/DemandToDirectors"
 import { OfflineSyncManager } from "./rd-lab/OfflineSyncManager"
-import { LayoutDashboard, FlaskConical, TestTubes, Package, ClipboardCheck, Scale, FileText, Truck, Users, Calculator, FolderOpen, FileBarChart } from "lucide-react"
+import { LayoutDashboard, FlaskConical, TestTubes, Package, ClipboardCheck, Scale, FileText, Truck, Users, Calculator, FolderOpen, FileBarChart, AlertCircle } from "lucide-react"
 
 export function RDLabManagement() {
   const [activeTab, setActiveTab] = useState("dashboard")
@@ -35,6 +36,7 @@ export function RDLabManagement() {
     { id: "costing", label: "Cost Calc", icon: Calculator },
     { id: "vault", label: "Doc Vault", icon: FolderOpen },
     { id: "reports", label: "Reports", icon: FileBarChart },
+    { id: "demand", label: "Demand To Directors", icon: AlertCircle },
   ]
 
   return (
@@ -77,6 +79,7 @@ export function RDLabManagement() {
         {activeTab === "costing" && <CostCalculator />}
         {activeTab === "vault" && <DocumentVault />}
         {activeTab === "reports" && <RDReports />}
+        {activeTab === "demand" && <DemandToDirectors />}
       </div>
     </div>
   )
