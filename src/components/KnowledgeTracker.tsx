@@ -152,9 +152,10 @@ export function KnowledgeTracker() {
         due_date: form.due_date || null,
       })
       
-      const isNewlyAssignedToIntern = interns.some(i => i.email === form.assigned_to)
-      if (isNewlyAssignedToIntern) {
-        sendAssignmentEmail(form.assigned_to, form.title, form.description, form.priority)
+      const assignees = (form.assigned_to || '').split(',').filter(Boolean)
+      const internAssignees = assignees.filter(email => interns.some(i => i.email === email))
+      for (const email of internAssignees) {
+        sendAssignmentEmail(email, form.title, form.description, form.priority)
       }
       
       toast({ title: isOnline ? "Item updated" : "Item updated (will sync when online)" })
@@ -169,9 +170,10 @@ export function KnowledgeTracker() {
         due_date: form.due_date || null,
       })
       
-      const isAssignedToIntern = interns.some(i => i.email === form.assigned_to)
-      if (isAssignedToIntern) {
-        sendAssignmentEmail(form.assigned_to || '', form.title, form.description, form.priority)
+      const assignees = (form.assigned_to || '').split(',').filter(Boolean)
+      const internAssignees = assignees.filter(email => interns.some(i => i.email === email))
+      for (const email of internAssignees) {
+        sendAssignmentEmail(email, form.title, form.description, form.priority)
       }
       
       toast({ title: isOnline ? "Item created" : "Item saved offline (will sync when online)" })
@@ -326,19 +328,32 @@ export function KnowledgeTracker() {
                 
                 {isExecutive && (
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Assign To</label>
-                    <Select value={form.assigned_to} onValueChange={(v) => setForm({ ...form, assigned_to: v })}>
-                      <SelectTrigger><SelectValue placeholder="Assignee..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ceo@biovaco.in">CEO</SelectItem>
-                        <SelectItem value="md@biovaco.in">MD</SelectItem>
-                        <SelectItem value="food@biovaco.in">Food Technologist (R&D)</SelectItem>
-                        {interns.length > 0 && <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 mt-2">INTERNS</div>}
-                        {interns.map(i => (
-                          <SelectItem key={i.email} value={i.email}>{i.name} (Intern)</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <label className="text-sm font-medium">Assign To (Select Multiple)</label>
+                    <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-gray-50/50 max-h-40 overflow-y-auto">
+                      {[
+                        { label: 'CEO', email: 'ceo@biovaco.in' },
+                        { label: 'MD', email: 'md@biovaco.in' },
+                        { label: 'Food Technologist (R&D)', email: 'food@biovaco.in' },
+                        ...interns.map(i => ({ label: `${i.name} (Intern)`, email: i.email }))
+                      ].map(opt => {
+                        const isSelected = (form.assigned_to || '').split(',').includes(opt.email);
+                        return (
+                          <Badge 
+                            key={opt.email} 
+                            variant={isSelected ? "default" : "outline"} 
+                            className={`cursor-pointer transition-colors ${isSelected ? 'bg-blue-600 hover:bg-blue-700' : 'hover:bg-gray-100 bg-white'}`}
+                            onClick={() => {
+                              let current = (form.assigned_to || '').split(',').filter(Boolean);
+                              if (current.includes(opt.email)) current = current.filter(e => e !== opt.email);
+                              else current.push(opt.email);
+                              setForm({...form, assigned_to: current.join(',')});
+                            }}
+                          >
+                            {opt.label}
+                          </Badge>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -414,10 +429,14 @@ export function KnowledgeTracker() {
                         <Badge variant="outline" className={`${pri.color} text-[11px] px-1.5 py-0 border`}>{pri.label}</Badge>
                         <Badge variant="outline" className={`${sta.color} text-[11px] px-1.5 py-0`}>{sta.label}</Badge>
                         {item.assigned_to && (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0">
-                            <User className="h-3 w-3 mr-1" />
-                            {item.assigned_to.split('@')[0]}
-                          </Badge>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {item.assigned_to.split(',').filter(Boolean).map(email => (
+                              <Badge key={email} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0">
+                                <User className="h-3 w-3 mr-1" />
+                                {email.split('@')[0]}
+                              </Badge>
+                            ))}
+                          </div>
                         )}
                         {item.due_date && <span className="text-[11px] text-gray-400">Due: {item.due_date}</span>}
                         {item.source && <span className="text-[11px] text-gray-400 hidden sm:inline">· {item.source}</span>}

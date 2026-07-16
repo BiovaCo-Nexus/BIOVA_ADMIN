@@ -17,7 +17,7 @@ CREATE POLICY "knowledge_select_policy"
   TO authenticated 
   USING (
     (created_by = auth.jwt() ->> 'email') OR 
-    (assigned_to = auth.jwt() ->> 'email')
+    (assigned_to LIKE '%' || (auth.jwt() ->> 'email') || '%')
   );
 
 -- Anyone authenticated can insert, but they must be logged in.
@@ -32,7 +32,7 @@ CREATE POLICY "knowledge_update_policy"
   TO authenticated 
   USING (
     (created_by = auth.jwt() ->> 'email') OR 
-    (assigned_to = auth.jwt() ->> 'email')
+    (assigned_to LIKE '%' || (auth.jwt() ->> 'email') || '%')
   )
   WITH CHECK (true);
 
