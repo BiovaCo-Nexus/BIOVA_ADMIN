@@ -14,7 +14,7 @@ import {
   AlertTriangle, BookOpen, TrendingUp, Server, Search,
   Filter, ChevronDown, ChevronUp, Edit, Loader2,
   BarChart3, Target, Lightbulb, ShieldCheck, XCircle,
-  Wifi, WifiOff, RefreshCw, CloudOff
+  Wifi, WifiOff, RefreshCw, CloudOff, User
 } from "lucide-react"
 
 type Priority = "critical" | "high" | "medium" | "low"
