@@ -12,14 +12,15 @@ import {
   Wrench, 
   CheckCircle2, 
   Circle, 
-  Clock, 
   AlertTriangle, 
   User, 
   Calendar,
-  Loader2
+  Loader2,
+  BellRing
 } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { AdminActivityLogs } from "@/components/AdminActivityLogs"
+import { registerServiceWorkerAndSubscribe, isPushSubscribed, triggerPushNotification } from "@/utils/pushNotifications"
 
 interface DashboardAnalyticsProps {
   user: any
@@ -32,6 +33,10 @@ export function DashboardAnalytics({ user, onNavigateToTab }: DashboardAnalytics
   const [newApplicationsCount, setNewApplicationsCount] = useState(0)
   const [newslettersCount, setNewslettersCount] = useState(0)
   const [confirmedNewslettersCount, setConfirmedNewslettersCount] = useState(0)
+
+  // Push Subscription State
+  const [isSubscribed, setIsSubscribed] = useState(false)
+  const [checkingPush, setCheckingPush] = useState(true)
 
   // Pending Tasks states
   const [pendingTasks, setPendingTasks] = useState<any[]>([])
@@ -96,9 +101,33 @@ export function DashboardAnalytics({ user, onNavigateToTab }: DashboardAnalytics
   useEffect(() => {
     fetchDashboardStats()
     fetchPendingTasks()
+
+    // Check push notifications registration
+    isPushSubscribed().then(sub => {
+      setIsSubscribed(sub)
+      setCheckingPush(false)
+    })
   }, [])
 
-  const handleValidateTask = async (id: string, title: string) => {
+  const handleSubscribe = async () => {
+    if (!user?.email) return
+    const success = await registerServiceWorkerAndSubscribe(user.email)
+    if (success) {
+      setIsSubscribed(true)
+      toast({
+        title: "Notifications Enabled 🔔",
+        description: "You will now receive Chrome push alerts on your desktop & mobile device!"
+      })
+    } else {
+      toast({
+        title: "Setup Failed",
+        description: "Failed to enable notifications. Please verify browser permissions.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleValidateTask = async (id: string, title: string, assignedToField: string, createdByField: string) => {
     try {
       const { error } = await supabase
         .from("knowledge_items")
@@ -111,6 +140,23 @@ export function DashboardAnalytics({ user, onNavigateToTab }: DashboardAnalytics
         title: "Task Completed",
         description: `"${title}" has been successfully completed and validated.`
       })
+
+      // Send push notification to executives & assigned users
+      const alertRecipients = new Set<string>([
+        "ceo@biovaco.in",
+        "md@biovaco.in"
+      ])
+      if (createdByField) alertRecipients.add(createdByField)
+      if (assignedToField) {
+        assignedToField.split(',').forEach(email => alertRecipients.add(email.trim()))
+      }
+
+      const senderName = user?.email?.split("@")[0] || "A user"
+      triggerPushNotification(
+        "✅ Task Completed",
+        `"${title}" has been validated and completed by ${senderName}.`,
+        Array.from(alertRecipients)
+      )
 
       // Refresh list
       fetchPendingTasks()
@@ -134,8 +180,38 @@ export function DashboardAnalytics({ user, onNavigateToTab }: DashboardAnalytics
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-[#032E63]">Dashboard Overview</h1>
-        <p className="text-sm text-gray-600 mt-1 sm:mt-0">Welcome back, {user?.email?.split("@")[0]}</p>
+        <div className="flex items-center gap-3 mt-1 sm:mt-0">
+          <p className="text-sm text-gray-600">Welcome back, {user?.email?.split("@")[0]}</p>
+          {isSubscribed ? (
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 text-[10px]">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+              Push Alerts Active
+            </Badge>
+          ) : null}
+        </div>
       </div>
+
+      {/* Push Notification Promo Banner */}
+      {!checkingPush && !isSubscribed && (
+        <div className="bg-blue-50 border-l-4 border-l-blue-600 p-4 rounded-r-lg shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300">
+          <div className="flex items-start gap-3">
+            <BellRing className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-bold text-blue-950 text-xs sm:text-sm">Get Chrome Push Alerts on Desktop & Mobile</h4>
+              <p className="text-[11px] sm:text-xs text-blue-800">
+                Receive instant notifications about assigned tasks, updates, and documents even when you close the browser tab.
+              </p>
+            </div>
+          </div>
+          <Button 
+            onClick={handleSubscribe} 
+            size="sm" 
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shrink-0 self-start sm:self-auto"
+          >
+            Enable Alerts 🔔
+          </Button>
+        </div>
+      )}
 
       {/* Urgent Alerts Banner */}
       {(criticalCount > 0 || overdueCount > 0) && (
@@ -206,7 +282,7 @@ export function DashboardAnalytics({ user, onNavigateToTab }: DashboardAnalytics
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleValidateTask(task.id, task.title)}
+                        onClick={() => handleValidateTask(task.id, task.title, task.assigned_to, task.created_by)}
                         className="h-5 w-5 rounded-full shrink-0 p-0 text-slate-400 hover:text-green-600 transition-colors"
                         title="Mark Validated (Completed)"
                       >

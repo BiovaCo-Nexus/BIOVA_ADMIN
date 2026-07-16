@@ -24,6 +24,7 @@ import {
   Check,
   User
 } from "lucide-react"
+import { triggerPushNotification } from "@/utils/pushNotifications"
 
 type FileType = "drive_link" | "investor_doc" | "contact_sheet" | "specification" | "sop" | "other"
 
@@ -217,6 +218,19 @@ export function SharedFilesManager() {
       console.log(`Notification broadcasted to ${recipientsList.length} users.`)
     } catch (err) {
       console.error("Failed to send Brevo broadcast email:", err)
+    }
+
+    // Trigger Chrome Mobile & Desktop Push notifications for authorized users
+    try {
+      const pushEmails = recipientsList.map(r => r.email)
+      await triggerPushNotification(
+        isNew ? "📁 New File Uploaded" : "📝 File Updated",
+        `"${updatedFile.title}" (${updatedFile.file_type.replace('_', ' ').toUpperCase()}) by ${senderName}.`,
+        pushEmails,
+        "/admin"
+      )
+    } catch (err) {
+      console.error("Push notification dispatch failed:", err)
     }
   }
 
