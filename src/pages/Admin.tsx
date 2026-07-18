@@ -94,30 +94,39 @@ interface ApplicationStatus {
 }
 
 const INITIAL_TABS = [
-  { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-  { id: "timetable", label: "CEO & MD Timetable", icon: Calendar },
-  { id: "applications", label: "Applications", icon: FileText },
-  { id: "newsletter", label: "Newsletter", icon: Mail },
-  { id: "interns", label: "Interns", icon: Users },
-  { id: "content", label: "Our Story", icon: FileText },
-  { id: "documents", label: "Document Generator", icon: FileText },
-  { id: "jobs", label: "Job Positions", icon: Briefcase },
-  { id: "videos", label: "Videos", icon: Video },
-  { id: "location", label: "Location", icon: MapPin },
-  { id: "countdown", label: "Countdown", icon: Calendar },
-  { id: "postcountdown", label: "Post Countdown", icon: Settings },
-  { id: "maintenance", label: "Maintenance", icon: Wrench },
-  { id: "posts", label: "Marketing Posts", icon: FileText },
-  { id: "models3d", label: "3D Models", icon: Box },
-  { id: "social", label: "Social Links", icon: Share2 },
-  { id: "business", label: "Business & ERP", icon: Briefcase },
-  { id: "market_research", label: "Market Research", icon: Briefcase },
-  { id: "shared_files", label: "Shared Files", icon: FolderOpen },
-  { id: "knowledge", label: "Knowledge Tracker", icon: BookOpen },
-  { id: "rdlab", label: "R&D Lab", icon: FlaskConical },
-  { id: "audit", label: "Audit Logs", icon: Activity },
-  { id: "news", label: "News & Press", icon: Newspaper },
-  { id: "access_settings", label: "Access Control", icon: Shield },
+  // Core Operations
+  { id: "dashboard", label: "Dashboard", icon: BarChart3, category: "Core Operations" },
+  { id: "timetable", label: "CEO & MD Timetable", icon: Calendar, category: "Core Operations" },
+  { id: "business", label: "Business & ERP", icon: Briefcase, category: "Core Operations" },
+  { id: "documents", label: "Document Generator", icon: FileText, category: "Core Operations" },
+  { id: "shared_files", label: "Shared Files", icon: FolderOpen, category: "Core Operations" },
+
+  // HR & Team
+  { id: "interns", label: "Intern Management", icon: Users, category: "HR & Team" },
+  { id: "jobs", label: "Job Positions", icon: Briefcase, category: "HR & Team" },
+  { id: "applications", label: "Applications", icon: FileText, category: "HR & Team" },
+  { id: "rdlab", label: "R&D Lab", icon: FlaskConical, category: "HR & Team" },
+  { id: "knowledge", label: "Knowledge Tracker", icon: BookOpen, category: "HR & Team" },
+
+  // Marketing & Content
+  { id: "posts", label: "Marketing Posts", icon: FileText, category: "Marketing & Content" },
+  { id: "newsletter", label: "Newsletter", icon: Mail, category: "Marketing & Content" },
+  { id: "content", label: "Our Story", icon: FileText, category: "Marketing & Content" },
+  { id: "news", label: "News & Press", icon: Newspaper, category: "Marketing & Content" },
+  { id: "market_research", label: "Market Research", icon: Briefcase, category: "Marketing & Content" },
+
+  // Media & Web Assets
+  { id: "videos", label: "Videos", icon: Video, category: "Media & Web Assets" },
+  { id: "models3d", label: "3D Models", icon: Box, category: "Media & Web Assets" },
+  { id: "location", label: "Location", icon: MapPin, category: "Media & Web Assets" },
+  { id: "social", label: "Social Links", icon: Share2, category: "Media & Web Assets" },
+
+  // Settings & System
+  { id: "access_settings", label: "Access Control", icon: Shield, category: "Settings & System" },
+  { id: "audit", label: "Audit Logs", icon: Activity, category: "Settings & System" },
+  { id: "countdown", label: "Countdown", icon: Calendar, category: "Settings & System" },
+  { id: "postcountdown", label: "Post Countdown", icon: Settings, category: "Settings & System" },
+  { id: "maintenance", label: "Maintenance", icon: Wrench, category: "Settings & System" },
 ];
 
 const Admin = () => {
@@ -132,42 +141,6 @@ const Admin = () => {
   const { toast } = useToast()
 
 
-  const [tabs, setTabs] = useState(() => {
-    const saved = localStorage.getItem("adminTabsOrder");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.length === INITIAL_TABS.length) {
-          return parsed.map((pId: string) => INITIAL_TABS.find(t => t.id === pId) || INITIAL_TABS.find(t => t.id === pId)).filter(Boolean);
-        }
-      } catch (e) {}
-    }
-    return INITIAL_TABS;
-  });
-
-  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
-
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIdx(index);
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedIdx === null || draggedIdx === index) return;
-
-    const newTabs = [...tabs];
-    const draggedItem = newTabs[draggedIdx];
-    newTabs.splice(draggedIdx, 1);
-    newTabs.splice(index, 0, draggedItem);
-    setDraggedIdx(index);
-    setTabs(newTabs);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIdx(null);
-    localStorage.setItem("adminTabsOrder", JSON.stringify(tabs.map(t => t.id)));
-  };
 
   const [userAccess, setUserAccess] = useState<{ allowed_pages: string[]; default_tab: string | null } | null>(null);
 
@@ -196,7 +169,7 @@ const Admin = () => {
 
         const isCEOorMD = user?.email === "ceo@biovaco.in" || user?.email === "md@biovaco.in";
         const hasDbAccess = userAccess !== null;
-        const allowed = isCEOorMD ? tabs.map(t => t.id) : (hasDbAccess ? userAccess.allowed_pages : []);
+        const allowed = isCEOorMD ? INITIAL_TABS.map(t => t.id) : (hasDbAccess ? userAccess.allowed_pages : []);
 
         // 1. Search Job Applications
         if (allowed.includes('applications')) {
@@ -279,7 +252,7 @@ const Admin = () => {
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, user, userAccess, tabs]);
+  }, [searchQuery, user, userAccess]);
   
   useEffect(() => {
     if (!user) return;
@@ -372,10 +345,16 @@ const Admin = () => {
   const hasDbAccess = userAccess !== null;
   
   const visibleTabs = isCEOorMD 
-    ? tabs 
+    ? INITIAL_TABS 
     : hasDbAccess 
-      ? tabs.filter(t => userAccess.allowed_pages.includes(t.id)) 
+      ? INITIAL_TABS.filter(t => userAccess.allowed_pages.includes(t.id)) 
       : [];
+
+  const groupedTabs = visibleTabs.reduce((acc, tab) => {
+    if (!acc[tab.category]) acc[tab.category] = [];
+    acc[tab.category].push(tab);
+    return acc;
+  }, {} as Record<string, typeof INITIAL_TABS>);
 
   useEffect(() => {
     if (!isCEOorMD && hasDbAccess && userAccess.allowed_pages.length > 0) {
@@ -572,33 +551,32 @@ const Admin = () => {
           } lg:flex-col lg:w-60 bg-white border-r border-gray-200 sticky top-14 overflow-y-auto transition-all duration-200`}
           style={{ height: 'calc(100vh - 56px)' }}
         >
-          <nav className="flex-1 px-3 py-4 space-y-0.5">
-            {visibleTabs.map((tab, index) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <div
-                  key={tab.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDragEnd={handleDragEnd}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`cursor-grab active:cursor-grabbing transition-opacity ${draggedIdx === index ? 'opacity-30' : ''}`}
-                >
-                  <div
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 pointer-events-none select-none ${
-                      isActive
-                        ? 'bg-[#7DA0FA] text-white shadow-sm'
-                        : 'text-gray-600 hover:bg-[#f2f6ff] hover:text-[#4B49AC]'
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-gray-400'}`} />
-                    <span className="truncate">{tab.label}</span>
-                  </div>
+          <nav className="flex-1 px-3 py-4 space-y-5">
+            {Object.entries(groupedTabs).map(([category, catTabs]) => (
+              <div key={category} className="space-y-1">
+                <div className="px-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  {category}
                 </div>
-              );
-            })}
+                {catTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <div
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`cursor-pointer transition-opacity flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 select-none ${
+                        isActive
+                          ? 'bg-[#7DA0FA] text-white shadow-sm'
+                          : 'text-gray-600 hover:bg-[#f2f6ff] hover:text-[#4B49AC]'
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-gray-400'}`} />
+                      <span className="truncate">{tab.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         </aside>
 
@@ -611,8 +589,12 @@ const Admin = () => {
                 onChange={(e) => setActiveTab(e.target.value)}
                 className="w-full p-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-[#4B49AC]/20 focus:border-[#4B49AC] outline-none appearance-none"
               >
-                {visibleTabs.map((tab) => (
-                  <option key={tab.id} value={tab.id}>{tab.label}</option>
+                {Object.entries(groupedTabs).map(([category, catTabs]) => (
+                  <optgroup key={category} label={category}>
+                    {catTabs.map(tab => (
+                      <option key={tab.id} value={tab.id}>{tab.label}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
