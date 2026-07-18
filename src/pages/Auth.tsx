@@ -32,14 +32,6 @@ const Auth = () => {
     setLoading(true);
     setError('');
 
-    // Restrict to specific email
-    const allowedEmails = ['ceo@biovaco.in', 'md@biovaco.in', 'food@biovaco.in'];
-    if (!allowedEmails.includes(email.toLowerCase().trim())) {
-      setError('Access restricted to authorized executive emails only.');
-      setLoading(false);
-      return;
-    }
-
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -61,46 +53,49 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] to-[#e2e8f0] flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border-t-4 border-t-[#08A04B] shadow-xl">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-6 flex justify-center">
-            <BiovaCoLogo className="h-16 w-auto" />
+    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-4">
+      <Card className="w-full max-w-sm border-t-2 border-t-[#7DA0FA] shadow-lg">
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto mb-4 flex justify-center">
+            <BiovaCoLogo className="h-12 w-auto" />
           </div>
-          <CardTitle className="text-2xl text-[#032E63] font-bold">
+          <CardTitle className="text-xl text-[#4B49AC] font-semibold">
             Admin Sign In
           </CardTitle>
+          <p className="text-xs text-[#7DA0FA] mt-1 font-medium">BiovaCo Nexus Console</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAuth} className="space-y-4">
+          <form onSubmit={handleAuth} className="space-y-3">
             {error && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription className="text-xs">{error}</AlertDescription>
               </Alert>
             )}
             
-            <div className="space-y-2">
+            <div>
               <Input
                 type="email"
-                placeholder="ceo@biovaco.in"
+                placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="text-sm"
               />
             </div>
             
-            <div className="space-y-2">
+            <div>
               <Input
                 type="password"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="text-sm"
               />
             </div>
             
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Processing...' : 'Sign In'}
+            <Button type="submit" className="w-full bg-[#4B49AC] hover:bg-[#3e3d93] text-sm" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
         </CardContent>

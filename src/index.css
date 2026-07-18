@@ -16,24 +16,24 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47.4% 11.2%;
 
-    /* Primary: Navy Blue #032E63 - For Primary CTA, Headings, Corporate Elements */
-    --primary: 213 94.1% 20.2%; 
+    /* Primary: Skydash Purple/Blue #4B49AC */
+    --primary: 241 40% 48%; 
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary: Section Background #F1F5F9 */
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 213 94.1% 20.2%; /* Navy Blue */
+    /* Secondary: Skydash Light Blue #98BDFF */
+    --secondary: 218 100% 80%;
+    --secondary-foreground: 241 40% 48%;
 
     /* Muted: Soft White #F8FAFC */
     --muted: 210 40% 98.0%;
     --muted-foreground: 215 16.3% 46.9%; /* Muted Text #64748B */
 
-    /* Accent: Innovation Green #08A04B - For Links, Highlights, Secondary Buttons */
-    --accent: 146 90.5% 33.1%;
+    /* Accent: Skydash Supporting Blue #7DA0FA */
+    --accent: 223 92% 73%;
     --accent-foreground: 0 0% 100%;
 
-    /* Destructive */
-    --destructive: 0 84.2% 60.2%;
+    /* Destructive: Skydash Coral/Red #F3797E */
+    --destructive: 358 86% 71%;
     --destructive-foreground: 0 0% 98%;
 
     /* Borders */
@@ -46,34 +46,34 @@
     /* Sidebar Defaults */
     --sidebar-background: 210 40% 98.0%;
     --sidebar-foreground: 222 47.4% 11.2%;
-    --sidebar-primary: 213 94.1% 20.2%;
+    --sidebar-primary: 241 40% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 210 40% 96.1%;
-    --sidebar-accent-foreground: 213 94.1% 20.2%;
+    --sidebar-accent-foreground: 241 40% 48%;
     --sidebar-border: 214 31.8% 91.4%;
-    --sidebar-ring: 213 94.1% 20.2%;
+    --sidebar-ring: 241 40% 48%;
   }
 
   /* Dark mode is disabled or strictly matched for corporate consistency, but kept here for fallback */
   .dark {
     --background: 222 47.4% 11.2%;
     --foreground: 0 0% 100%;
-    --card: 213 94.1% 20.2%;
+    --card: 241 40% 48%;
     --card-foreground: 0 0% 100%;
-    --popover: 213 94.1% 20.2%;
+    --popover: 241 40% 48%;
     --popover-foreground: 0 0% 100%;
     --primary: 0 0% 100%;
-    --primary-foreground: 213 94.1% 20.2%;
-    --secondary: 215 94.1% 13.3%;
+    --primary-foreground: 241 40% 48%;
+    --secondary: 241 40% 20%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 215 94.1% 13.3%;
+    --muted: 241 40% 20%;
     --muted-foreground: 215 16.3% 60%;
-    --accent: 146 90.5% 33.1%;
+    --accent: 223 92% 73%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 358 86% 71%;
     --destructive-foreground: 0 0% 98%;
-    --border: 215 94.1% 13.3%;
-    --input: 215 94.1% 13.3%;
+    --border: 241 40% 20%;
+    --input: 241 40% 20%;
     --ring: 214 31.8% 91.4%;
   }
 }
@@ -114,26 +114,58 @@
   }
   
   .glass-dark {
-    @apply bg-[#032E63]/90 backdrop-blur-md border border-white/10;
+    @apply bg-[#4B49AC]/90 backdrop-blur-md border border-white/10;
   }
 
-  .text-navy {
-    color: #032E63;
+  .text-skydash-primary {
+    color: #4B49AC;
   }
 
-  .text-deep-navy {
-    color: #021D42;
+  .text-skydash-primary-hover {
+    color: #3e3d93;
   }
 
-  .text-innovation-green {
-    color: #08A04B;
+  .text-skydash-accent {
+    color: #7DA0FA;
   }
 
-  .bg-navy {
-    background-color: #032E63;
+  .bg-skydash-primary {
+    background-color: #4B49AC;
   }
 
-  .bg-innovation-green {
-    background-color: #08A04B;
+  .bg-skydash-accent {
+    background-color: #7DA0FA;
   }
+}
+
+/* Custom scrollbar for sidebar and panels */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+/* Smooth font rendering */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
