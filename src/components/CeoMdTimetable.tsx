@@ -35,11 +35,14 @@ interface ScheduleItem {
  id: string;
  role: "ceo" | "md";
  day_of_week: "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
+ event_date?: string; // YYYY-MM-DD format
  start_time: string; // "HH:MM" format
  end_time: string; // "HH:MM" format
  task_title: string;
  description?: string;
  category: "Meeting" | "Review" | "Strategic Planning" | "Operations" | "Personal" | "Site Visit" | "Client Call" | "Other";
+ assigned_email?: string;
+ status?: string;
 }
 
 // Category Configuration for Styling and Icons
@@ -248,9 +251,12 @@ export function CeoMdTimetable() {
  const [formTitle, setFormTitle] = useState("");
  const [formCategory, setFormCategory] = useState<ScheduleItem["category"]>("Meeting");
  const [formDay, setFormDay] = useState<ScheduleItem["day_of_week"]>("Monday");
+ const [formDate, setFormDate] = useState<string>("");
  const [formStart, setFormStart] = useState("09:00");
  const [formEnd, setFormEnd] = useState("10:00");
  const [formDesc, setFormDesc] = useState("");
+ const [formAssignedEmail, setFormAssignedEmail] = useState<string>("none");
+ const [systemUsers, setSystemUsers] = useState<{email: string}[]>([]);
 
  // Copy schedule states
  const [copySourceDay, setCopySourceDay] = useState<ScheduleItem["day_of_week"]>("Monday");
@@ -259,7 +265,12 @@ export function CeoMdTimetable() {
  const { toast } = useToast();
 
  useEffect(() => {
- fetchTimetable();
+    const fetchUsers = async () => {
+      const { data } = await supabase.from('user_access_control').select('email');
+      if (data) setSystemUsers(data);
+    };
+    fetchTimetable();
+    fetchUsers();
  }, []);
 
  const fetchTimetable = async () => {
@@ -308,23 +319,24 @@ export function CeoMdTimetable() {
  };
 
  // Open dialog to create a new item
- const handleOpenAddDialog = (day?: ScheduleItem["day_of_week"], hour?: string) => {
+ const handleOpenAddDialog = (day?: ScheduleItem["day_of_week"], start?: string) => {
  setEditingItem(null);
  setFormTitle("");
  setFormCategory("Meeting");
  setFormDay(day || "Monday");
+ setFormDate("");
+ setFormStart(start || "09:00");
  
- if (hour) {
- setFormStart(hour);
- // Automatically set end time to 1 hour later
- const hourNum = parseInt(hour.split(":")[0]);
- const endHour = hourNum + 1 < 10 ? `0${hourNum + 1}:00` : `${hourNum + 1}:00`;
- setFormEnd(endHour);
- } else {
- setFormStart("09:00");
- setFormEnd("10:00");
+ // Auto-calculate 1 hour end time based on start
+ let endHour = 10;
+ if (start) {
+   const hr = parseInt(start.split(':')[0]);
+   endHour = (hr + 1) > 23 ? 23 : (hr + 1);
  }
+ setFormEnd(`${endHour.toString().padStart(2, '0')}:${start ? start.split(':')[1] : '00'}`);
+ 
  setFormDesc("");
+ setFormAssignedEmail("none");
  setIsDialogOpen(true);
  };
 
@@ -334,9 +346,11 @@ export function CeoMdTimetable() {
  setFormTitle(item.task_title);
  setFormCategory(item.category);
  setFormDay(item.day_of_week);
+ setFormDate(item.event_date || "");
  setFormStart(item.start_time);
  setFormEnd(item.end_time);
  setFormDesc(item.description || "");
+ setFormAssignedEmail(item.assigned_email || "none");
  setIsDialogOpen(true);
  };
 
@@ -344,12 +358,8 @@ export function CeoMdTimetable() {
  const handleSaveEvent = async (e: React.FormEvent) => {
  e.preventDefault();
 
- if (!formTitle.trim()) {
- toast({
- title: "Validation Error",
- description: "Task title cannot be empty.",
- variant: "destructive"
- });
+ if (!formTitle || !formStart || !formEnd) {
+ toast({ title: "Incomplete", description: "Please fill all required fields.", variant: "destructive" });
  return;
  }
 
@@ -362,14 +372,25 @@ export function CeoMdTimetable() {
  return;
  }
 
- const payload: Omit<ScheduleItem, "id"> & { id?: string } = {
+ // Auto compute Day if Date is provided
+ let computedDay = formDay;
+ if (formDate) {
+   const dateObj = new Date(formDate);
+   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+   computedDay = days[dateObj.getDay()] as ScheduleItem["day_of_week"];
+ }
+
+ const payload = {
  role: activeRole,
- day_of_week: formDay,
+ day_of_week: computedDay,
  start_time: formStart,
  end_time: formEnd,
  task_title: formTitle,
  description: formDesc,
- category: formCategory
+ category: formCategory,
+ event_date: formDate || null,
+ assigned_email: formAssignedEmail !== "none" ? formAssignedEmail : null,
+ status: 'Pending'
  };
 
  if (isLocalMode) {
@@ -923,11 +944,14 @@ export function CeoMdTimetable() {
  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
  role TEXT NOT NULL CHECK (role IN ('ceo', 'md')),
  day_of_week TEXT NOT NULL CHECK (day_of_week IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')),
+ event_date DATE,
  start_time TEXT NOT NULL,
  end_time TEXT NOT NULL,
  task_title TEXT NOT NULL,
  description TEXT,
  category TEXT DEFAULT 'Meeting' CHECK (category IN ('Meeting', 'Review', 'Strategic Planning', 'Operations', 'Personal', 'Site Visit', 'Client Call', 'Other')),
+ assigned_email TEXT,
+ status TEXT DEFAULT 'Pending',
  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -1439,10 +1463,30 @@ CREATE POLICY "ceo_md_timetable_delete_policy" ON public.ceo_md_timetable FOR DE
  </div>
 
  <div className="space-y-1">
- <Label htmlFor="day" className="font-semibold text-gray-700">Day of Week</Label>
+ <Label htmlFor="date" className="font-semibold text-gray-700">Event Date (Auto-sets Day)</Label>
+ <Input
+ id="date"
+ type="date"
+ value={formDate}
+ onChange={(e) => {
+ setFormDate(e.target.value);
+ if (e.target.value) {
+ const dateObj = new Date(e.target.value);
+ const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+ setFormDay(days[dateObj.getDay()] as ScheduleItem["day_of_week"]);
+ }
+ }}
+ />
+ </div>
+ </div>
+
+ <div className="grid grid-cols-2 gap-4">
+ <div className="space-y-1">
+ <Label htmlFor="day" className="font-semibold text-gray-700">Day of Week (Fallback)</Label>
  <Select
  value={formDay}
  onValueChange={(val) => setFormDay(val as ScheduleItem["day_of_week"])}
+ disabled={!!formDate}
  >
  <SelectTrigger id="day">
  <SelectValue placeholder="Select Day" />
@@ -1450,6 +1494,24 @@ CREATE POLICY "ceo_md_timetable_delete_policy" ON public.ceo_md_timetable FOR DE
  <SelectContent>
  {DAYS.map(day => (
  <SelectItem key={day} value={day}>{day}</SelectItem>
+ ))}
+ </SelectContent>
+ </Select>
+ </div>
+
+ <div className="space-y-1">
+ <Label htmlFor="assigned" className="font-semibold text-gray-700">Assign To User</Label>
+ <Select
+ value={formAssignedEmail}
+ onValueChange={(val) => setFormAssignedEmail(val)}
+ >
+ <SelectTrigger id="assigned">
+ <SelectValue placeholder="Unassigned" />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="none">Unassigned</SelectItem>
+ {systemUsers.map(u => (
+ <SelectItem key={u.email} value={u.email}>{u.email}</SelectItem>
  ))}
  </SelectContent>
  </Select>

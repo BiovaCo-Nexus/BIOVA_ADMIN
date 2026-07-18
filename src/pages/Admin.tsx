@@ -68,6 +68,11 @@ import SocialLinksManagement from "@/components/SocialLinksManagement"
 import { NewsletterManagement } from "@/components/NewsletterManagement"
 import { MarketingPostsManagement } from "@/components/MarketingPostsManagement"
 import { DashboardAnalytics } from "@/components/DashboardAnalytics"
+import { UniversalDashboard } from "@/components/dashboards/UniversalDashboard"
+import { CoreOperationsDashboard } from "@/components/dashboards/CoreOperationsDashboard"
+import { HRTeamDashboard } from "@/components/dashboards/HRTeamDashboard"
+import { MarketingDashboard } from "@/components/dashboards/MarketingDashboard"
+import { MediaDashboard } from "@/components/dashboards/MediaDashboard"
 import { ApplicationsManagement } from "@/components/ApplicationsManagement"
 import { DocumentGenerator } from "@/components/DocumentGenerator"
 import { BusinessManagement } from "@/components/BusinessManagement"
@@ -78,6 +83,8 @@ import { MarketResearchHub } from "@/components/rd-lab/MarketResearchHub"
 import { SharedFilesManager } from "@/components/SharedFilesManager"
 import { CeoMdTimetable } from "@/components/CeoMdTimetable"
 import { UserAccessSettings } from "@/components/UserAccessSettings"
+import { format } from "date-fns"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 
 interface NewsletterSubscription {
   id: string
@@ -94,39 +101,59 @@ interface ApplicationStatus {
 }
 
 const INITIAL_TABS = [
-  // Core Operations
-  { id: "dashboard", label: "Dashboard", icon: BarChart3, category: "Core Operations" },
-  { id: "timetable", label: "CEO & MD Timetable", icon: Calendar, category: "Core Operations" },
-  { id: "business", label: "Business & ERP", icon: Briefcase, category: "Core Operations" },
-  { id: "documents", label: "Document Generator", icon: FileText, category: "Core Operations" },
-  { id: "shared_files", label: "Shared Files", icon: FolderOpen, category: "Core Operations" },
+  // Executive Command
+  { id: "dashboard", label: "Executive Dashboard", icon: BarChart3, category: "Executive Command" },
 
-  // HR & Team
-  { id: "interns", label: "Intern Management", icon: Users, category: "HR & Team" },
-  { id: "jobs", label: "Job Positions", icon: Briefcase, category: "HR & Team" },
-  { id: "applications", label: "Applications", icon: FileText, category: "HR & Team" },
-  { id: "rdlab", label: "R&D Lab", icon: FlaskConical, category: "HR & Team" },
-  { id: "knowledge", label: "Knowledge Tracker", icon: BookOpen, category: "HR & Team" },
+  // Enterprise Operations
+  { id: "core_ops_dashboard", label: "Financial & Ops Overview", icon: BarChart3, category: "Enterprise Operations" },
+  { id: "timetable", label: "Executive Scheduler", icon: Calendar, category: "Enterprise Operations" },
+  { id: "business", label: "Enterprise Resource Planning", icon: Briefcase, category: "Enterprise Operations" },
+  { id: "documents", label: "Document Automation", icon: FileText, category: "Enterprise Operations" },
+  { id: "shared_files", label: "Secure Vault", icon: FolderOpen, category: "Enterprise Operations" },
 
-  // Marketing & Content
-  { id: "posts", label: "Marketing Posts", icon: FileText, category: "Marketing & Content" },
-  { id: "newsletter", label: "Newsletter", icon: Mail, category: "Marketing & Content" },
-  { id: "content", label: "Our Story", icon: FileText, category: "Marketing & Content" },
-  { id: "news", label: "News & Press", icon: Newspaper, category: "Marketing & Content" },
-  { id: "market_research", label: "Market Research", icon: Briefcase, category: "Marketing & Content" },
+  // Human Capital
+  { id: "hr_dashboard", label: "Workforce Analytics", icon: BarChart3, category: "Human Capital" },
+  { id: "interns", label: "Talent Acquisition", icon: Users, category: "Human Capital" },
+  { id: "jobs", label: "Role Architecture", icon: Briefcase, category: "Human Capital" },
+  { id: "applications", label: "Candidate Pipeline", icon: FileText, category: "Human Capital" },
+  { id: "rdlab", label: "Innovation Hub (R&D)", icon: FlaskConical, category: "Human Capital" },
+  { id: "knowledge", label: "Knowledge Base", icon: BookOpen, category: "Human Capital" },
 
-  // Media & Web Assets
-  { id: "videos", label: "Videos", icon: Video, category: "Media & Web Assets" },
-  { id: "models3d", label: "3D Models", icon: Box, category: "Media & Web Assets" },
-  { id: "location", label: "Location", icon: MapPin, category: "Media & Web Assets" },
-  { id: "social", label: "Social Links", icon: Share2, category: "Media & Web Assets" },
+  // Brand & Market Strategy
+  { id: "marketing_dashboard", label: "Marketing Intelligence", icon: BarChart3, category: "Brand & Market Strategy" },
+  { id: "posts", label: "Campaign Management", icon: FileText, category: "Brand & Market Strategy" },
+  { id: "newsletter", label: "Audience Engagement", icon: Mail, category: "Brand & Market Strategy" },
+  { id: "content", label: "Brand Narrative", icon: FileText, category: "Brand & Market Strategy" },
+  { id: "news", label: "Public Relations", icon: Newspaper, category: "Brand & Market Strategy" },
+  { id: "market_research", label: "Market Intelligence", icon: Briefcase, category: "Brand & Market Strategy" },
 
-  // Settings & System
-  { id: "access_settings", label: "Access Control", icon: Shield, category: "Settings & System" },
-  { id: "audit", label: "Audit Logs", icon: Activity, category: "Settings & System" },
-  { id: "countdown", label: "Countdown", icon: Calendar, category: "Settings & System" },
-  { id: "postcountdown", label: "Post Countdown", icon: Settings, category: "Settings & System" },
-  { id: "maintenance", label: "Maintenance", icon: Wrench, category: "Settings & System" },
+  // Digital Assets & Media
+  { id: "media_dashboard", label: "Asset Analytics", icon: BarChart3, category: "Digital Assets & Media" },
+  { id: "videos", label: "Video Repository", icon: Video, category: "Digital Assets & Media" },
+  { id: "models3d", label: "Spatial Assets", icon: Box, category: "Digital Assets & Media" },
+  { id: "location", label: "Facility Coordinates", icon: MapPin, category: "Digital Assets & Media" },
+  { id: "social", label: "Network Integrations", icon: Share2, category: "Digital Assets & Media" },
+
+  // System Configuration
+  { id: "access_settings", label: "Identity & Access", icon: Shield, category: "System Configuration" },
+  { id: "audit", label: "Compliance & Auditing", icon: Activity, category: "System Configuration" },
+  { id: "countdown", label: "Launch Protocols", icon: Calendar, category: "System Configuration" },
+  { id: "postcountdown", label: "Post-Launch Metrics", icon: Settings, category: "System Configuration" },
+  { id: "maintenance", label: "Infrastructure Status", icon: Wrench, category: "System Configuration" },
+];
+
+const FINANCIAL_HOLIDAYS = [
+  { date: "2026-01-26", name: "Republic Day", type: "National" },
+  { date: "2026-03-08", name: "Maha Shivaratri", type: "Market Closed" },
+  { date: "2026-03-25", name: "Holi", type: "Market Closed" },
+  { date: "2026-03-29", name: "Good Friday", type: "Market Closed" },
+  { date: "2026-04-11", name: "Id-Ul-Fitr", type: "Market Closed" },
+  { date: "2026-04-17", name: "Ram Navami", type: "Market Closed" },
+  { date: "2026-05-01", name: "Maharashtra Day", type: "Market Closed" },
+  { date: "2026-08-15", name: "Independence Day", type: "National" },
+  { date: "2026-10-02", name: "Gandhi Jayanti", type: "National" },
+  { date: "2026-11-01", name: "Diwali (Laxmi Pujan)", type: "Trading" },
+  { date: "2026-12-25", name: "Christmas", type: "Market Closed" }
 ];
 
 const Admin = () => {
@@ -137,8 +164,23 @@ const Admin = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [documentPayload, setDocumentPayload] = useState<string | undefined>()
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const [calendarDate, setCalendarDate] = useState<Date | undefined>(new Date())
   const navigate = useNavigate()
   const { toast } = useToast()
+
+  // Holiday computation
+  const todayDateStr = format(currentTime, 'yyyy-MM-dd');
+  const selectedDateStr = calendarDate ? format(calendarDate, 'yyyy-MM-dd') : null;
+  const todayHoliday = FINANCIAL_HOLIDAYS.find(h => h.date === todayDateStr);
+  const selectedHoliday = FINANCIAL_HOLIDAYS.find(h => h.date === selectedDateStr);
+  const nextHoliday = FINANCIAL_HOLIDAYS.find(h => new Date(h.date + "T00:00:00").getTime() > currentTime.getTime());
+  const daysToNext = nextHoliday ? Math.ceil((new Date(nextHoliday.date + "T00:00:00").getTime() - currentTime.getTime()) / (1000 * 3600 * 24)) : null;
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
 
 
@@ -261,12 +303,22 @@ const Admin = () => {
       const { count: appsCount } = await supabase.from('job_applications').select('*', { count: 'exact', head: true }).in('status', ['New', 'Pending']);
       if (appsCount && appsCount > 0) notifs.push({ title: "Job Applications", desc: `${appsCount} pending applications to review.` });
       
-      const { count: tasksCount } = await supabase.from('ceo_md_timetable').select('*', { count: 'exact', head: true }).eq('status', 'Pending');
-      if (tasksCount && tasksCount > 0) notifs.push({ title: "Timetable Tasks", desc: `${tasksCount} pending tasks require attention.` });
+      const { data: invData } = await supabase.from('inventory_items').select('quantity, min_stock');
+      if (invData) {
+        const lowStockCount = invData.filter(i => (i.quantity || 0) < (i.min_stock || 5)).length;
+        if (lowStockCount > 0) notifs.push({ title: "Low Stock Alert", desc: `${lowStockCount} items are critically low on stock.` });
+      }
       
       const { count: expCount } = await supabase.from('expense_records').select('*', { count: 'exact', head: true }).eq('reimbursement_status', 'Pending');
       if (expCount && expCount > 0) notifs.push({ title: "Pending Expenses", desc: `${expCount} expenses are pending reimbursement.` });
       
+      const { data: scheduleData } = await supabase.from('ceo_md_timetable').select('task_title, start_time, end_time, event_date').eq('assigned_email', user.email).eq('status', 'Pending');
+      if (scheduleData && scheduleData.length > 0) {
+        scheduleData.forEach(item => {
+          notifs.push({ title: `Assigned Task: ${item.task_title}`, desc: `Scheduled for ${item.event_date ? item.event_date : 'this week'} from ${item.start_time} to ${item.end_time}.` });
+        });
+      }
+
       setNotifications(notifs);
     };
     fetchAlerts();
@@ -483,7 +535,68 @@ const Admin = () => {
             </div>
 
             {/* Right Section: Notification, Profile, Logout */}
-            <div className="flex items-center justify-end space-x-3 w-auto md:w-1/3">
+            <div className="flex items-center justify-end space-x-2.5 flex-shrink-0">
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-lg shadow-sm whitespace-nowrap">
+                <Clock className="h-4 w-4 text-[#4B49AC]" />
+                <span className="text-[11px] font-semibold text-gray-700 tracking-wide tabular-nums">
+                  {format(currentTime, 'MMM dd, yyyy • hh:mm:ss a')}
+                </span>
+              </div>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8 text-gray-500 hover:text-[#4B49AC] hover:bg-[#f2f6ff] shadow-sm hidden md:flex border-gray-200">
+                    <Calendar className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[330px] p-0 shadow-2xl border-gray-200 rounded-xl overflow-hidden ring-1 ring-black/5">
+                  <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-4 text-white">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-[#7DA0FA]" /> Market Calendar
+                    </h4>
+                    {todayHoliday ? (
+                      <div className="mt-2.5 inline-flex items-center gap-1.5 bg-rose-500/20 text-rose-200 border border-rose-500/30 px-2.5 py-1 rounded-md text-[11px] font-bold">
+                        <AlertCircle className="h-3 w-3" /> Today is {todayHoliday.name}
+                      </div>
+                    ) : nextHoliday ? (
+                      <p className="text-[11px] text-gray-300 mt-1 font-medium tracking-wide">
+                        Next Holiday: <span className="text-white font-bold">{nextHoliday.name}</span> in {daysToNext} days
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="p-3 bg-white">
+                    <CalendarComponent
+                      mode="single"
+                      selected={calendarDate}
+                      onSelect={setCalendarDate}
+                      initialFocus
+                      modifiers={{
+                        holiday: FINANCIAL_HOLIDAYS.map(h => new Date(h.date + "T00:00:00"))
+                      }}
+                      modifiersStyles={{
+                        holiday: {
+                          backgroundColor: '#1f2937',
+                          color: 'white',
+                          fontWeight: 'bold',
+                        }
+                      }}
+                      className="rounded-lg bg-white border-none mx-auto p-0"
+                    />
+                  </div>
+                  {selectedHoliday && selectedDateStr !== todayDateStr && (
+                    <div className="border-t border-gray-100 bg-gray-50/80 p-3.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[13px] font-bold text-gray-900">{selectedHoliday.name}</p>
+                          <p className="text-[10px] font-medium text-gray-500 mt-0.5">{format(new Date(selectedHoliday.date + "T00:00:00"), 'MMMM do, yyyy')}</p>
+                        </div>
+                        <Badge variant="secondary" className="bg-[#4B49AC]/10 text-[#4B49AC] text-[10px] font-bold border-0 shadow-sm">{selectedHoliday.type}</Badge>
+                      </div>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative text-gray-500 hover:text-primary hover:bg-primary/5 hidden md:flex">
@@ -601,7 +714,11 @@ const Admin = () => {
 
             {!isCEOorMD && hasDbAccess ? (
               <>
-                {userAccess.allowed_pages.includes("dashboard") && activeTab === "dashboard" && <DashboardAnalytics user={user} onNavigateToTab={handleNavigateToTab} />}
+                {userAccess.allowed_pages.includes("dashboard") && activeTab === "dashboard" && <UniversalDashboard onNavigateToTab={handleNavigateToTab} />}
+                {userAccess.allowed_pages.includes("core_ops_dashboard") && activeTab === "core_ops_dashboard" && <CoreOperationsDashboard />}
+                {userAccess.allowed_pages.includes("hr_dashboard") && activeTab === "hr_dashboard" && <HRTeamDashboard />}
+                {userAccess.allowed_pages.includes("marketing_dashboard") && activeTab === "marketing_dashboard" && <MarketingDashboard />}
+                {userAccess.allowed_pages.includes("media_dashboard") && activeTab === "media_dashboard" && <MediaDashboard />}
                 {userAccess.allowed_pages.includes("timetable") && activeTab === "timetable" && <CeoMdTimetable />}
                 {userAccess.allowed_pages.includes("applications") && activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} onNavigateToTab={handleNavigateToTab} />}
                 {userAccess.allowed_pages.includes("newsletter") && activeTab === "newsletter" && <NewsletterManagement />}
@@ -627,7 +744,11 @@ const Admin = () => {
               </>
             ) : (
               <>
-                {activeTab === "dashboard" && <DashboardAnalytics user={user} onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "dashboard" && <UniversalDashboard onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "core_ops_dashboard" && <CoreOperationsDashboard />}
+                {activeTab === "hr_dashboard" && <HRTeamDashboard />}
+                {activeTab === "marketing_dashboard" && <MarketingDashboard />}
+                {activeTab === "media_dashboard" && <MediaDashboard />}
                 {activeTab === "timetable" && <CeoMdTimetable />}
                 {activeTab === "audit" && <AdminActivityLogs onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} onNavigateToTab={handleNavigateToTab} />}
