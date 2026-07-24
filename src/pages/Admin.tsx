@@ -7,6 +7,54 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { BiovaCoLogo } from "@/components/BiovaCoLogo"
+import { PlaceholderPage } from "@/components/PlaceholderPage"
+
+
+
+import { CRMDashboard } from "@/components/dashboards/CRMDashboard"
+import { Leads } from "@/components/dashboards/Leads"
+import { Opportunities } from "@/components/dashboards/Opportunities"
+import { Accounts } from "@/components/dashboards/Accounts"
+import { Contacts } from "@/components/dashboards/Contacts"
+import { Customers } from "@/components/dashboards/Customers"
+import { SalesPipeline } from "@/components/dashboards/SalesPipeline"
+import { Quotations } from "@/components/dashboards/Quotations"
+import { FollowUps } from "@/components/dashboards/FollowUps"
+import { Meetings } from "@/components/dashboards/Meetings"
+import { Calls } from "@/components/dashboards/Calls"
+import { Emails } from "@/components/dashboards/Emails"
+import { Deals } from "@/components/dashboards/Deals"
+import { CustomerSupport } from "@/components/dashboards/CustomerSupport"
+import { Complaints } from "@/components/dashboards/Complaints"
+import { Feedback } from "@/components/dashboards/Feedback"
+import { Contracts } from "@/components/dashboards/Contracts"
+import { HRDashboard } from "@/components/dashboards/HRDashboard"
+import { Employees } from "@/components/dashboards/Employees"
+import { Attendance } from "@/components/dashboards/Attendance"
+import { LeaveManagement } from "@/components/dashboards/LeaveManagement"
+import { Payroll } from "@/components/dashboards/Payroll"
+import { PerformanceReviews } from "@/components/dashboards/PerformanceReviews"
+import { OfferLetters } from "@/components/dashboards/OfferLetters"
+import { ExitManagement } from "@/components/dashboards/ExitManagement"
+import { AssetsAssigned } from "@/components/dashboards/AssetsAssigned"
+import { CompanyProfile } from "@/components/dashboards/CompanyProfile"
+import { Departments } from "@/components/dashboards/Departments"
+import { Branches } from "@/components/dashboards/Branches"
+import { Teams } from "@/components/dashboards/Teams"
+import { OrganizationChart } from "@/components/dashboards/OrganizationChart"
+import { CEODashboard } from "@/components/dashboards/CEODashboard"
+import { MDDashboard } from "@/components/dashboards/MDDashboard"
+import { CompanyGoalsOKRs } from "@/components/dashboards/CompanyGoalsOKRs"
+import { KPIDashboard } from "@/components/dashboards/KPIDashboard"
+import { BusinessIntelligence } from "@/components/dashboards/BusinessIntelligence"
+import { ReportsCenter } from "@/components/dashboards/ReportsCenter"
+
+import { MyWork } from "@/components/dashboards/MyWork"
+import { Notifications } from "@/components/dashboards/Notifications"
+import { AIBusinessAssistant } from "@/components/dashboards/AIBusinessAssistant"
+import { GlobalSearch } from "@/components/dashboards/GlobalSearch"
+import { ComplianceAI } from "@/components/dashboards/ComplianceAI"
+
 import {
   Mail,
   FileText,
@@ -45,7 +93,14 @@ import {
   Shield,
   Newspaper,
   Search,
-  Bell
+  Bell,
+  Bot,
+  Network,
+  Factory,
+  Globe,
+  Image,
+  Kanban,
+  ShieldAlert
 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Link, useNavigate } from "react-router-dom"
@@ -101,45 +156,221 @@ interface ApplicationStatus {
 }
 
 const INITIAL_TABS = [
-  // Executive Command
-  { id: "dashboard", label: "Executive Dashboard", icon: BarChart3, category: "Executive Command" },
 
-  // Enterprise Operations
-  { id: "core_ops_dashboard", label: "Financial & Ops Overview", icon: BarChart3, category: "Enterprise Operations" },
-  { id: "timetable", label: "Executive Scheduler", icon: Calendar, category: "Enterprise Operations" },
-  { id: "business", label: "Enterprise Resource Planning", icon: Briefcase, category: "Enterprise Operations" },
-  { id: "documents", label: "Document Automation", icon: FileText, category: "Enterprise Operations" },
-  { id: "shared_files", label: "Secure Vault", icon: FolderOpen, category: "Enterprise Operations" },
+  // Executive Dashboard
+  { id: "dashboard", label: "Dashboard", icon: BarChart3, category: "Executive Dashboard" },
+  { id: "my_work", label: "My Work", icon: Briefcase, category: "Executive Dashboard" },
+  { id: "notifications", label: "Notifications", icon: Briefcase, category: "Executive Dashboard" },
+  { id: "ai_business_assistant", label: "AI Business Assistant", icon: Bot, category: "Executive Dashboard" },
+  { id: "global_search", label: "Global Search", icon: Briefcase, category: "Executive Dashboard" },
 
-  // Human Capital
-  { id: "hr_dashboard", label: "Workforce Analytics", icon: BarChart3, category: "Human Capital" },
-  { id: "interns", label: "Talent Acquisition", icon: Users, category: "Human Capital" },
-  { id: "jobs", label: "Role Architecture", icon: Briefcase, category: "Human Capital" },
-  { id: "applications", label: "Candidate Pipeline", icon: FileText, category: "Human Capital" },
-  { id: "rdlab", label: "Innovation Hub (R&D)", icon: FlaskConical, category: "Human Capital" },
-  { id: "knowledge", label: "Knowledge Base", icon: BookOpen, category: "Human Capital" },
+  // Executive & Strategy
+  { id: "ceo_dashboard", label: "CEO Dashboard", icon: BarChart3, category: "Executive & Strategy" },
+  { id: "md_dashboard", label: "MD Dashboard", icon: BarChart3, category: "Executive & Strategy" },
+  { id: "executive_calendar", label: "Executive Calendar", icon: Calendar, category: "Executive & Strategy" },
+  { id: "company_goals_okrs", label: "Company Goals (OKRs)", icon: Briefcase, category: "Executive & Strategy" },
+  { id: "kpi_dashboard", label: "KPI Dashboard", icon: BarChart3, category: "Executive & Strategy" },
+  { id: "business_intelligence", label: "Business Intelligence", icon: BarChart3, category: "Executive & Strategy" },
+  { id: "reports_center", label: "Reports Center", icon: BarChart3, category: "Executive & Strategy" },
+  { id: "compliance_ai", label: "Compliance AI Lawyer", icon: ShieldAlert, category: "Executive & Strategy" },
 
-  // Brand & Market Strategy
-  { id: "marketing_dashboard", label: "Marketing Intelligence", icon: BarChart3, category: "Brand & Market Strategy" },
-  { id: "posts", label: "Campaign Management", icon: FileText, category: "Brand & Market Strategy" },
-  { id: "newsletter", label: "Audience Engagement", icon: Mail, category: "Brand & Market Strategy" },
-  { id: "content", label: "Brand Narrative", icon: FileText, category: "Brand & Market Strategy" },
-  { id: "news", label: "Public Relations", icon: Newspaper, category: "Brand & Market Strategy" },
-  { id: "market_research", label: "Market Intelligence", icon: Briefcase, category: "Brand & Market Strategy" },
+  // Organization
+  { id: "company_profile", label: "Company Profile", icon: FileText, category: "Organization" },
+  { id: "departments", label: "Departments", icon: Briefcase, category: "Organization" },
+  { id: "branches", label: "Branches", icon: Briefcase, category: "Organization" },
+  { id: "teams", label: "Teams", icon: Users, category: "Organization" },
+  { id: "organization_chart", label: "Organization Chart", icon: Network, category: "Organization" },
 
-  // Digital Assets & Media
-  { id: "media_dashboard", label: "Asset Analytics", icon: BarChart3, category: "Digital Assets & Media" },
-  { id: "videos", label: "Video Repository", icon: Video, category: "Digital Assets & Media" },
-  { id: "models3d", label: "Spatial Assets", icon: Box, category: "Digital Assets & Media" },
-  { id: "location", label: "Facility Coordinates", icon: MapPin, category: "Digital Assets & Media" },
-  { id: "social", label: "Network Integrations", icon: Share2, category: "Digital Assets & Media" },
+  // Human Resources (HRMS)
+  { id: "hr_dashboard", label: "HR Dashboard", icon: BarChart3, category: "Human Resources (HRMS)" },
+  { id: "employees", label: "Employees", icon: Users, category: "Human Resources (HRMS)" },
+  { id: "intern_management", label: "Intern Management", icon: Users, category: "Human Resources (HRMS)" },
+  { id: "attendance", label: "Attendance", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "leave_management", label: "Leave Management", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "payroll", label: "Payroll", icon: CreditCard, category: "Human Resources (HRMS)" },
+  { id: "performance_reviews", label: "Performance Reviews", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "recruitment", label: "Recruitment", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "job_positions", label: "Job Positions", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "applications", label: "Applications", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "offer_letters", label: "Offer Letters", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "exit_management", label: "Exit Management", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "assets_assigned", label: "Assets Assigned", icon: Briefcase, category: "Human Resources (HRMS)" },
 
-  // System Configuration
-  { id: "access_settings", label: "Identity & Access", icon: Shield, category: "System Configuration" },
-  { id: "audit", label: "Compliance & Auditing", icon: Activity, category: "System Configuration" },
-  { id: "countdown", label: "Launch Protocols", icon: Calendar, category: "System Configuration" },
-  { id: "postcountdown", label: "Post-Launch Metrics", icon: Settings, category: "System Configuration" },
-  { id: "maintenance", label: "Infrastructure Status", icon: Wrench, category: "System Configuration" },
+  // CRM (Customer Relationship Management)
+  { id: "crm_dashboard", label: "CRM Dashboard", icon: BarChart3, category: "CRM (Customer Relationship Management)" },
+  { id: "leads", label: "Leads", icon: Briefcase, category: "CRM (Customer Relationship Management)" },
+  { id: "opportunities", label: "Opportunities", icon: Briefcase, category: "CRM (Customer Relationship Management)" },
+  { id: "accounts_companies", label: "Accounts (Companies)", icon: Briefcase, category: "CRM (Customer Relationship Management)" },
+  { id: "contacts", label: "Contacts", icon: Users, category: "CRM (Customer Relationship Management)" },
+  { id: "customers", label: "Customers", icon: Users, category: "CRM (Customer Relationship Management)" },
+  { id: "sales_pipeline", label: "Sales Pipeline", icon: Briefcase, category: "CRM (Customer Relationship Management)" },
+  { id: "quotations", label: "Quotations", icon: Briefcase, category: "CRM (Customer Relationship Management)" },
+  { id: "followups", label: "Follow-ups", icon: Briefcase, category: "CRM (Customer Relationship Management)" },
+  { id: "meetings", label: "Meetings", icon: Calendar, category: "CRM (Customer Relationship Management)" },
+  { id: "calls", label: "Calls", icon: Calendar, category: "CRM (Customer Relationship Management)" },
+  { id: "emails", label: "Emails", icon: Mail, category: "CRM (Customer Relationship Management)" },
+  { id: "deals", label: "Deals", icon: Briefcase, category: "CRM (Customer Relationship Management)" },
+  { id: "customer_support", label: "Customer Support", icon: Users, category: "CRM (Customer Relationship Management)" },
+  { id: "complaints", label: "Complaints", icon: Bot, category: "CRM (Customer Relationship Management)" },
+  { id: "feedback", label: "Feedback", icon: Briefcase, category: "CRM (Customer Relationship Management)" },
+  { id: "contracts", label: "Contracts", icon: FileText, category: "CRM (Customer Relationship Management)" },
+
+  // Sales
+  { id: "sales_dashboard", label: "Sales Dashboard", icon: BarChart3, category: "Sales" },
+  { id: "orders", label: "Orders", icon: FileText, category: "Sales" },
+  { id: "quotations_sales", label: "Quotations", icon: Briefcase, category: "Sales" },
+  { id: "proforma_invoice", label: "Proforma Invoice", icon: FileText, category: "Sales" },
+  { id: "invoices", label: "Invoices", icon: FileText, category: "Sales" },
+  { id: "payments", label: "Payments", icon: CreditCard, category: "Sales" },
+  { id: "sales_analytics", label: "Sales Analytics", icon: BarChart3, category: "Sales" },
+  { id: "price_lists", label: "Price Lists", icon: Briefcase, category: "Sales" },
+  { id: "discounts", label: "Discounts", icon: Briefcase, category: "Sales" },
+
+  // Inventory & Warehouse
+  { id: "inventory_dashboard", label: "Inventory Dashboard", icon: BarChart3, category: "Inventory & Warehouse" },
+  { id: "products", label: "Products", icon: Package, category: "Inventory & Warehouse" },
+  { id: "categories", label: "Categories", icon: Briefcase, category: "Inventory & Warehouse" },
+  { id: "warehouses", label: "Warehouses", icon: Package, category: "Inventory & Warehouse" },
+  { id: "stock_movement", label: "Stock Movement", icon: Package, category: "Inventory & Warehouse" },
+  { id: "purchase_requests", label: "Purchase Requests", icon: Briefcase, category: "Inventory & Warehouse" },
+  { id: "stock_adjustment", label: "Stock Adjustment", icon: Package, category: "Inventory & Warehouse" },
+  { id: "batch_tracking", label: "Batch Tracking", icon: Package, category: "Inventory & Warehouse" },
+  { id: "barcode_management", label: "Barcode Management", icon: Briefcase, category: "Inventory & Warehouse" },
+
+  // Manufacturing
+  { id: "production_dashboard", label: "Production Dashboard", icon: BarChart3, category: "Manufacturing" },
+  { id: "bill_of_materials_bom", label: "Bill of Materials (BOM)", icon: FileText, category: "Manufacturing" },
+  { id: "production_orders", label: "Production Orders", icon: FileText, category: "Manufacturing" },
+  { id: "quality_check", label: "Quality Check", icon: Briefcase, category: "Manufacturing" },
+  { id: "machines", label: "Machines", icon: Factory, category: "Manufacturing" },
+  { id: "maintenance", label: "Maintenance", icon: Settings, category: "Manufacturing" },
+  { id: "production_reports", label: "Production Reports", icon: BarChart3, category: "Manufacturing" },
+
+  // Finance & Accounting
+  { id: "finance_dashboard", label: "Finance Dashboard", icon: BarChart3, category: "Finance & Accounting" },
+  { id: "chart_of_accounts", label: "Chart of Accounts", icon: Network, category: "Finance & Accounting" },
+  { id: "journal_entries", label: "Journal Entries", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "general_ledger", label: "General Ledger", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "trial_balance", label: "Trial Balance", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "profit_loss", label: "Profit & Loss", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "balance_sheet", label: "Balance Sheet", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "cash_flow", label: "Cash Flow", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "budget", label: "Budget", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "expenses", label: "Expenses", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "receivables", label: "Receivables", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "payables", label: "Payables", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "gst", label: "GST", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "tax_center", label: "Tax Center", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "fixed_assets", label: "Fixed Assets", icon: Briefcase, category: "Finance & Accounting" },
+
+  // Procurement
+  { id: "procurement_dashboard", label: "Procurement Dashboard", icon: BarChart3, category: "Procurement" },
+  { id: "vendors", label: "Vendors", icon: Users, category: "Procurement" },
+  { id: "purchase_orders", label: "Purchase Orders", icon: FileText, category: "Procurement" },
+  { id: "rfq", label: "RFQ", icon: Briefcase, category: "Procurement" },
+  { id: "vendor_quotations", label: "Vendor Quotations", icon: Users, category: "Procurement" },
+  { id: "goods_received_note_grn", label: "Goods Received Note (GRN)", icon: Briefcase, category: "Procurement" },
+  { id: "bills", label: "Bills", icon: FileText, category: "Procurement" },
+  { id: "vendor_payments", label: "Vendor Payments", icon: Users, category: "Procurement" },
+
+  // Research & Development
+  { id: "rd_dashboard", label: "R&D Dashboard", icon: BarChart3, category: "Research & Development" },
+  { id: "rd_lab", label: "R&D Lab", icon: FlaskConical, category: "Research & Development" },
+  { id: "product_formulations", label: "Product Formulations", icon: Package, category: "Research & Development" },
+  { id: "experiments", label: "Experiments", icon: FlaskConical, category: "Research & Development" },
+  { id: "product_testing", label: "Product Testing", icon: Package, category: "Research & Development" },
+  { id: "prototype_tracker", label: "Prototype Tracker", icon: Briefcase, category: "Research & Development" },
+  { id: "knowledge_tracker", label: "Knowledge Tracker", icon: Briefcase, category: "Research & Development" },
+  { id: "ip_patents", label: "IP & Patents", icon: Briefcase, category: "Research & Development" },
+
+  // Marketing
+  { id: "marketing_dashboard", label: "Marketing Dashboard", icon: BarChart3, category: "Marketing" },
+  { id: "campaigns", label: "Campaigns", icon: Bot, category: "Marketing" },
+  { id: "social_media", label: "Social Media", icon: Globe, category: "Marketing" },
+  { id: "marketing_posts", label: "Marketing Posts", icon: Briefcase, category: "Marketing" },
+  { id: "newsletter", label: "Newsletter", icon: Mail, category: "Marketing" },
+  { id: "seo", label: "SEO", icon: Briefcase, category: "Marketing" },
+  { id: "market_research", label: "Market Research", icon: FlaskConical, category: "Marketing" },
+  { id: "brand_assets", label: "Brand Assets", icon: Briefcase, category: "Marketing" },
+  { id: "press_media", label: "Press & Media", icon: Image, category: "Marketing" },
+
+  // Digital Assets
+  { id: "website", label: "Website", icon: Globe, category: "Digital Assets" },
+  { id: "blog", label: "Blog", icon: Briefcase, category: "Digital Assets" },
+  { id: "landing_pages", label: "Landing Pages", icon: Briefcase, category: "Digital Assets" },
+  { id: "media_library", label: "Media Library", icon: Image, category: "Digital Assets" },
+  { id: "videos", label: "Videos", icon: Image, category: "Digital Assets" },
+  { id: "images", label: "Images", icon: Image, category: "Digital Assets" },
+
+  // D Models
+  { id: "downloads", label: "Downloads", icon: Briefcase, category: "D Models" },
+
+  // Documents
+  { id: "shared_files", label: "Shared Files", icon: FileText, category: "Documents" },
+  { id: "document_generator", label: "Document Generator", icon: FileText, category: "Documents" },
+  { id: "templates", label: "Templates", icon: Briefcase, category: "Documents" },
+  { id: "digital_signatures", label: "Digital Signatures", icon: Briefcase, category: "Documents" },
+  { id: "contracts_documents", label: "Contracts", icon: FileText, category: "Documents" },
+  { id: "sop_library", label: "SOP Library", icon: Briefcase, category: "Documents" },
+
+  // Operations
+  { id: "operations_dashboard", label: "Operations Dashboard", icon: BarChart3, category: "Operations" },
+  { id: "projects", label: "Projects", icon: Kanban, category: "Operations" },
+  { id: "tasks", label: "Tasks", icon: Kanban, category: "Operations" },
+  { id: "kanban_board", label: "Kanban Board", icon: Kanban, category: "Operations" },
+  { id: "meetings_operations", label: "Meetings", icon: Calendar, category: "Operations" },
+  { id: "calendar", label: "Calendar", icon: Calendar, category: "Operations" },
+  { id: "approvals", label: "Approvals", icon: Briefcase, category: "Operations" },
+  { id: "announcements", label: "Announcements", icon: Briefcase, category: "Operations" },
+
+  // IT & System
+  { id: "access_control", label: "Access Control", icon: Shield, category: "IT & System" },
+  { id: "user_management", label: "User Management", icon: Users, category: "IT & System" },
+  { id: "roles_permissions", label: "Roles & Permissions", icon: Shield, category: "IT & System" },
+  { id: "api_keys", label: "API Keys", icon: Briefcase, category: "IT & System" },
+  { id: "integrations", label: "Integrations", icon: Globe, category: "IT & System" },
+  { id: "email_settings", label: "Email Settings", icon: Settings, category: "IT & System" },
+  { id: "backup", label: "Backup", icon: Briefcase, category: "IT & System" },
+  { id: "audit_logs", label: "Audit Logs", icon: Briefcase, category: "IT & System" },
+  { id: "activity_logs", label: "Activity Logs", icon: Briefcase, category: "IT & System" },
+  { id: "system_health", label: "System Health", icon: Briefcase, category: "IT & System" },
+  { id: "maintenance_it", label: "Maintenance", icon: Settings, category: "IT & System" },
+
+  // AI & Automation
+  { id: "ai_dashboard", label: "AI Dashboard", icon: BarChart3, category: "AI & Automation" },
+  { id: "ai_reports", label: "AI Reports", icon: BarChart3, category: "AI & Automation" },
+  { id: "workflow_automation", label: "Workflow Automation", icon: Bot, category: "AI & Automation" },
+  { id: "ai_insights", label: "AI Insights", icon: Bot, category: "AI & Automation" },
+  { id: "ai_predictions", label: "AI Predictions", icon: Bot, category: "AI & Automation" },
+  { id: "scheduled_jobs", label: "Scheduled Jobs", icon: Calendar, category: "AI & Automation" },
+
+  // Analytics
+  { id: "business_analytics", label: "Business Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "sales_analytics_analytics", label: "Sales Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "finance_analytics", label: "Finance Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "hr_analytics", label: "HR Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "manufacturing_analytics", label: "Manufacturing Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "marketing_analytics", label: "Marketing Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "custom_reports", label: "Custom Reports", icon: BarChart3, category: "Analytics" },
+
+  // Administration
+  { id: "company_settings", label: "Company Settings", icon: Settings, category: "Administration" },
+  { id: "branch_settings", label: "Branch Settings", icon: Settings, category: "Administration" },
+  { id: "currency", label: "Currency", icon: Briefcase, category: "Administration" },
+  { id: "tax_configuration", label: "Tax Configuration", icon: Settings, category: "Administration" },
+  { id: "holidays", label: "Holidays", icon: Calendar, category: "Administration" },
+  { id: "business_hours", label: "Business Hours", icon: Briefcase, category: "Administration" },
+  { id: "notifications_administration", label: "Notifications", icon: Briefcase, category: "Administration" },
+  { id: "licenses", label: "Licenses", icon: Briefcase, category: "Administration" },
+
+  // My Workspace (Personal)
+  { id: "my_tasks", label: "My Tasks", icon: Kanban, category: "My Workspace (Personal)" },
+  { id: "my_calendar", label: "My Calendar", icon: Calendar, category: "My Workspace (Personal)" },
+  { id: "my_documents", label: "My Documents", icon: FileText, category: "My Workspace (Personal)" },
+  { id: "my_attendance", label: "My Attendance", icon: Briefcase, category: "My Workspace (Personal)" },
+  { id: "my_performance", label: "My Performance", icon: Briefcase, category: "My Workspace (Personal)" },
+  { id: "my_notifications", label: "My Notifications", icon: Briefcase, category: "My Workspace (Personal)" },
+  { id: "profile", label: "Profile", icon: FileText, category: "My Workspace (Personal)" },
 ];
 
 const FINANCIAL_HOLIDAYS = [
@@ -303,9 +534,9 @@ const Admin = () => {
       const { count: appsCount } = await supabase.from('job_applications').select('*', { count: 'exact', head: true }).in('status', ['New', 'Pending']);
       if (appsCount && appsCount > 0) notifs.push({ title: "Job Applications", desc: `${appsCount} pending applications to review.` });
       
-      const { data: invData } = await supabase.from('inventory_items').select('quantity, min_stock');
+      const { data: invData } = await supabase.from('inventory_items').select('quantity, low_stock_threshold');
       if (invData) {
-        const lowStockCount = invData.filter(i => (i.quantity || 0) < (i.min_stock || 5)).length;
+        const lowStockCount = invData.filter(i => (i.quantity || 0) < (i.low_stock_threshold || 5)).length;
         if (lowStockCount > 0) notifs.push({ title: "Low Stock Alert", desc: `${lowStockCount} items are critically low on stock.` });
       }
       
@@ -723,17 +954,10 @@ const Admin = () => {
                 {userAccess.allowed_pages.includes("applications") && activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} onNavigateToTab={handleNavigateToTab} />}
                 {userAccess.allowed_pages.includes("newsletter") && activeTab === "newsletter" && <NewsletterManagement />}
                 {userAccess.allowed_pages.includes("interns") && activeTab === "interns" && <InternManagement />}
-                {userAccess.allowed_pages.includes("content") && activeTab === "content" && <PageContentManagement />}
                 {userAccess.allowed_pages.includes("documents") && activeTab === "documents" && <DocumentGenerator initialPayload={documentPayload} onClearPayload={() => setDocumentPayload(undefined)} />}
                 {userAccess.allowed_pages.includes("jobs") && activeTab === "jobs" && <JobPositionsManagement />}
-                {userAccess.allowed_pages.includes("videos") && activeTab === "videos" && <VideoManagement />}
-                {userAccess.allowed_pages.includes("location") && activeTab === "location" && <LocationManagement />}
-                {userAccess.allowed_pages.includes("countdown") && activeTab === "countdown" && <CountdownManagement />}
-                {userAccess.allowed_pages.includes("postcountdown") && activeTab === "postcountdown" && <PostCountdownManagement />}
                 {userAccess.allowed_pages.includes("maintenance") && activeTab === "maintenance" && <MaintenanceManagement />}
                 {userAccess.allowed_pages.includes("posts") && activeTab === "posts" && <MarketingPostsManagement />}
-                {userAccess.allowed_pages.includes("models3d") && activeTab === "models3d" && <Model3DManagement />}
-                {userAccess.allowed_pages.includes("social") && activeTab === "social" && <SocialLinksManagement />}
                 {userAccess.allowed_pages.includes("business") && activeTab === "business" && <BusinessManagement />}
                 {userAccess.allowed_pages.includes("market_research") && activeTab === "market_research" && <MarketResearchHub />}
                 {userAccess.allowed_pages.includes("shared_files") && activeTab === "shared_files" && <SharedFilesManager />}
@@ -756,15 +980,8 @@ const Admin = () => {
                 {activeTab === "newsletter" && <NewsletterManagement />}
                 { activeTab === "interns" && <InternManagement /> }
                 { activeTab === "documents" && <DocumentGenerator initialPayload={documentPayload} onClearPayload={() => setDocumentPayload(undefined)} /> }
-                { activeTab === "content" && <PageContentManagement /> }
                 {activeTab === "jobs" && <JobPositionsManagement />}
-                {activeTab === "videos" && <VideoManagement />}
-                {activeTab === "location" && <LocationManagement />}
-                {activeTab === "countdown" && <CountdownManagement />}
-                {activeTab === "postcountdown" && <PostCountdownManagement />}
                 {activeTab === "maintenance" && <MaintenanceManagement />}
-                {activeTab === "models3d" && <Model3DManagement />}
-                {activeTab === "social" && <SocialLinksManagement />}
                 {activeTab === "business" && <BusinessManagement />}
                 {activeTab === "market_research" && <MarketResearchHub />}
                 {activeTab === "shared_files" && <SharedFilesManager />}
@@ -772,6 +989,179 @@ const Admin = () => {
                 {activeTab === "rdlab" && <RDLabManagement />}
                 {activeTab === "news" && <NewsManagement />}
                 {activeTab === "access_settings" && <UserAccessSettings />}
+                {activeTab === "dashboard" && <UniversalDashboard onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "my_work" && <MyWork onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "notifications" && <Notifications onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "ai_business_assistant" && <AIBusinessAssistant />}
+                {activeTab === "global_search" && <GlobalSearch onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "ceo_dashboard" && <CEODashboard onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "md_dashboard" && <MDDashboard onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "executive_calendar" && <CeoMdTimetable />}
+                {activeTab === "company_goals_okrs" && <CompanyGoalsOKRs />}
+                {activeTab === "kpi_dashboard" && <KPIDashboard />}
+                {activeTab === "business_intelligence" && <BusinessIntelligence />}
+                {activeTab === "reports_center" && <ReportsCenter />}
+                {activeTab === "company_profile" && <CompanyProfile />}
+                {activeTab === "departments" && <Departments onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "branches" && <Branches />}
+                {activeTab === "teams" && <Teams onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "organization_chart" && <OrganizationChart />}
+                {activeTab === "hr_dashboard" && <HRDashboard onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "employees" && <Employees />}
+                {activeTab === "intern_management" && <InternManagement />}
+                {activeTab === "attendance" && <Attendance />}
+                {activeTab === "leave_management" && <LeaveManagement />}
+                {activeTab === "payroll" && <Payroll />}
+                {activeTab === "performance_reviews" && <PerformanceReviews />}
+                {activeTab === "recruitment" && <PlaceholderPage title="Recruitment" category="Human Resources (HRMS)" />}
+                {activeTab === "job_positions" && <JobPositionsManagement />}
+                {activeTab === "applications" && <PlaceholderPage title="Applications" category="Human Resources (HRMS)" />}
+                {activeTab === "offer_letters" && <OfferLetters />}
+                {activeTab === "exit_management" && <ExitManagement />}
+                {activeTab === "assets_assigned" && <AssetsAssigned />}
+                {activeTab === "crm_dashboard" && <CRMDashboard onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "leads" && <Leads />}
+                {activeTab === "opportunities" && <Opportunities />}
+                {activeTab === "accounts_companies" && <Accounts />}
+                {activeTab === "contacts" && <Contacts />}
+                {activeTab === "customers" && <Customers />}
+                {activeTab === "sales_pipeline" && <SalesPipeline onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "quotations" && <Quotations />}
+                {activeTab === "followups" && <FollowUps />}
+                {activeTab === "meetings" && <Meetings />}
+                {activeTab === "calls" && <Calls />}
+                {activeTab === "emails" && <Emails />}
+                {activeTab === "deals" && <Deals />}
+                {activeTab === "customer_support" && <CustomerSupport />}
+                {activeTab === "complaints" && <Complaints />}
+                {activeTab === "feedback" && <Feedback />}
+                {activeTab === "contracts" && <Contracts />}
+                {activeTab === "sales_dashboard" && <PlaceholderPage title="Sales Dashboard" category="Sales" />}
+                {activeTab === "orders" && <PlaceholderPage title="Orders" category="Sales" />}
+                {activeTab === "quotations_sales" && <Quotations />}
+                {activeTab === "proforma_invoice" && <PlaceholderPage title="Proforma Invoice" category="Sales" />}
+                {activeTab === "invoices" && <PlaceholderPage title="Invoices" category="Sales" />}
+                {activeTab === "payments" && <PlaceholderPage title="Payments" category="Sales" />}
+                {activeTab === "sales_analytics" && <PlaceholderPage title="Sales Analytics" category="Sales" />}
+                {activeTab === "price_lists" && <PlaceholderPage title="Price Lists" category="Sales" />}
+                {activeTab === "discounts" && <PlaceholderPage title="Discounts" category="Sales" />}
+                {activeTab === "inventory_dashboard" && <PlaceholderPage title="Inventory Dashboard" category="Inventory & Warehouse" />}
+                {activeTab === "products" && <PlaceholderPage title="Products" category="Inventory & Warehouse" />}
+                {activeTab === "categories" && <PlaceholderPage title="Categories" category="Inventory & Warehouse" />}
+                {activeTab === "warehouses" && <PlaceholderPage title="Warehouses" category="Inventory & Warehouse" />}
+                {activeTab === "stock_movement" && <PlaceholderPage title="Stock Movement" category="Inventory & Warehouse" />}
+                {activeTab === "purchase_requests" && <PlaceholderPage title="Purchase Requests" category="Inventory & Warehouse" />}
+                {activeTab === "stock_adjustment" && <PlaceholderPage title="Stock Adjustment" category="Inventory & Warehouse" />}
+                {activeTab === "batch_tracking" && <PlaceholderPage title="Batch Tracking" category="Inventory & Warehouse" />}
+                {activeTab === "barcode_management" && <PlaceholderPage title="Barcode Management" category="Inventory & Warehouse" />}
+                {activeTab === "production_dashboard" && <PlaceholderPage title="Production Dashboard" category="Manufacturing" />}
+                {activeTab === "bill_of_materials_bom" && <PlaceholderPage title="Bill of Materials (BOM)" category="Manufacturing" />}
+                {activeTab === "production_orders" && <PlaceholderPage title="Production Orders" category="Manufacturing" />}
+                {activeTab === "quality_check" && <PlaceholderPage title="Quality Check" category="Manufacturing" />}
+                {activeTab === "machines" && <PlaceholderPage title="Machines" category="Manufacturing" />}
+                {activeTab === "maintenance" && <PlaceholderPage title="Maintenance" category="Manufacturing" />}
+                {activeTab === "production_reports" && <PlaceholderPage title="Production Reports" category="Manufacturing" />}
+                {activeTab === "finance_dashboard" && <PlaceholderPage title="Finance Dashboard" category="Finance & Accounting" />}
+                {activeTab === "chart_of_accounts" && <PlaceholderPage title="Chart of Accounts" category="Finance & Accounting" />}
+                {activeTab === "journal_entries" && <PlaceholderPage title="Journal Entries" category="Finance & Accounting" />}
+                {activeTab === "general_ledger" && <PlaceholderPage title="General Ledger" category="Finance & Accounting" />}
+                {activeTab === "trial_balance" && <PlaceholderPage title="Trial Balance" category="Finance & Accounting" />}
+                {activeTab === "profit_loss" && <PlaceholderPage title="Profit & Loss" category="Finance & Accounting" />}
+                {activeTab === "balance_sheet" && <PlaceholderPage title="Balance Sheet" category="Finance & Accounting" />}
+                {activeTab === "cash_flow" && <PlaceholderPage title="Cash Flow" category="Finance & Accounting" />}
+                {activeTab === "budget" && <PlaceholderPage title="Budget" category="Finance & Accounting" />}
+                {activeTab === "expenses" && <PlaceholderPage title="Expenses" category="Finance & Accounting" />}
+                {activeTab === "receivables" && <PlaceholderPage title="Receivables" category="Finance & Accounting" />}
+                {activeTab === "payables" && <PlaceholderPage title="Payables" category="Finance & Accounting" />}
+                {activeTab === "gst" && <PlaceholderPage title="GST" category="Finance & Accounting" />}
+                {activeTab === "tax_center" && <PlaceholderPage title="Tax Center" category="Finance & Accounting" />}
+                {activeTab === "fixed_assets" && <PlaceholderPage title="Fixed Assets" category="Finance & Accounting" />}
+                {activeTab === "procurement_dashboard" && <PlaceholderPage title="Procurement Dashboard" category="Procurement" />}
+                {activeTab === "vendors" && <PlaceholderPage title="Vendors" category="Procurement" />}
+                {activeTab === "purchase_orders" && <PlaceholderPage title="Purchase Orders" category="Procurement" />}
+                {activeTab === "rfq" && <PlaceholderPage title="RFQ" category="Procurement" />}
+                {activeTab === "vendor_quotations" && <PlaceholderPage title="Vendor Quotations" category="Procurement" />}
+                {activeTab === "goods_received_note_grn" && <PlaceholderPage title="Goods Received Note (GRN)" category="Procurement" />}
+                {activeTab === "bills" && <PlaceholderPage title="Bills" category="Procurement" />}
+                {activeTab === "vendor_payments" && <PlaceholderPage title="Vendor Payments" category="Procurement" />}
+                {activeTab === "rd_dashboard" && <PlaceholderPage title="R&D Dashboard" category="Research & Development" />}
+                {activeTab === "rd_lab" && <RDLabManagement />}
+                {activeTab === "product_formulations" && <PlaceholderPage title="Product Formulations" category="Research & Development" />}
+                {activeTab === "experiments" && <PlaceholderPage title="Experiments" category="Research & Development" />}
+                {activeTab === "product_testing" && <PlaceholderPage title="Product Testing" category="Research & Development" />}
+                {activeTab === "prototype_tracker" && <PlaceholderPage title="Prototype Tracker" category="Research & Development" />}
+                {activeTab === "knowledge_tracker" && <KnowledgeTracker />}
+                {activeTab === "compliance_ai" && <ComplianceAI />}
+                {activeTab === "ip_patents" && <PlaceholderPage title="IP & Patents" category="Research & Development" />}
+                {activeTab === "marketing_dashboard" && <PlaceholderPage title="Marketing Dashboard" category="Marketing" />}
+                {activeTab === "campaigns" && <PlaceholderPage title="Campaigns" category="Marketing" />}
+                {activeTab === "social_media" && <PlaceholderPage title="Social Media" category="Marketing" />}
+                {activeTab === "marketing_posts" && <MarketingPostsManagement />}
+                {activeTab === "newsletter" && <PlaceholderPage title="Newsletter" category="Marketing" />}
+                {activeTab === "seo" && <PlaceholderPage title="SEO" category="Marketing" />}
+                {activeTab === "market_research" && <PlaceholderPage title="Market Research" category="Marketing" />}
+                {activeTab === "brand_assets" && <PlaceholderPage title="Brand Assets" category="Marketing" />}
+                {activeTab === "press_media" && <NewsManagement />}
+                {activeTab === "website" && <PlaceholderPage title="Website" category="Digital Assets" />}
+                {activeTab === "blog" && <PlaceholderPage title="Blog" category="Digital Assets" />}
+                {activeTab === "landing_pages" && <PlaceholderPage title="Landing Pages" category="Digital Assets" />}
+                {activeTab === "media_library" && <PlaceholderPage title="Media Library" category="Digital Assets" />}
+                {activeTab === "videos" && <PlaceholderPage title="Videos" category="Digital Assets" />}
+                {activeTab === "images" && <PlaceholderPage title="Images" category="Digital Assets" />}
+                {activeTab === "downloads" && <PlaceholderPage title="Downloads" category="D Models" />}
+                {activeTab === "shared_files" && <PlaceholderPage title="Shared Files" category="Documents" />}
+                {activeTab === "document_generator" && <DocumentGenerator initialPayload={documentPayload} onClearPayload={() => setDocumentPayload(undefined)} />}
+                {activeTab === "templates" && <PlaceholderPage title="Templates" category="Documents" />}
+                {activeTab === "digital_signatures" && <PlaceholderPage title="Digital Signatures" category="Documents" />}
+                {activeTab === "contracts_documents" && <Contracts />}
+                {activeTab === "sop_library" && <PlaceholderPage title="SOP Library" category="Documents" />}
+                {activeTab === "operations_dashboard" && <PlaceholderPage title="Operations Dashboard" category="Operations" />}
+                {activeTab === "projects" && <PlaceholderPage title="Projects" category="Operations" />}
+                {activeTab === "tasks" && <PlaceholderPage title="Tasks" category="Operations" />}
+                {activeTab === "kanban_board" && <PlaceholderPage title="Kanban Board" category="Operations" />}
+                {activeTab === "meetings_operations" && <Meetings />}
+                {activeTab === "calendar" && <PlaceholderPage title="Calendar" category="Operations" />}
+                {activeTab === "approvals" && <PlaceholderPage title="Approvals" category="Operations" />}
+                {activeTab === "announcements" && <PlaceholderPage title="Announcements" category="Operations" />}
+                {activeTab === "access_control" && <UserAccessSettings />}
+                {activeTab === "user_management" && <PlaceholderPage title="User Management" category="IT & System" />}
+                {activeTab === "roles_permissions" && <PlaceholderPage title="Roles & Permissions" category="IT & System" />}
+                {activeTab === "api_keys" && <PlaceholderPage title="API Keys" category="IT & System" />}
+                {activeTab === "integrations" && <PlaceholderPage title="Integrations" category="IT & System" />}
+                {activeTab === "email_settings" && <PlaceholderPage title="Email Settings" category="IT & System" />}
+                {activeTab === "backup" && <PlaceholderPage title="Backup" category="IT & System" />}
+                {activeTab === "audit_logs" && <AdminActivityLogs onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "activity_logs" && <PlaceholderPage title="Activity Logs" category="IT & System" />}
+                {activeTab === "system_health" && <PlaceholderPage title="System Health" category="IT & System" />}
+                {activeTab === "maintenance_it" && <PlaceholderPage title="Maintenance" category="IT & System" />}
+                {activeTab === "ai_dashboard" && <PlaceholderPage title="AI Dashboard" category="AI & Automation" />}
+                {activeTab === "ai_reports" && <PlaceholderPage title="AI Reports" category="AI & Automation" />}
+                {activeTab === "workflow_automation" && <PlaceholderPage title="Workflow Automation" category="AI & Automation" />}
+                {activeTab === "ai_insights" && <PlaceholderPage title="AI Insights" category="AI & Automation" />}
+                {activeTab === "ai_predictions" && <PlaceholderPage title="AI Predictions" category="AI & Automation" />}
+                {activeTab === "scheduled_jobs" && <PlaceholderPage title="Scheduled Jobs" category="AI & Automation" />}
+                {activeTab === "business_analytics" && <PlaceholderPage title="Business Analytics" category="Analytics" />}
+                {activeTab === "sales_analytics_analytics" && <PlaceholderPage title="Sales Analytics" category="Analytics" />}
+                {activeTab === "finance_analytics" && <PlaceholderPage title="Finance Analytics" category="Analytics" />}
+                {activeTab === "hr_analytics" && <PlaceholderPage title="HR Analytics" category="Analytics" />}
+                {activeTab === "manufacturing_analytics" && <PlaceholderPage title="Manufacturing Analytics" category="Analytics" />}
+                {activeTab === "marketing_analytics" && <PlaceholderPage title="Marketing Analytics" category="Analytics" />}
+                {activeTab === "custom_reports" && <PlaceholderPage title="Custom Reports" category="Analytics" />}
+                {activeTab === "company_settings" && <PlaceholderPage title="Company Settings" category="Administration" />}
+                {activeTab === "branch_settings" && <PlaceholderPage title="Branch Settings" category="Administration" />}
+                {activeTab === "currency" && <PlaceholderPage title="Currency" category="Administration" />}
+                {activeTab === "tax_configuration" && <PlaceholderPage title="Tax Configuration" category="Administration" />}
+                {activeTab === "holidays" && <PlaceholderPage title="Holidays" category="Administration" />}
+                {activeTab === "business_hours" && <PlaceholderPage title="Business Hours" category="Administration" />}
+                {activeTab === "notifications_administration" && <PlaceholderPage title="Notifications" category="Administration" />}
+                {activeTab === "licenses" && <PlaceholderPage title="Licenses" category="Administration" />}
+                {activeTab === "my_tasks" && <PlaceholderPage title="My Tasks" category="My Workspace (Personal)" />}
+                {activeTab === "my_calendar" && <PlaceholderPage title="My Calendar" category="My Workspace (Personal)" />}
+                {activeTab === "my_documents" && <PlaceholderPage title="My Documents" category="My Workspace (Personal)" />}
+                {activeTab === "my_attendance" && <PlaceholderPage title="My Attendance" category="My Workspace (Personal)" />}
+                {activeTab === "my_performance" && <PlaceholderPage title="My Performance" category="My Workspace (Personal)" />}
+                {activeTab === "my_notifications" && <PlaceholderPage title="My Notifications" category="My Workspace (Personal)" />}
+                {activeTab === "profile" && <PlaceholderPage title="Profile" category="My Workspace (Personal)" />}
               </>
             )}
           </div>
