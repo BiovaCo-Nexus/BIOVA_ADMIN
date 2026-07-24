@@ -18,8 +18,12 @@ import { DemandToDirectors } from "./rd-lab/DemandToDirectors"
 import { OfflineSyncManager } from "./rd-lab/OfflineSyncManager"
 import { LayoutDashboard, FlaskConical, TestTubes, Package, ClipboardCheck, Scale, FileText, Truck, Users, Calculator, FolderOpen, FileBarChart, AlertCircle } from "lucide-react"
 
-export function RDLabManagement() {
- const [activeTab, setActiveTab] = useState("dashboard")
+interface RDLabManagementProps {
+  initialTab?: string;
+}
+
+export function RDLabManagement({ initialTab = "dashboard" }: RDLabManagementProps) {
+ const [activeTab, setActiveTab] = useState(initialTab)
 
  const TABS = [
  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },

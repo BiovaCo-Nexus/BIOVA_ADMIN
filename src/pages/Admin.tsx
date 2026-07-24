@@ -1122,15 +1122,15 @@ const Admin = () => {
                 {activeTab === "goods_received_note_grn" && <PlaceholderPage title="Goods Received Note (GRN)" category="Procurement" />}
                 {activeTab === "bills" && <PlaceholderPage title="Bills" category="Procurement" />}
                 {activeTab === "vendor_payments" && <PlaceholderPage title="Vendor Payments" category="Procurement" />}
-                {activeTab === "rd_dashboard" && <PlaceholderPage title="R&D Dashboard" category="Research & Development" />}
-                {activeTab === "rd_lab" && <RDLabManagement />}
-                {activeTab === "product_formulations" && <PlaceholderPage title="Product Formulations" category="Research & Development" />}
-                {activeTab === "experiments" && <PlaceholderPage title="Experiments" category="Research & Development" />}
-                {activeTab === "product_testing" && <PlaceholderPage title="Product Testing" category="Research & Development" />}
-                {activeTab === "prototype_tracker" && <PlaceholderPage title="Prototype Tracker" category="Research & Development" />}
+                {activeTab === "rd_dashboard" && <RDLabManagement initialTab="dashboard" />}
+                {activeTab === "rd_lab" && <RDLabManagement initialTab="dashboard" />}
+                {activeTab === "product_formulations" && <RDLabManagement initialTab="recipes" />}
+                {activeTab === "experiments" && <RDLabManagement initialTab="trials" />}
+                {activeTab === "product_testing" && <RDLabManagement initialTab="testing" />}
+                {activeTab === "prototype_tracker" && <RDLabManagement initialTab="samples" />}
                 {activeTab === "knowledge_tracker" && <KnowledgeTracker />}
                 {activeTab === "compliance_ai" && <ComplianceAI />}
-                {activeTab === "ip_patents" && <PlaceholderPage title="IP & Patents" category="Research & Development" />}
+                {activeTab === "ip_patents" && <RDLabManagement initialTab="vault" />}
                 {activeTab === "marketing_dashboard" && <PlaceholderPage title="Marketing Dashboard" category="Marketing" />}
                 {activeTab === "campaigns" && <PlaceholderPage title="Campaigns" category="Marketing" />}
                 {activeTab === "social_media" && <PlaceholderPage title="Social Media" category="Marketing" />}
