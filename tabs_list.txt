@@ -1,0 +1,193 @@
+🏢 Executive Dashboard
+Dashboard
+My Work
+Notifications
+AI Business Assistant
+Global Search
+📊 Executive & Strategy
+CEO Dashboard
+MD Dashboard
+Executive Calendar
+Company Goals (OKRs)
+KPI Dashboard
+Business Intelligence
+Reports Center
+🏢 Organization
+Company Profile
+Departments
+Branches
+Teams
+Organization Chart
+👥 Human Resources (HRMS)
+HR Dashboard
+Employees
+Intern Management
+Attendance
+Leave Management
+Payroll
+Performance Reviews
+Recruitment
+Job Positions
+Applications
+Offer Letters
+Exit Management
+Assets Assigned
+🤝 CRM (Customer Relationship Management)
+CRM Dashboard
+Leads
+Opportunities
+Accounts (Companies)
+Contacts
+Customers
+Sales Pipeline
+Quotations
+Follow-ups
+Meetings
+Calls
+Emails
+Deals
+Customer Support
+Complaints
+Feedback
+Contracts
+💼 Sales
+Sales Dashboard
+Orders
+Quotations
+Proforma Invoice
+Invoices
+Payments
+Sales Analytics
+Price Lists
+Discounts
+📦 Inventory & Warehouse
+Inventory Dashboard
+Products
+Categories
+Warehouses
+Stock Movement
+Purchase Requests
+Stock Adjustment
+Batch Tracking
+Barcode Management
+🏭 Manufacturing
+Production Dashboard
+Bill of Materials (BOM)
+Production Orders
+Quality Check
+Machines
+Maintenance
+Production Reports
+💰 Finance & Accounting
+Finance Dashboard
+Chart of Accounts
+Journal Entries
+General Ledger
+Trial Balance
+Profit & Loss
+Balance Sheet
+Cash Flow
+Budget
+Expenses
+Receivables
+Payables
+GST
+Tax Center
+Fixed Assets
+🚚 Procurement
+Procurement Dashboard
+Vendors
+Purchase Orders
+RFQ
+Vendor Quotations
+Goods Received Note (GRN)
+Bills
+Vendor Payments
+🧪 Research & Development
+R&D Dashboard
+R&D Lab
+Product Formulations
+Experiments
+Product Testing
+Prototype Tracker
+Knowledge Tracker
+IP & Patents
+📢 Marketing
+Marketing Dashboard
+Campaigns
+Social Media
+Marketing Posts
+Newsletter
+SEO
+Market Research
+Brand Assets
+Press & Media
+🌐 Digital Assets
+Website
+Blog
+Landing Pages
+Media Library
+Videos
+Images
+3D Models
+Downloads
+📄 Documents
+Shared Files
+Document Generator
+Templates
+Digital Signatures
+Contracts
+SOP Library
+📋 Operations
+Operations Dashboard
+Projects
+Tasks
+Kanban Board
+Meetings
+Calendar
+Approvals
+Announcements
+⚙️ IT & System
+Access Control
+User Management
+Roles & Permissions
+API Keys
+Integrations
+Email Settings
+Backup
+Audit Logs
+Activity Logs
+System Health
+Maintenance
+🤖 AI & Automation
+AI Dashboard
+AI Reports
+Workflow Automation
+AI Insights
+AI Predictions
+Scheduled Jobs
+📈 Analytics
+Business Analytics
+Sales Analytics
+Finance Analytics
+HR Analytics
+Manufacturing Analytics
+Marketing Analytics
+Custom Reports
+🌍 Administration
+Company Settings
+Branch Settings
+Currency
+Tax Configuration
+Holidays
+Business Hours
+Notifications
+Licenses
+👤 My Workspace (Personal)
+My Tasks
+My Calendar
+My Documents
+My Attendance
+My Performance
+My Notifications
+Profile

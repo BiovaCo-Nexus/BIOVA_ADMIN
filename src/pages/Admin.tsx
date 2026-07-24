@@ -415,7 +415,8 @@ const Admin = () => {
 
 
 
-  const [userAccess, setUserAccess] = useState<{ allowed_pages: string[]; default_tab: string | null } | null>(null);
+  interface UserAccessState { allowed_pages: string[]; default_tab: string | null; }
+  const [userAccess, setUserAccess] = useState<UserAccessState | null>(null);
 
   const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || ""
   const SENDER_EMAIL = "no-reply@biovaco.in"
@@ -523,7 +524,7 @@ const Admin = () => {
   };
 
   // Fuzzy module matching: checks label + category + keyword aliases
-  const matchesModule = (tab: typeof INITIAL_TABS[0], q: string): boolean => {
+  const matchesModule = (tab: any, q: string): boolean => {
     const lq = q.toLowerCase();
     if (tab.label.toLowerCase().includes(lq)) return true;
     if (tab.category.toLowerCase().includes(lq)) return true;
@@ -543,7 +544,7 @@ const Admin = () => {
       try {
         const query = searchQuery.toLowerCase().trim();
         const likeQuery = `%${query}%`;
-        const results: typeof searchResults = [];
+        const results: any[] = [];
         if (query.length >= 2) {
           const [appsRes, jobsRes, internsRes, kbRes, newsRes, videosRes, postsRes, expRes, schedRes] = await Promise.all([
             supabase.from('job_applications').select('id, full_name, role, email').or(`full_name.ilike.${likeQuery},email.ilike.${likeQuery},role.ilike.${likeQuery}`).limit(4),
@@ -682,11 +683,12 @@ const Admin = () => {
       ? INITIAL_TABS.filter(t => userAccess.allowed_pages.includes(t.id)) 
       : [];
 
+  const initialGroupedTabs: Record<string, any[]> = {};
   const groupedTabs = visibleTabs.reduce((acc, tab) => {
     if (!acc[tab.category]) acc[tab.category] = [];
     acc[tab.category].push(tab);
     return acc;
-  }, {} as Record<string, typeof INITIAL_TABS>);
+  }, initialGroupedTabs);
 
   useEffect(() => {
     if (!isCEOorMD && hasDbAccess && userAccess.allowed_pages.length > 0) {
@@ -996,29 +998,12 @@ const Admin = () => {
               </select>
             </div>
 
-            {!isCEOorMD && hasDbAccess ? (
-              <>
-                {userAccess.allowed_pages.includes("dashboard") && activeTab === "dashboard" && <UniversalDashboard onNavigateToTab={handleNavigateToTab} />}
-                {userAccess.allowed_pages.includes("core_ops_dashboard") && activeTab === "core_ops_dashboard" && <CoreOperationsDashboard />}
-                {userAccess.allowed_pages.includes("hr_dashboard") && activeTab === "hr_dashboard" && <HRTeamDashboard />}
-                {userAccess.allowed_pages.includes("marketing_dashboard") && activeTab === "marketing_dashboard" && <MarketingDashboard />}
-                {userAccess.allowed_pages.includes("media_dashboard") && activeTab === "media_dashboard" && <MediaDashboard />}
-                {userAccess.allowed_pages.includes("timetable") && activeTab === "timetable" && <CeoMdTimetable />}
-                {userAccess.allowed_pages.includes("applications") && activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} onNavigateToTab={handleNavigateToTab} />}
-                {userAccess.allowed_pages.includes("newsletter") && activeTab === "newsletter" && <NewsletterManagement />}
-                {userAccess.allowed_pages.includes("interns") && activeTab === "interns" && <InternManagement />}
-                {userAccess.allowed_pages.includes("documents") && activeTab === "documents" && <DocumentGenerator initialPayload={documentPayload} onClearPayload={() => setDocumentPayload(undefined)} />}
-                {userAccess.allowed_pages.includes("jobs") && activeTab === "jobs" && <JobPositionsManagement />}
-                {userAccess.allowed_pages.includes("maintenance") && activeTab === "maintenance" && <MaintenanceManagement />}
-                {userAccess.allowed_pages.includes("posts") && activeTab === "posts" && <MarketingPostsManagement />}
-                {userAccess.allowed_pages.includes("business") && activeTab === "business" && <BusinessManagement />}
-                {userAccess.allowed_pages.includes("market_research") && activeTab === "market_research" && <MarketResearchHub />}
-                {userAccess.allowed_pages.includes("shared_files") && activeTab === "shared_files" && <SharedFilesManager />}
-                {userAccess.allowed_pages.includes("knowledge") && activeTab === "knowledge" && <KnowledgeTracker />}
-                {userAccess.allowed_pages.includes("rdlab") && activeTab === "rdlab" && <RDLabManagement />}
-                {userAccess.allowed_pages.includes("news") && activeTab === "news" && <NewsManagement />}
-                {userAccess.allowed_pages.includes("audit") && activeTab === "audit" && <AdminActivityLogs onNavigateToTab={handleNavigateToTab} />}
-              </>
+                        {(!isCEOorMD && hasDbAccess && !userAccess.allowed_pages.includes(activeTab)) ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-lg border border-red-100 shadow-sm">
+                <ShieldAlert className="h-16 w-16 text-red-400 mb-4" />
+                <h2 className="text-xl font-semibold text-gray-800">Access Denied</h2>
+                <p className="text-gray-500 mt-2">You do not have permission to view the <span className="font-semibold">{activeTab}</span> page.</p>
+              </div>
             ) : (
               <>
                 {activeTab === "dashboard" && <UniversalDashboard onNavigateToTab={handleNavigateToTab} />}
@@ -1215,6 +1200,7 @@ const Admin = () => {
                 {activeTab === "my_performance" && <PlaceholderPage title="My Performance" category="My Workspace (Personal)" />}
                 {activeTab === "my_notifications" && <PlaceholderPage title="My Notifications" category="My Workspace (Personal)" />}
                 {activeTab === "profile" && <PlaceholderPage title="Profile" category="My Workspace (Personal)" />}
+
               </>
             )}
           </div>

@@ -33,7 +33,7 @@ export function DemandToDirectors() {
  const emailHtml = `
  <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; border: 1px solid #ddd; border-top: 4px solid #18181b;">
  <h2 style="color: #18181b;">BiovaCo Nexus R&D Lab - New Demand Raised</h2>
- <p>A new demand/issue has been reported by the Food Technologist (<strong>${userEmail}</strong>).</p>
+ <p>A new demand/issue has been reported by an R&D Staff member (<strong>${userEmail}</strong>).</p>
  <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
  <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9; width: 120px;"><strong>Subject</strong></td><td style="padding: 8px; border: 1px solid #eee;">${form.title}</td></tr>
  <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9;"><strong>Category</strong></td><td style="padding: 8px; border: 1px solid #eee;">${form.category}</td></tr>
@@ -84,7 +84,7 @@ export function DemandToDirectors() {
 
  // 1. Get current user
  const { data: { session } } = await supabase.auth.getSession()
- const userEmail = session?.user?.email || "food@biovaco.in"
+ const userEmail = session?.user?.email || "Unknown User"
 
  // 2. Log to global Admin Activity Logs
  const logDetails = `Category: ${form.category} | Urgency: ${form.urgency}\n\n${form.details}`

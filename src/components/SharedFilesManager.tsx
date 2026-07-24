@@ -138,11 +138,10 @@ export function SharedFilesManager() {
  return
  }
 
- // Build recipient list: CEO, MD, FoodTech, and all Active Interns
+ // Build recipient list: CEO, MD, and all Active Interns
  const coreEmails = [
  { name: "CEO", email: "ceo@biovaco.in" },
- { name: "MD", email: "md@biovaco.in" },
- { name: "Food Tech R&D", email: "food@biovaco.in" }
+ { name: "MD", email: "md@biovaco.in" }
  ]
 
  const internEmails = interns.map(i => ({ name: i.name, email: i.email }))
@@ -551,7 +550,6 @@ export function SharedFilesManager() {
  {[
  { label: 'CEO', email: 'ceo@biovaco.in' },
  { label: 'MD', email: 'md@biovaco.in' },
- { label: 'Food Technologist (R&D)', email: 'food@biovaco.in' },
  ...interns.map(i => ({ label: `${i.name} (Intern)`, email: i.email }))
  ].map(opt => {
  const isSelected = (assignedTo || '').split(',').includes(opt.email);

@@ -392,7 +392,6 @@ export function KnowledgeTracker() {
  {[
  { label: 'CEO', email: 'ceo@biovaco.in' },
  { label: 'MD', email: 'md@biovaco.in' },
- { label: 'Food Technologist (R&D)', email: 'food@biovaco.in' },
  ...interns.map(i => ({ label: `${i.name} (Intern)`, email: i.email }))
  ].map(opt => {
  const isSelected = (form.assigned_to || '').split(',').includes(opt.email);
