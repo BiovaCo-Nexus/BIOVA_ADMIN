@@ -122,22 +122,56 @@ export function KnowledgeTracker() {
  return { total, validated, pending, inProgress, critical, overdue }
  }, [items])
 
- const filteredItems = useMemo(() => {
- return items.filter(item => {
- if (searchQuery && !item.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
- !(item.description || "").toLowerCase().includes(searchQuery.toLowerCase())) return false
- if (filterCategory !== "all" && item.category !== filterCategory) return false
- if (filterStatus !== "all" && item.status !== filterStatus) return false
- if (filterPriority !== "all" && item.priority !== filterPriority) return false
- return true
- }).sort((a, b) => {
- const pOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
- const sOrder: Record<string, number> = { pending: 0, in_progress: 1, validated: 2, rejected: 3 }
- if ((pOrder[a.priority] ?? 9) !== (pOrder[b.priority] ?? 9)) return (pOrder[a.priority] ?? 9) - (pOrder[b.priority] ?? 9)
- if ((sOrder[a.status] ?? 9) !== (sOrder[b.status] ?? 9)) return (sOrder[a.status] ?? 9) - (sOrder[b.status] ?? 9)
- return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
- })
- }, [items, searchQuery, filterCategory, filterStatus, filterPriority])
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      if (searchQuery && !item.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !(item.description || "").toLowerCase().includes(searchQuery.toLowerCase())) return false
+      if (filterCategory !== "all" && item.category !== filterCategory) return false
+      if (filterStatus !== "all" && item.status !== filterStatus) return false
+      if (filterPriority !== "all" && item.priority !== filterPriority) return false
+      return true
+    }).sort((a, b) => {
+      // Sort date-wise (Due dates first, then created/updated newest first)
+      if (a.due_date && b.due_date) {
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+      }
+      if (a.due_date && !b.due_date) return -1
+      if (!a.due_date && b.due_date) return 1
+      
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    })
+  }, [items, searchQuery, filterCategory, filterStatus, filterPriority])
+
+  // Automation: Auto-delete duplicates based on identical titles
+  useEffect(() => {
+    const deduplicate = async () => {
+      if (items.length === 0 || isLoading) return;
+      const seenTitles = new Set<string>();
+      const duplicates: string[] = [];
+      
+      // Sort items so we keep the newest one and mark older ones for deletion
+      const sortedByDate = [...items].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+      
+      sortedByDate.forEach(item => {
+        const titleKey = item.title.trim().toLowerCase();
+        if (seenTitles.has(titleKey)) {
+          duplicates.push(item.id);
+        } else {
+          seenTitles.add(titleKey);
+        }
+      });
+
+      if (duplicates.length > 0) {
+        for (const id of duplicates) {
+          try { await deleteItem(id); } catch(e) {}
+        }
+        if (duplicates.length > 0) {
+          toast({ title: "Automation Applied", description: `Auto-deleted ${duplicates.length} duplicate entries.` })
+        }
+      }
+    };
+    deduplicate();
+  }, [items, isLoading]);
 
  const handleSubmit = async (e: React.FormEvent) => {
  e.preventDefault()

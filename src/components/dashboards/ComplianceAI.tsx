@@ -60,7 +60,7 @@ Calculate and list all the upcoming, immediate, and recurring statutory complian
 Format the output strictly as a JSON array of objects. Do not include markdown code blocks or any other text. Only return the JSON array.
 Each object must have the following exact keys:
 - "title": string (Name of the compliance)
-- "description": string (Brief explanation of what it is and why it's needed)
+- "description": string (Brief explanation, keep it very concise, max 1-2 sentences)
 - "category": string (Must be "regulation")
 - "priority": string (Must be one of "critical", "high", "medium", "low")
 - "due_date": string (Calculate the exact due date based on the incorporation date ${incDate}, format as YYYY-MM-DD. If it's recurring, provide the next immediate due date).
@@ -76,7 +76,7 @@ Each object must have the following exact keys:
         },
         body: JSON.stringify({
           model: "google/gemini-2.5-flash", 
-          max_tokens: 2000, // Limit tokens to prevent 402 error on low balance
+          max_tokens: 5000, // Increased to prevent JSON truncation, user balance supports up to ~8800
           messages: [
             { role: "user", content: prompt }
           ]
