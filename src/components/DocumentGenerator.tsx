@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { Download, FileText, Loader2, Eye, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +21,10 @@ export const DocumentGenerator = ({ initialPayload, onClearPayload }: { initialP
  const [isGenerating, setIsGenerating] = useState(false);
  const [isPreviewing, setIsPreviewing] = useState(false);
  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+ const [customFontSize, setCustomFontSize] = useState<string>("0"); // "0" = Auto
+ const [autoPreview, setAutoPreview] = useState(false);
+ const [showStamp, setShowStamp] = useState(true);
+ const [customFileName, setCustomFileName] = useState('');
  const previewUrlRef = useRef<string | null>(null);
  const { toast } = useToast();
 
@@ -100,10 +106,26 @@ export const DocumentGenerator = ({ initialPayload, onClearPayload }: { initialP
  const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
  const boldItalicFont = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
  
- // Auto-size: count lines to decide font size
- const contentLineCount = content.split('\n').length;
- const fontSize = contentLineCount > 80 ? 9 : 10;
- const lineHeight = fontSize * 1.3;
+  // Sanitize content to prevent pdf-lib WinAnsi encoding errors
+  const sanitizedContent = content
+    .replace(/\r/g, '')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[–—]/g, '-')
+    .replace(/…/g, '...')
+    .replace(/☐/g, '[ ]')
+    .replace(/[☑✅✔️]/g, '[x]')
+    .replace(/[✗❌✖️]/g, '[x]')
+    .replace(/₹/g, 'Rs. ')
+    // Strip any remaining characters not supported by WinAnsi (StandardFonts)
+    .replace(/[^\x00-\xFF\u20AC\u201A\u0192\u201E\u2026\u2020\u2021\u02C6\u2030\u0160\u2039\u0152\u017D\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u02DC\u2122\u0161\u203A\u0153\u017E\u0178]/g, '');
+
+    
+  // Auto-size: count lines to decide font size
+  const contentLineCount = sanitizedContent.split('\n').length;
+  const parsedFontSize = parseFloat(customFontSize);
+  const fontSize = (parsedFontSize && parsedFontSize > 0) ? parsedFontSize : (contentLineCount > 80 ? 9 : 10);
+  const lineHeight = fontSize * 1.3;
  
  const marginX = 55;
  
@@ -144,7 +166,7 @@ export const DocumentGenerator = ({ initialPayload, onClearPayload }: { initialP
  if (documentType) {
  let docTitle = documentType.replace(/_/g, ' ').toUpperCase();
  if (documentType === 'lor') docTitle = 'LETTER OF RECOMMENDATION';
- else if (documentType === 'custom') docTitle = '';
+ else if (documentType === 'custom' || documentType === 'professional_letter') docTitle = '';
 
  if (docTitle) {
  const titleSize = 13;
@@ -177,7 +199,7 @@ export const DocumentGenerator = ({ initialPayload, onClearPayload }: { initialP
  currentY -= lineHeight * 0.3;
  
  // 4. To, Name
- if (recipientName && (documentType === 'offer_letter' || documentType === 'custom')) {
+ if (recipientName && (documentType === 'offer_letter' || documentType === 'custom' || documentType === 'professional_letter')) {
  if (!drawTextLine(`To,`)) await addNewPage();
  if (!drawTextLine(`Mr./Ms. ${recipientName}`, true)) await addNewPage();
  currentY -= lineHeight * 0.5;
@@ -250,7 +272,7 @@ export const DocumentGenerator = ({ initialPayload, onClearPayload }: { initialP
  spaceAfter: number;
  };
 
- const rawParagraphs = content.split('\n');
+  const rawParagraphs = sanitizedContent.split('\n');
  const allItems: RenderItem[] = [];
  
  for (const paragraph of rawParagraphs) {
@@ -407,6 +429,7 @@ export const DocumentGenerator = ({ initialPayload, onClearPayload }: { initialP
  }
 
  // ===== STAMP ON LAST PAGE =====
+ if (showStamp) {
  try {
  const stampImage = await pdfDoc.embedPng(stampBytes);
  const stampDims = stampImage.scale(1);
@@ -427,18 +450,19 @@ export const DocumentGenerator = ({ initialPayload, onClearPayload }: { initialP
  } catch (stampErr) {
  console.warn("Could not embed stamp:", stampErr);
  }
+ }
 
  return pdfDoc.save();
  };
 
  // ========== PREVIEW ==========
- const handlePreview = async () => {
+ const handlePreview = async (silent = false) => {
  if (!content.trim()) {
- toast({ title: "Content missing", description: "Please enter some content for the document.", variant: "destructive" });
+ if (!silent) toast({ title: "Content missing", description: "Please enter some content for the document.", variant: "destructive" });
  return;
  }
 
- setIsPreviewing(true);
+ if (!silent) setIsPreviewing(true);
  try {
  const pdfBytes = await generatePdfBytes();
  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -449,11 +473,20 @@ export const DocumentGenerator = ({ initialPayload, onClearPayload }: { initialP
  setPreviewUrl(url);
  } catch (error: any) {
  console.error(error);
- toast({ title: "Preview failed", description: error.message || "Could not generate preview.", variant: "destructive" });
+ if (!silent) toast({ title: "Preview failed", description: error.message || "Could not generate preview.", variant: "destructive" });
  } finally {
- setIsPreviewing(false);
+ if (!silent) setIsPreviewing(false);
  }
  };
+
+ useEffect(() => {
+   if (autoPreview && content.trim()) {
+     const timer = setTimeout(() => {
+       handlePreview(true);
+     }, 600);
+     return () => clearTimeout(timer);
+   }
+ }, [content, documentType, recipientName, referenceDate, referenceNo, customFontSize, autoPreview, showStamp]);
 
  const closePreview = () => {
  if (previewUrlRef.current) {
@@ -477,7 +510,14 @@ export const DocumentGenerator = ({ initialPayload, onClearPayload }: { initialP
  const url = URL.createObjectURL(blob);
  const link = document.createElement('a');
  link.href = url;
- link.download = `${documentType}_${recipientName || 'document'}.pdf`.replace(/\s+/g, '_');
+ 
+ const defaultFileName = `${documentType}_${recipientName || 'document'}`.replace(/\s+/g, '_');
+ let finalFileName = customFileName.trim() ? customFileName.trim() : defaultFileName;
+ if (!finalFileName.toLowerCase().endsWith('.pdf')) {
+   finalFileName += '.pdf';
+ }
+ link.download = finalFileName;
+ 
  link.click();
  URL.revokeObjectURL(url);
 
@@ -606,13 +646,67 @@ Date: __________________`;
  if (type === 'press_release') {
  return `FOR IMMEDIATE RELEASE\n\nBiovaCo Nexus Announces [News/Event]\n\n[City, State] – [Date] – BiovaCo Nexus today announced [brief summary of news].\n\n"[Quote from executive]," said [Name], [Title] at BiovaCo Nexus.\n\nAbout BiovaCo Nexus:\nBiovaCo Nexus is a leading company in [Industry], committed to [Mission].\n\nFor media inquiries, please contact:\n[Contact Name]\n[Email/Phone]`;
  }
+ if (type === 'board_resolution') {
+ return `**CERTIFIED TRUE COPY OF THE RESOLUTION PASSED AT THE MEETING OF THE BOARD OF DIRECTORS OF BIOVACO NEXUS PRIVATE LIMITED HELD ON [Date] AT THE REGISTERED OFFICE OF THE COMPANY.**
+
+**SUBJECT: [Insert Subject of Resolution]**
+
+"RESOLVED THAT the Board of Directors hereby approves the [Insert Proposal/Action].
+
+RESOLVED FURTHER THAT Mr./Ms. [Name], [Designation], be and is hereby authorized to take all necessary steps, sign and execute all documents, deeds, agreements, and forms as may be required to give effect to the above resolution.
+
+RESOLVED FURTHER THAT a copy of this resolution, duly certified to be a true copy by any Director or the Company Secretary, be submitted to the concerned authorities and they be requested to act upon it."
+
+---
+
+**For BiovaCo Nexus Private Limited**
+
+Signature: ___________________
+
+Name: ___________________
+Designation: Director / Authorized Signatory
+DIN/PAN: ___________________
+Place: ___________________
+Date: ___________________`;
+ }
+ if (type === 'professional_letter') {
+ return `**Subject: [Insert Subject]**
+
+Dear [Name],
+
+We write to you with reference to [Insert Reference/Context]. This letter serves as a formal communication regarding [Insert Purpose].
+
+[Please detail the core message here. For example, terms of an agreement, project updates, or formal notices. Use clear, concise language to ensure full comprehension.]
+
+Key points to note are as follows:
+* [Point 1]
+* [Point 2]
+* [Point 3]
+
+We request you to kindly review the aforementioned details and provide your necessary response or acknowledgment by [Date], if applicable. 
+
+We value our association with you and remain available for any further clarifications. You may reach out to us at [Email/Phone].
+
+Thank you for your continued support and cooperation.
+
+Yours sincerely,
+
+**For BiovaCo Nexus Private Limited**
+
+---
+
+Signature: ___________________
+
+Name: ___________________
+Designation: ___________________`;
+ }
  return '';
  };
 
  const handleTypeChange = (val: string) => {
  setDocumentType(val);
  let newContent = getTemplateContent(val);
- if (val === 'lor' && recipientName) {
+ if ((val === 'lor' || val === 'professional_letter') && recipientName) {
  newContent = newContent.replace('[Name]', `**${recipientName}**`);
  }
  setContent(newContent);
@@ -636,7 +730,7 @@ Date: __________________`;
  </CardHeader>
  <CardContent className="pt-6 space-y-6">
  
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+ <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
  <div className="space-y-2">
  <Label htmlFor="docType">Document Type</Label>
  <Select value={documentType} onValueChange={handleTypeChange}>
@@ -647,6 +741,8 @@ Date: __________________`;
  <SelectItem value="offer_letter">Offer Letter</SelectItem>
  <SelectItem value="lor">Letter of Recommendation</SelectItem>
  <SelectItem value="press_release">Press Release</SelectItem>
+ <SelectItem value="board_resolution">Board Resolution</SelectItem>
+ <SelectItem value="professional_letter">Professional Letter</SelectItem>
  <SelectItem value="custom">Custom Document</SelectItem>
  </SelectContent>
  </Select>
@@ -678,6 +774,15 @@ Date: __________________`;
  onChange={(e) => setReferenceNo(e.target.value)}
  />
  </div>
+ <div className="space-y-2">
+ <Label htmlFor="fileName">Custom File Name</Label>
+ <Input 
+ id="fileName" 
+ placeholder="Optional..." 
+ value={customFileName}
+ onChange={(e) => setCustomFileName(e.target.value)}
+ />
+ </div>
  </div>
 
  <div className="space-y-2">
@@ -696,12 +801,59 @@ Date: __________________`;
  />
  </div>
 
- <div className="flex justify-end gap-3">
+ <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-muted/30 rounded-lg border border-border gap-4">
+ <div className="flex items-center gap-6 w-full sm:w-auto flex-wrap">
+ <div className="flex items-center space-x-6 border-r border-border pr-6">
+ <div className="flex items-center space-x-2">
+ <Switch 
+ id="live-preview" 
+ checked={autoPreview} 
+ onCheckedChange={setAutoPreview} 
+ />
+ <Label htmlFor="live-preview" className="cursor-pointer font-medium text-sm">Live Preview</Label>
+ </div>
+ <div className="flex items-center space-x-2">
+ <Switch 
+ id="show-stamp" 
+ checked={showStamp} 
+ onCheckedChange={setShowStamp} 
+ />
+ <Label htmlFor="show-stamp" className="cursor-pointer font-medium text-sm">Seal Stamp</Label>
+ </div>
+ </div>
+ <div className="flex flex-col space-y-2 w-[180px] sm:w-[220px]">
+ <div className="flex justify-between items-center w-full gap-2">
+ <Label htmlFor="font-size" className="text-xs text-muted-foreground whitespace-nowrap">Font Size (pt)</Label>
+ <div className="flex items-center gap-1">
+ <Input 
+ type="number"
+ step="0.1"
+ min="0"
+ max="36"
+ className="h-6 w-16 text-xs text-right px-1"
+ value={customFontSize === "0" ? "" : customFontSize}
+ placeholder="Auto"
+ onChange={(e) => setCustomFontSize(e.target.value)}
+ />
+ </div>
+ </div>
+ <Slider 
+ id="font-size"
+ max={16} 
+ min={0} 
+ step={0.1}
+ value={[parseFloat(customFontSize) || 0]}
+ onValueChange={(val) => setCustomFontSize(val[0].toString())}
+ />
+ </div>
+ </div>
+
+ <div className="flex justify-end gap-3 w-full sm:w-auto">
  <Button 
- onClick={handlePreview} 
+ onClick={() => handlePreview(false)} 
  disabled={isPreviewing || isGenerating}
  variant="outline"
- className="border-border text-foreground hover:bg-primary text-primary-foreground hover:text-white px-6"
+ className="border-border text-foreground hover:bg-primary text-primary-foreground hover:text-white px-6 w-full sm:w-auto"
  >
  {isPreviewing ? (
  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -713,7 +865,7 @@ Date: __________________`;
  <Button 
  onClick={handleGenerate} 
  disabled={isGenerating || isPreviewing}
- className="bg-primary text-primary-foreground hover:bg-primary/90 text-white px-8"
+ className="bg-primary text-primary-foreground hover:bg-primary/90 text-white px-8 w-full sm:w-auto"
  >
  {isGenerating ? (
  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -722,6 +874,7 @@ Date: __________________`;
  )}
  {isGenerating ? 'Generating...' : 'Download PDF'}
  </Button>
+ </div>
  </div>
 
  </CardContent>
