@@ -122,10 +122,38 @@ export function KnowledgeTracker() {
  return { total, validated, pending, inProgress, critical, overdue }
  }, [items])
 
+  const getCatMeta = (c: string) => CATEGORIES.find(x => x.value === c) || CATEGORIES[0]
+  const getPriMeta = (p: string) => PRIORITIES.find(x => x.value === p) || PRIORITIES[2]
+  const getStaMeta = (s: string) => STATUSES.find(x => x.value === s) || STATUSES[0]
+
+  // Critical deep search: tokenizes query, searches ALL fields, matches partial/small words
+  const deepSearch = (item: KnowledgeItem, query: string): boolean => {
+    if (!query.trim()) return true;
+    const tokens = query.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0);
+    // Build a single searchable string from ALL item fields
+    const searchableFields = [
+      item.title || "",
+      item.description || "",
+      item.category || "",
+      item.priority || "",
+      item.status || "",
+      item.source || "",
+      item.validation_notes || "",
+      item.assigned_to || "",
+      item.due_date || "",
+      item.created_by || "",
+      // Also search human-readable labels for category/priority/status
+      getCatMeta(item.category).label || "",
+      getPriMeta(item.priority).label || "",
+      getStaMeta(item.status).label || "",
+    ].join(" ").toLowerCase();
+    // Every token must match somewhere in the combined fields (AND logic)
+    return tokens.every(token => searchableFields.includes(token));
+  };
+
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-      if (searchQuery && !item.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !(item.description || "").toLowerCase().includes(searchQuery.toLowerCase())) return false
+      if (!deepSearch(item, searchQuery)) return false
       if (filterCategory !== "all" && item.category !== filterCategory) return false
       if (filterStatus !== "all" && item.status !== filterStatus) return false
       if (filterPriority !== "all" && item.priority !== filterPriority) return false
@@ -238,9 +266,6 @@ export function KnowledgeTracker() {
  }
 
  const resetForm = () => { setForm(emptyForm()); setEditId(null); setIsEditing(false) }
- const getCatMeta = (c: string) => CATEGORIES.find(x => x.value === c) || CATEGORIES[0]
- const getPriMeta = (p: string) => PRIORITIES.find(x => x.value === p) || PRIORITIES[2]
- const getStaMeta = (s: string) => STATUSES.find(x => x.value === s) || STATUSES[0]
 
  if (isLoading && items.length === 0) {
  return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-foreground" /></div>
@@ -415,7 +440,7 @@ export function KnowledgeTracker() {
  <div className="flex flex-col sm:flex-row gap-3">
  <div className="relative flex-1">
  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
- <Input className="pl-9" placeholder="Search knowledge items..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+ <Input className="pl-9" placeholder="Deep search... title, description, category, priority, assignee, date, notes" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
  </div>
  <Select value={filterCategory} onValueChange={setFilterCategory}>
  <SelectTrigger className="w-full sm:w-[150px]"><Filter className="h-3.5 w-3.5 mr-1.5 text-gray-400" /><SelectValue placeholder="Category" /></SelectTrigger>

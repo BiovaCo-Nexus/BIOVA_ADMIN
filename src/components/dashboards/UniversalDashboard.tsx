@@ -1,18 +1,33 @@
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell } from "recharts"
 import { 
   Building2, Users, Briefcase, TrendingUp, IndianRupee, Activity, Calendar, 
   Target, Zap, Clock, ShieldCheck, Mail, Globe, Database, Server, Package, 
   AlertTriangle, CheckCircle2, ChevronRight, Download, Plus, ArrowUpRight, ArrowDownRight,
-  Loader2, BellRing, Sparkles, FileText
+  Loader2, BellRing, Sparkles, FileText, X, Bell, Flame, CalendarClock, CircleAlert
 } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useTimeFilter } from "@/hooks/useTimeFilter"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { format, parseISO, subMonths } from "date-fns"
+import { format, parseISO, subMonths, differenceInDays, differenceInHours } from "date-fns"
+
+// ─── Knowledge Alert Types ───
+interface KnowledgeAlert {
+  id: string;
+  title: string;
+  type: 'critical' | 'overdue' | 'due_soon' | 'pending';
+  priority: string;
+  status: string;
+  due_date: string | null;
+  assigned_to: string | null;
+  daysRemaining?: number;
+  message: string;
+}
+
+const ALERT_ONE_HOUR_MS = 60 * 60 * 1000;
 
 const PIE_COLORS = ['#4B49AC', '#F3797E', '#7DA0FA', '#7978E9', '#FFA726', '#66BB6A'];
 
@@ -67,6 +82,169 @@ export function UniversalDashboard({ onNavigateToTab }: UniversalDashboardProps)
     };
     fetchData();
   }, []);
+
+  // ─── Knowledge Tracker Alert System ───
+  const [knowledgeAlerts, setKnowledgeAlerts] = useState<KnowledgeAlert[]>([]);
+  const [showAlertPopup, setShowAlertPopup] = useState(false);
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(new Set());
+  const [lastAlertFetch, setLastAlertFetch] = useState<Date | null>(null);
+
+  const fetchKnowledgeAlerts = useCallback(async () => {
+    try {
+      const { data: knowledgeItems, error } = await supabase
+        .from('knowledge_items')
+        .select('*')
+        .in('status', ['pending', 'in_progress'])
+        .order('due_date', { ascending: true });
+      
+      if (error || !knowledgeItems) return;
+
+      const now = new Date();
+      const alerts: KnowledgeAlert[] = [];
+
+      knowledgeItems.forEach(item => {
+        const dueDate = item.due_date ? new Date(item.due_date) : null;
+        const daysRemaining = dueDate ? differenceInDays(dueDate, now) : null;
+
+        // 🔴 CRITICAL priority items (not validated/rejected)
+        if (item.priority === 'critical') {
+          alerts.push({
+            id: `critical-${item.id}`,
+            title: item.title,
+            type: 'critical',
+            priority: item.priority,
+            status: item.status,
+            due_date: item.due_date,
+            assigned_to: item.assigned_to,
+            daysRemaining: daysRemaining ?? undefined,
+            message: `Critical task "${item.title}" is ${item.status === 'pending' ? 'still pending' : 'in progress'}. Immediate attention required.`
+          });
+        }
+
+        // 🔴 OVERDUE items (due date passed)
+        if (dueDate && daysRemaining !== null && daysRemaining < 0) {
+          alerts.push({
+            id: `overdue-${item.id}`,
+            title: item.title,
+            type: 'overdue',
+            priority: item.priority,
+            status: item.status,
+            due_date: item.due_date,
+            assigned_to: item.assigned_to,
+            daysRemaining: daysRemaining,
+            message: `"${item.title}" is ${Math.abs(daysRemaining)} day${Math.abs(daysRemaining) !== 1 ? 's' : ''} overdue! Due was ${format(dueDate, 'dd MMM yyyy')}.`
+          });
+        }
+
+        // 🟡 DUE SOON (within next 3 days)
+        if (dueDate && daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= 3) {
+          alerts.push({
+            id: `due_soon-${item.id}`,
+            title: item.title,
+            type: 'due_soon',
+            priority: item.priority,
+            status: item.status,
+            due_date: item.due_date,
+            assigned_to: item.assigned_to,
+            daysRemaining: daysRemaining,
+            message: daysRemaining === 0 
+              ? `"${item.title}" is due TODAY!` 
+              : `"${item.title}" is due in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} (${format(dueDate, 'dd MMM yyyy')}).`
+          });
+        }
+
+        // 🔵 HIGH priority + PENDING status (stale tasks)
+        if (item.priority === 'high' && item.status === 'pending') {
+          alerts.push({
+            id: `pending-high-${item.id}`,
+            title: item.title,
+            type: 'pending',
+            priority: item.priority,
+            status: item.status,
+            due_date: item.due_date,
+            assigned_to: item.assigned_to,
+            daysRemaining: daysRemaining ?? undefined,
+            message: `High-priority task "${item.title}" is still pending. Consider starting it soon.`
+          });
+        }
+      });
+
+      // De-duplicate: if same item appears in multiple categories, keep highest severity
+      const uniqueAlerts = alerts.reduce((acc, alert) => {
+        const existing = acc.find(a => a.title === alert.title && a.type === alert.type);
+        if (!existing) acc.push(alert);
+        return acc;
+      }, [] as KnowledgeAlert[]);
+
+      // Sort: critical > overdue > due_soon > pending
+      const typeOrder = { critical: 0, overdue: 1, due_soon: 2, pending: 3 };
+      uniqueAlerts.sort((a, b) => typeOrder[a.type] - typeOrder[b.type]);
+
+      setKnowledgeAlerts(uniqueAlerts);
+      setLastAlertFetch(new Date());
+
+      // Auto-show popup if there are new alerts
+      if (uniqueAlerts.length > 0) {
+        setShowAlertPopup(true);
+      }
+    } catch (err) {
+      console.error("Error fetching knowledge alerts:", err);
+    }
+  }, []);
+
+  // Fetch alerts on mount & every 1 hour
+  useEffect(() => {
+    // Initial fetch after dashboard loads (slight delay to avoid race)
+    const initialTimer = setTimeout(() => {
+      fetchKnowledgeAlerts();
+    }, 2000);
+
+    // Refresh every 1 hour
+    const hourlyInterval = setInterval(() => {
+      fetchKnowledgeAlerts();
+    }, ALERT_ONE_HOUR_MS);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(hourlyInterval);
+    };
+  }, [fetchKnowledgeAlerts]);
+
+  const activeAlerts = knowledgeAlerts.filter(a => !dismissedAlertIds.has(a.id));
+  const dismissAlert = (alertId: string) => {
+    setDismissedAlertIds(prev => new Set([...prev, alertId]));
+  };
+  const dismissAllAlerts = () => {
+    setDismissedAlertIds(new Set(knowledgeAlerts.map(a => a.id)));
+    setShowAlertPopup(false);
+  };
+
+  const getAlertIcon = (type: KnowledgeAlert['type']) => {
+    switch (type) {
+      case 'critical': return <Flame className="h-4 w-4 text-red-500" />;
+      case 'overdue': return <CircleAlert className="h-4 w-4 text-orange-500" />;
+      case 'due_soon': return <CalendarClock className="h-4 w-4 text-amber-500" />;
+      case 'pending': return <Clock className="h-4 w-4 text-blue-500" />;
+    }
+  };
+
+  const getAlertBg = (type: KnowledgeAlert['type']) => {
+    switch (type) {
+      case 'critical': return 'bg-red-50 border-red-200 hover:bg-red-100/50';
+      case 'overdue': return 'bg-orange-50 border-orange-200 hover:bg-orange-100/50';
+      case 'due_soon': return 'bg-amber-50 border-amber-200 hover:bg-amber-100/50';
+      case 'pending': return 'bg-blue-50 border-blue-200 hover:bg-blue-100/50';
+    }
+  };
+
+  const getAlertLabel = (type: KnowledgeAlert['type']) => {
+    switch (type) {
+      case 'critical': return { text: 'CRITICAL', cls: 'bg-red-100 text-red-700 border-red-300' };
+      case 'overdue': return { text: 'OVERDUE', cls: 'bg-orange-100 text-orange-700 border-orange-300' };
+      case 'due_soon': return { text: 'DUE SOON', cls: 'bg-amber-100 text-amber-700 border-amber-300' };
+      case 'pending': return { text: 'PENDING', cls: 'bg-blue-100 text-blue-700 border-blue-300' };
+    }
+  };
 
   // Formatters
   const formatINR = (val: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
@@ -149,6 +327,133 @@ export function UniversalDashboard({ onNavigateToTab }: UniversalDashboardProps)
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-24 font-sans bg-[#FAFAFA] min-h-screen p-4 sm:p-8 rounded-2xl">
       
       {/* ────────────────────────
+          KNOWLEDGE TRACKER ALERT POPUP (OVERLAY)
+      ──────────────────────── */}
+      {showAlertPopup && activeAlerts.length > 0 && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-16 sm:pt-24 px-4 animate-in fade-in duration-300" onClick={() => setShowAlertPopup(false)}>
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+          
+          {/* Popup Panel */}
+          <div 
+            className="relative bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-lg max-h-[70vh] flex flex-col overflow-hidden animate-in slide-in-from-top-4 duration-500 ring-1 ring-black/5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-600 via-orange-500 to-amber-500 px-5 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <Bell className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-base">Knowledge Tracker Alerts</h3>
+                  <p className="text-white/80 text-xs font-medium">
+                    {activeAlerts.length} alert{activeAlerts.length !== 1 ? 's' : ''} require your attention
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={dismissAllAlerts}
+                  className="text-white/90 hover:text-white hover:bg-white/20 text-xs h-7 px-2"
+                >
+                  Dismiss All
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setShowAlertPopup(false)}
+                  className="text-white/90 hover:text-white hover:bg-white/20 h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Alert List */}
+            <div className="overflow-y-auto flex-1 p-3 space-y-2">
+              {activeAlerts.map((alert, idx) => {
+                const label = getAlertLabel(alert.type);
+                return (
+                  <div 
+                    key={alert.id}
+                    className={`relative p-3.5 rounded-xl border transition-all duration-200 cursor-pointer group ${getAlertBg(alert.type)} animate-in slide-in-from-right-2`}
+                    style={{ animationDelay: `${idx * 60}ms` }}
+                    onClick={() => {
+                      onNavigateToTab?.('knowledge_tracker');
+                      setShowAlertPopup(false);
+                    }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 shrink-0">
+                        {getAlertIcon(alert.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <Badge variant="outline" className={`text-[9px] font-bold px-1.5 py-0 ${label.cls}`}>
+                            {label.text}
+                          </Badge>
+                          {alert.daysRemaining !== undefined && alert.daysRemaining < 0 && (
+                            <span className="text-[10px] font-bold text-red-600">
+                              {Math.abs(alert.daysRemaining)}d overdue
+                            </span>
+                          )}
+                          {alert.daysRemaining !== undefined && alert.daysRemaining >= 0 && alert.daysRemaining <= 3 && (
+                            <span className="text-[10px] font-bold text-amber-600">
+                              {alert.daysRemaining === 0 ? 'Due Today' : `${alert.daysRemaining}d left`}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm font-semibold text-gray-900 leading-snug">{alert.title}</p>
+                        <p className="text-xs text-gray-600 mt-1 leading-relaxed">{alert.message}</p>
+                        {alert.assigned_to && (
+                          <p className="text-[10px] text-gray-400 mt-1.5 font-medium">
+                            Assigned: {alert.assigned_to.split(',').map(e => e.split('@')[0]).join(', ')}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-700 hover:bg-white/50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dismissAlert(alert.id);
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-100 px-5 py-3 bg-gray-50/50 flex items-center justify-between shrink-0">
+              <p className="text-[10px] text-gray-400 font-medium">
+                Auto-refreshes every hour {lastAlertFetch && `• Last: ${format(lastAlertFetch, 'hh:mm a')}`}
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-7 text-xs font-semibold text-[#4B49AC] border-[#4B49AC]/30 hover:bg-[#4B49AC]/5"
+                onClick={() => {
+                  onNavigateToTab?.('knowledge_tracker');
+                  setShowAlertPopup(false);
+                }}
+              >
+                Open Knowledge Tracker
+                <ChevronRight className="h-3 w-3 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ────────────────────────
           TOP HEADER
       ──────────────────────── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -156,8 +461,35 @@ export function UniversalDashboard({ onNavigateToTab }: UniversalDashboardProps)
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Executive Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">Global Command Center & Enterprise Overview</p>
         </div>
-        <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl border shadow-sm">
-          <Calendar className="h-4 w-4 text-gray-400 ml-2" />
+        <div className="flex items-center gap-3">
+          {/* Alert Bell Button - Always Visible */}
+          {knowledgeAlerts.length > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              className={`relative h-9 px-3 gap-2 font-semibold text-xs shadow-sm transition-all ${
+                activeAlerts.some(a => a.type === 'critical' || a.type === 'overdue')
+                  ? 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 animate-pulse'
+                  : activeAlerts.length > 0 
+                    ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                    : 'border-gray-200 text-gray-500'
+              }`}
+              onClick={() => {
+                setDismissedAlertIds(new Set());
+                setShowAlertPopup(true);
+              }}
+            >
+              <Bell className="h-3.5 w-3.5" />
+              {activeAlerts.length > 0 ? `${activeAlerts.length} Alert${activeAlerts.length !== 1 ? 's' : ''}` : 'All Clear'}
+              {activeAlerts.some(a => a.type === 'critical' || a.type === 'overdue') && (
+                <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-white">
+                  <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-75" />
+                </span>
+              )}
+            </Button>
+          )}
+          <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl border shadow-sm">
+            <Calendar className="h-4 w-4 text-gray-400 ml-2" />
           <Select value={timeFilter} onValueChange={(v: any) => setTimeFilter(v)}>
             <SelectTrigger className="w-[150px] h-8 text-sm bg-transparent border-0 shadow-none font-medium focus:ring-0">
               <SelectValue placeholder="Select timeframe" />
@@ -170,6 +502,7 @@ export function UniversalDashboard({ onNavigateToTab }: UniversalDashboardProps)
               <SelectItem value="all">All Time</SelectItem>
             </SelectContent>
           </Select>
+          </div>
         </div>
       </div>
 

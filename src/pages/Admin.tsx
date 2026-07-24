@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -427,103 +427,152 @@ const Admin = () => {
   const [searchResults, setSearchResults] = useState<{type: string, id: string, title: string, subtitle: string, tab: string, payload?: string}[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // ─── ⌘K Keyboard Shortcut ───
+  const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (searchQuery.length < 2) {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        e.stopPropagation();
+        searchInputRef.current?.focus();
+        setShowSearchDropdown(true);
+      }
+      if (e.key === 'Escape') {
+        setShowSearchDropdown(false);
+        searchInputRef.current?.blur();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // ─── Module keyword aliases for fuzzy search ───
+  const MODULE_KEYWORDS: Record<string, string[]> = {
+    dashboard: ['home', 'main', 'overview', 'exec', 'command'],
+    my_work: ['my', 'work', 'personal', 'todo'],
+    notifications: ['alert', 'bell', 'notify', 'notif'],
+    ai_business_assistant: ['ai', 'bot', 'assistant', 'chat', 'gpt'],
+    global_search: ['search', 'find', 'look'],
+    ceo_dashboard: ['ceo', 'chief', 'executive'],
+    md_dashboard: ['md', 'managing', 'director'],
+    executive_calendar: ['calendar', 'schedule', 'timetable', 'agenda'],
+    company_goals_okrs: ['goals', 'okr', 'objective', 'target'],
+    kpi_dashboard: ['kpi', 'metrics', 'indicator'],
+    business_intelligence: ['bi', 'intelligence', 'insight'],
+    reports_center: ['report', 'reports', 'analytics'],
+    compliance_ai: ['compliance', 'lawyer', 'legal', 'regulation'],
+    company_profile: ['company', 'profile', 'about'],
+    departments: ['dept', 'department', 'division'],
+    branches: ['branch', 'office', 'location'],
+    teams: ['team', 'group', 'squad'],
+    organization_chart: ['org', 'chart', 'hierarchy', 'structure'],
+    hr_dashboard: ['hr', 'human', 'resource'],
+    employees: ['employee', 'staff', 'member'],
+    intern_management: ['intern', 'trainee', 'fresher'],
+    attendance: ['attendance', 'present', 'absent', 'punch'],
+    leave_management: ['leave', 'vacation', 'holiday', 'off'],
+    payroll: ['payroll', 'salary', 'pay', 'wage'],
+    performance_reviews: ['review', 'appraisal', 'rating'],
+    recruitment: ['recruit', 'hire', 'hiring'],
+    job_positions: ['job', 'position', 'vacancy', 'opening'],
+    applications: ['application', 'applicant', 'resume', 'cv'],
+    offer_letters: ['offer', 'letter', 'joining'],
+    exit_management: ['exit', 'resign', 'termination', 'offboard'],
+    assets_assigned: ['asset', 'laptop', 'device', 'equipment'],
+    crm_dashboard: ['crm', 'customer', 'relation'],
+    leads: ['lead', 'prospect'],
+    opportunities: ['opportunity', 'deal', 'pipeline'],
+    accounts_companies: ['account', 'company', 'client'],
+    contacts: ['contact', 'person', 'phone'],
+    customers: ['customer', 'buyer'],
+    sales_pipeline: ['pipeline', 'funnel', 'stage'],
+    quotations: ['quote', 'quotation', 'estimate', 'proposal'],
+    followups: ['followup', 'follow', 'reminder'],
+    meetings: ['meeting', 'meet', 'conference', 'zoom'],
+    calls: ['call', 'phone', 'dial'],
+    emails: ['email', 'mail', 'inbox'],
+    deals: ['deal', 'close', 'won'],
+    customer_support: ['support', 'ticket', 'help'],
+    complaints: ['complaint', 'issue', 'problem'],
+    feedback: ['feedback', 'survey', 'response'],
+    contracts: ['contract', 'agreement', 'mou'],
+    finance_dashboard: ['finance', 'money', 'accounting', 'accounts'],
+    gst: ['gst', 'tax', 'return'],
+    invoices: ['invoice', 'bill', 'billing'],
+    expenses: ['expense', 'spend', 'cost'],
+    budget: ['budget', 'forecast'],
+    inventory_dashboard: ['inventory', 'stock', 'warehouse'],
+    products: ['product', 'item', 'sku'],
+    production_dashboard: ['production', 'manufacturing', 'factory'],
+    bill_of_materials_bom: ['bom', 'material', 'raw'],
+    quality_check: ['quality', 'qc', 'qa', 'check'],
+    rd_dashboard: ['rd', 'research', 'development'],
+    rd_lab: ['lab', 'laboratory', 'experiment'],
+    knowledge_tracker: ['knowledge', 'tracker', 'task', 'kb'],
+    market_research: ['market', 'research', 'competitor'],
+    marketing_dashboard: ['marketing', 'brand', 'campaign'],
+    marketing_posts: ['post', 'social', 'content'],
+    newsletter: ['newsletter', 'subscriber'],
+    seo: ['seo', 'google', 'rank'],
+    shared_files: ['file', 'shared', 'document', 'upload', 'drive'],
+    document_generator: ['document', 'generator', 'pdf', 'doc', 'stamp', 'seal'],
+    access_control: ['access', 'permission', 'role', 'rbac', 'security'],
+    user_management: ['user', 'manage'],
+    audit_logs: ['audit', 'log', 'activity', 'history'],
+    system_health: ['health', 'status', 'uptime', 'server'],
+  };
+
+  // Fuzzy module matching: checks label + category + keyword aliases
+  const matchesModule = (tab: typeof INITIAL_TABS[0], q: string): boolean => {
+    const lq = q.toLowerCase();
+    if (tab.label.toLowerCase().includes(lq)) return true;
+    if (tab.category.toLowerCase().includes(lq)) return true;
+    if (tab.id.toLowerCase().replace(/_/g, ' ').includes(lq)) return true;
+    const keywords = MODULE_KEYWORDS[tab.id] || [];
+    if (keywords.some(kw => kw.startsWith(lq) || lq.startsWith(kw))) return true;
+    return false;
+  };
+
+  useEffect(() => {
+    if (searchQuery.length < 1) {
       setSearchResults([]);
       return;
     }
-
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const query = searchQuery.toLowerCase();
+        const query = searchQuery.toLowerCase().trim();
         const likeQuery = `%${query}%`;
         const results: typeof searchResults = [];
-
-        const isCEOorMD = user?.email === "ceo@biovaco.in" || user?.email === "md@biovaco.in";
-        const hasDbAccess = userAccess !== null;
-        const allowed = isCEOorMD ? INITIAL_TABS.map(t => t.id) : (hasDbAccess ? userAccess.allowed_pages : []);
-
-        // 1. Search Job Applications
-        if (allowed.includes('applications')) {
-          const { data: apps } = await supabase.from('job_applications')
-            .select('id, full_name, role, email')
-            .or(`full_name.ilike.${likeQuery},email.ilike.${likeQuery},role.ilike.${likeQuery}`)
-            .limit(3);
-          if (apps) apps.forEach(a => results.push({ type: 'Application', id: a.id, title: a.full_name, subtitle: `${a.role} • ${a.email}`, tab: 'applications', payload: a.id }));
+        if (query.length >= 2) {
+          const [appsRes, jobsRes, internsRes, kbRes, newsRes, videosRes, postsRes, expRes, schedRes] = await Promise.all([
+            supabase.from('job_applications').select('id, full_name, role, email').or(`full_name.ilike.${likeQuery},email.ilike.${likeQuery},role.ilike.${likeQuery}`).limit(4),
+            supabase.from('job_positions').select('id, title, department').or(`title.ilike.${likeQuery},department.ilike.${likeQuery}`).limit(4),
+            supabase.from('interns').select('id, name, position, email').or(`name.ilike.${likeQuery},email.ilike.${likeQuery},position.ilike.${likeQuery}`).limit(4),
+            supabase.from('knowledge_items').select('id, title, category, priority, status, description').or(`title.ilike.${likeQuery},category.ilike.${likeQuery},description.ilike.${likeQuery},priority.ilike.${likeQuery}`).limit(4),
+            supabase.from('news_articles').select('id, title, category').or(`title.ilike.${likeQuery},category.ilike.${likeQuery}`).limit(3),
+            supabase.from('website_videos').select('id, title, category').or(`title.ilike.${likeQuery},category.ilike.${likeQuery}`).limit(3),
+            supabase.from('marketing_posts').select('id, title, platform').or(`title.ilike.${likeQuery},platform.ilike.${likeQuery}`).limit(3),
+            supabase.from('expense_records').select('id, description, vendor_name, category').or(`description.ilike.${likeQuery},vendor_name.ilike.${likeQuery},category.ilike.${likeQuery}`).limit(3),
+            supabase.from('ceo_md_timetable').select('id, task_title, category, assigned_email').or(`task_title.ilike.${likeQuery},category.ilike.${likeQuery},assigned_email.ilike.${likeQuery}`).limit(3),
+          ]);
+          if (appsRes.data) appsRes.data.forEach(a => results.push({ type: 'Application', id: a.id, title: a.full_name || 'Unknown', subtitle: `${a.role || ''} • ${a.email || ''}`, tab: 'applications', payload: a.id }));
+          if (jobsRes.data) jobsRes.data.forEach(j => results.push({ type: 'Job Position', id: j.id, title: j.title, subtitle: j.department, tab: 'job_positions' }));
+          if (internsRes.data) internsRes.data.forEach(i => results.push({ type: 'Intern', id: i.id, title: i.name, subtitle: `${i.position || ''} • ${i.email || ''}`, tab: 'intern_management' }));
+          if (kbRes.data) kbRes.data.forEach(k => results.push({ type: 'Knowledge Task', id: k.id, title: k.title, subtitle: `${k.category || ''} • ${k.priority || ''} • ${k.status || ''}`, tab: 'knowledge_tracker' }));
+          if (newsRes.data) newsRes.data.forEach(n => results.push({ type: 'News', id: n.id, title: n.title, subtitle: n.category, tab: 'press_media' }));
+          if (videosRes.data) videosRes.data.forEach(v => results.push({ type: 'Video', id: v.id, title: v.title, subtitle: v.category, tab: 'videos' }));
+          if (postsRes.data) postsRes.data.forEach(p => results.push({ type: 'Marketing Post', id: p.id, title: p.title, subtitle: p.platform, tab: 'marketing_posts' }));
+          if (expRes.data) expRes.data.forEach(e => results.push({ type: 'Expense', id: e.id, title: e.description || e.category || 'Expense', subtitle: e.vendor_name || '', tab: 'business' }));
+          if (schedRes.data) schedRes.data.forEach(t => results.push({ type: 'Schedule', id: t.id, title: t.task_title, subtitle: `${t.category || ''} • ${t.assigned_email || ''}`, tab: 'executive_calendar' }));
         }
-
-        // 2. Search Job Positions
-        if (allowed.includes('jobs')) {
-          const { data: jobs } = await supabase.from('job_positions')
-            .select('id, title, department')
-            .or(`title.ilike.${likeQuery},department.ilike.${likeQuery}`)
-            .limit(3);
-          if (jobs) jobs.forEach(j => results.push({ type: 'Job Position', id: j.id, title: j.title, subtitle: j.department, tab: 'jobs' }));
-        }
-
-        // 3. Search Interns
-        if (allowed.includes('interns')) {
-          const { data: interns } = await supabase.from('interns')
-            .select('id, name, position, email')
-            .or(`name.ilike.${likeQuery},email.ilike.${likeQuery},position.ilike.${likeQuery}`)
-            .limit(3);
-          if (interns) interns.forEach(i => results.push({ type: 'Intern', id: i.id, title: i.name, subtitle: `${i.position} • ${i.email}`, tab: 'interns' }));
-        }
-
-        // 4. Search Knowledge Base
-        if (allowed.includes('knowledge')) {
-          const { data: kb } = await supabase.from('knowledge_items')
-            .select('id, title, topic')
-            .or(`title.ilike.${likeQuery},topic.ilike.${likeQuery}`)
-            .limit(3);
-          if (kb) kb.forEach(k => results.push({ type: 'Knowledge Base', id: k.id, title: k.title, subtitle: k.topic, tab: 'knowledge' }));
-        }
-
-        // 5. Search News & Press
-        if (allowed.includes('news')) {
-          const { data: news } = await supabase.from('news_articles')
-            .select('id, title, category')
-            .or(`title.ilike.${likeQuery},category.ilike.${likeQuery}`)
-            .limit(3);
-          if (news) news.forEach(n => results.push({ type: 'News Article', id: n.id, title: n.title, subtitle: n.category, tab: 'news' }));
-        }
-
-        // 6. Search Videos
-        if (allowed.includes('videos')) {
-          const { data: videos } = await supabase.from('website_videos')
-            .select('id, title, category')
-            .or(`title.ilike.${likeQuery},category.ilike.${likeQuery}`)
-            .limit(3);
-          if (videos) videos.forEach(v => results.push({ type: 'Website Video', id: v.id, title: v.title, subtitle: v.category, tab: 'videos' }));
-        }
-
-        // 7. Search Marketing Posts
-        if (allowed.includes('posts')) {
-          const { data: posts } = await supabase.from('marketing_posts')
-            .select('id, title, platform')
-            .or(`title.ilike.${likeQuery},platform.ilike.${likeQuery}`)
-            .limit(3);
-          if (posts) posts.forEach(p => results.push({ type: 'Marketing Post', id: p.id, title: p.title, subtitle: p.platform, tab: 'posts' }));
-        }
-
-        // 8. Search Expense Records (Business / ERP)
-        if (allowed.includes('business')) {
-           const { data: exp } = await supabase.from('expense_records')
-             .select('id, description, vendor_name')
-             .or(`description.ilike.${likeQuery},vendor_name.ilike.${likeQuery}`)
-             .limit(3);
-           if (exp) exp.forEach(e => results.push({ type: 'Expense Record', id: e.id, title: e.description, subtitle: e.vendor_name, tab: 'business' }));
-        }
-
         setSearchResults(results);
       } catch (err) {
         console.error("Search error", err);
       } finally {
         setIsSearching(false);
       }
-    }, 400);
-
+    }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery, user, userAccess]);
   
@@ -687,8 +736,9 @@ const Admin = () => {
               <div className="relative w-full max-w-md group">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 group-focus-within:text-[#4B49AC] transition-colors" />
                 <Input 
+                  ref={searchInputRef}
                   type="text" 
-                  placeholder="Search anything..." 
+                  placeholder="Search modules, people, tasks... (⌘K)" 
                   className="w-full pl-9 pr-12 h-9 bg-gray-50/80 border-gray-200/80 text-sm focus-visible:ring-2 focus-visible:ring-[#4B49AC]/20 focus-visible:border-[#4B49AC] rounded-lg shadow-sm transition-all duration-200" 
                   value={searchQuery}
                   onChange={(e) => {
@@ -706,21 +756,24 @@ const Admin = () => {
                   <div className="absolute top-11 left-0 w-full bg-white/95 backdrop-blur-xl border border-gray-100 shadow-2xl rounded-xl overflow-hidden z-50 ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="max-h-[400px] overflow-y-auto py-1">
                       {/* Modules Search */}
-                      {visibleTabs.filter(t => t.label.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 && (
+                      {visibleTabs.filter(t => matchesModule(t, searchQuery)).length > 0 && (
                         <div className="p-2">
                           <div className="text-[10px] font-bold text-gray-400 uppercase px-3 mb-1 mt-1">Modules</div>
-                          {visibleTabs.filter(t => t.label.toLowerCase().includes(searchQuery.toLowerCase())).map(tab => (
+                          {visibleTabs.filter(t => matchesModule(t, searchQuery)).slice(0, 8).map(tab => (
                             <div 
                               key={tab.id} 
-                              className="px-3 py-2 text-sm cursor-pointer hover:bg-[#f2f6ff] flex items-center transition-colors text-gray-700 hover:text-[#4B49AC] rounded-lg mx-2 my-0.5" 
+                              className="px-3 py-2 text-sm cursor-pointer hover:bg-[#f2f6ff] flex items-center justify-between transition-colors text-gray-700 hover:text-[#4B49AC] rounded-lg mx-2 my-0.5" 
                               onClick={() => {
                                 handleNavigateToTab(tab.id);
                                 setSearchQuery("");
                                 setShowSearchDropdown(false);
                               }}
                             >
-                              <tab.icon className="w-4 h-4 mr-2" />
-                              {tab.label}
+                              <div className="flex items-center">
+                                <tab.icon className="w-4 h-4 mr-2" />
+                                {tab.label}
+                              </div>
+                              <span className="text-[9px] text-gray-400 font-medium">{tab.category}</span>
                             </div>
                           ))}
                         </div>
@@ -756,7 +809,7 @@ const Admin = () => {
                         </div>
                       )}
 
-                      {!isSearching && searchResults.length === 0 && visibleTabs.filter(t => t.label.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                      {!isSearching && searchResults.length === 0 && visibleTabs.filter(t => matchesModule(t, searchQuery)).length === 0 && (
                         <div className="px-3 py-6 text-sm text-gray-500 text-center">No results found for "{searchQuery}"</div>
                       )}
                     </div>
