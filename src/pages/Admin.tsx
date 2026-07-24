@@ -137,6 +137,7 @@ import { RDLabManagement } from "@/components/RDLabManagement"
 import { MarketResearchHub } from "@/components/rd-lab/MarketResearchHub"
 import { SharedFilesManager } from "@/components/SharedFilesManager"
 import { CeoMdTimetable } from "@/components/CeoMdTimetable"
+import { ManufacturingManagement } from "@/components/ManufacturingManagement"
 import { UserAccessSettings } from "@/components/UserAccessSettings"
 import { format } from "date-fns"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
@@ -189,9 +190,9 @@ const INITIAL_TABS = [
   { id: "leave_management", label: "Leave Management", icon: Briefcase, category: "Human Resources (HRMS)" },
   { id: "payroll", label: "Payroll", icon: CreditCard, category: "Human Resources (HRMS)" },
   { id: "performance_reviews", label: "Performance Reviews", icon: Briefcase, category: "Human Resources (HRMS)" },
-  { id: "recruitment", label: "Recruitment", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "recruitment", label: "🔴 Recruitment", icon: Briefcase, category: "Human Resources (HRMS)" },
   { id: "job_positions", label: "Job Positions", icon: Briefcase, category: "Human Resources (HRMS)" },
-  { id: "applications", label: "Applications", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "applications", label: "🔴 Applications", icon: Briefcase, category: "Human Resources (HRMS)" },
   { id: "offer_letters", label: "Offer Letters", icon: Briefcase, category: "Human Resources (HRMS)" },
   { id: "exit_management", label: "Exit Management", icon: Briefcase, category: "Human Resources (HRMS)" },
   { id: "assets_assigned", label: "Assets Assigned", icon: Briefcase, category: "Human Resources (HRMS)" },
@@ -216,26 +217,26 @@ const INITIAL_TABS = [
   { id: "contracts", label: "Contracts", icon: FileText, category: "CRM (Customer Relationship Management)" },
 
   // Sales
-  { id: "sales_dashboard", label: "Sales Dashboard", icon: BarChart3, category: "Sales" },
-  { id: "orders", label: "Orders", icon: FileText, category: "Sales" },
+  { id: "sales_dashboard", label: "🔴 Sales Dashboard", icon: BarChart3, category: "Sales" },
+  { id: "orders", label: "🔴 Orders", icon: FileText, category: "Sales" },
   { id: "quotations_sales", label: "Quotations", icon: Briefcase, category: "Sales" },
-  { id: "proforma_invoice", label: "Proforma Invoice", icon: FileText, category: "Sales" },
-  { id: "invoices", label: "Invoices", icon: FileText, category: "Sales" },
-  { id: "payments", label: "Payments", icon: CreditCard, category: "Sales" },
-  { id: "sales_analytics", label: "Sales Analytics", icon: BarChart3, category: "Sales" },
-  { id: "price_lists", label: "Price Lists", icon: Briefcase, category: "Sales" },
-  { id: "discounts", label: "Discounts", icon: Briefcase, category: "Sales" },
+  { id: "proforma_invoice", label: "🔴 Proforma Invoice", icon: FileText, category: "Sales" },
+  { id: "invoices", label: "🔴 Invoices", icon: FileText, category: "Sales" },
+  { id: "payments", label: "🔴 Payments", icon: CreditCard, category: "Sales" },
+  { id: "sales_analytics", label: "🔴 Sales Analytics", icon: BarChart3, category: "Sales" },
+  { id: "price_lists", label: "🔴 Price Lists", icon: Briefcase, category: "Sales" },
+  { id: "discounts", label: "🔴 Discounts", icon: Briefcase, category: "Sales" },
 
   // Inventory & Warehouse
-  { id: "inventory_dashboard", label: "Inventory Dashboard", icon: BarChart3, category: "Inventory & Warehouse" },
-  { id: "products", label: "Products", icon: Package, category: "Inventory & Warehouse" },
-  { id: "categories", label: "Categories", icon: Briefcase, category: "Inventory & Warehouse" },
-  { id: "warehouses", label: "Warehouses", icon: Package, category: "Inventory & Warehouse" },
-  { id: "stock_movement", label: "Stock Movement", icon: Package, category: "Inventory & Warehouse" },
-  { id: "purchase_requests", label: "Purchase Requests", icon: Briefcase, category: "Inventory & Warehouse" },
-  { id: "stock_adjustment", label: "Stock Adjustment", icon: Package, category: "Inventory & Warehouse" },
-  { id: "batch_tracking", label: "Batch Tracking", icon: Package, category: "Inventory & Warehouse" },
-  { id: "barcode_management", label: "Barcode Management", icon: Briefcase, category: "Inventory & Warehouse" },
+  { id: "inventory_dashboard", label: "🔴 Inventory Dashboard", icon: BarChart3, category: "Inventory & Warehouse" },
+  { id: "products", label: "🔴 Products", icon: Package, category: "Inventory & Warehouse" },
+  { id: "categories", label: "🔴 Categories", icon: Briefcase, category: "Inventory & Warehouse" },
+  { id: "warehouses", label: "🔴 Warehouses", icon: Package, category: "Inventory & Warehouse" },
+  { id: "stock_movement", label: "🔴 Stock Movement", icon: Package, category: "Inventory & Warehouse" },
+  { id: "purchase_requests", label: "🔴 Purchase Requests", icon: Briefcase, category: "Inventory & Warehouse" },
+  { id: "stock_adjustment", label: "🔴 Stock Adjustment", icon: Package, category: "Inventory & Warehouse" },
+  { id: "batch_tracking", label: "🔴 Batch Tracking", icon: Package, category: "Inventory & Warehouse" },
+  { id: "barcode_management", label: "🔴 Barcode Management", icon: Briefcase, category: "Inventory & Warehouse" },
 
   // Manufacturing
   { id: "production_dashboard", label: "Production Dashboard", icon: BarChart3, category: "Manufacturing" },
@@ -247,31 +248,31 @@ const INITIAL_TABS = [
   { id: "production_reports", label: "Production Reports", icon: BarChart3, category: "Manufacturing" },
 
   // Finance & Accounting
-  { id: "finance_dashboard", label: "Finance Dashboard", icon: BarChart3, category: "Finance & Accounting" },
-  { id: "chart_of_accounts", label: "Chart of Accounts", icon: Network, category: "Finance & Accounting" },
-  { id: "journal_entries", label: "Journal Entries", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "general_ledger", label: "General Ledger", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "trial_balance", label: "Trial Balance", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "profit_loss", label: "Profit & Loss", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "balance_sheet", label: "Balance Sheet", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "cash_flow", label: "Cash Flow", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "budget", label: "Budget", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "expenses", label: "Expenses", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "receivables", label: "Receivables", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "payables", label: "Payables", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "gst", label: "GST", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "tax_center", label: "Tax Center", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "fixed_assets", label: "Fixed Assets", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "finance_dashboard", label: "🔴 Finance Dashboard", icon: BarChart3, category: "Finance & Accounting" },
+  { id: "chart_of_accounts", label: "🔴 Chart of Accounts", icon: Network, category: "Finance & Accounting" },
+  { id: "journal_entries", label: "🔴 Journal Entries", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "general_ledger", label: "🔴 General Ledger", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "trial_balance", label: "🔴 Trial Balance", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "profit_loss", label: "🔴 Profit & Loss", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "balance_sheet", label: "🔴 Balance Sheet", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "cash_flow", label: "🔴 Cash Flow", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "budget", label: "🔴 Budget", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "expenses", label: "🔴 Expenses", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "receivables", label: "🔴 Receivables", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "payables", label: "🔴 Payables", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "gst", label: "🔴 GST", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "tax_center", label: "🔴 Tax Center", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "fixed_assets", label: "🔴 Fixed Assets", icon: Briefcase, category: "Finance & Accounting" },
 
   // Procurement
-  { id: "procurement_dashboard", label: "Procurement Dashboard", icon: BarChart3, category: "Procurement" },
-  { id: "vendors", label: "Vendors", icon: Users, category: "Procurement" },
-  { id: "purchase_orders", label: "Purchase Orders", icon: FileText, category: "Procurement" },
-  { id: "rfq", label: "RFQ", icon: Briefcase, category: "Procurement" },
-  { id: "vendor_quotations", label: "Vendor Quotations", icon: Users, category: "Procurement" },
-  { id: "goods_received_note_grn", label: "Goods Received Note (GRN)", icon: Briefcase, category: "Procurement" },
-  { id: "bills", label: "Bills", icon: FileText, category: "Procurement" },
-  { id: "vendor_payments", label: "Vendor Payments", icon: Users, category: "Procurement" },
+  { id: "procurement_dashboard", label: "🔴 Procurement Dashboard", icon: BarChart3, category: "Procurement" },
+  { id: "vendors", label: "🔴 Vendors", icon: Users, category: "Procurement" },
+  { id: "purchase_orders", label: "🔴 Purchase Orders", icon: FileText, category: "Procurement" },
+  { id: "rfq", label: "🔴 RFQ", icon: Briefcase, category: "Procurement" },
+  { id: "vendor_quotations", label: "🔴 Vendor Quotations", icon: Users, category: "Procurement" },
+  { id: "goods_received_note_grn", label: "🔴 Goods Received Note (GRN)", icon: Briefcase, category: "Procurement" },
+  { id: "bills", label: "🔴 Bills", icon: FileText, category: "Procurement" },
+  { id: "vendor_payments", label: "🔴 Vendor Payments", icon: Users, category: "Procurement" },
 
   // Research & Development
   { id: "rd_dashboard", label: "R&D Dashboard", icon: BarChart3, category: "Research & Development" },
@@ -284,93 +285,93 @@ const INITIAL_TABS = [
   { id: "ip_patents", label: "IP & Patents", icon: Briefcase, category: "Research & Development" },
 
   // Marketing
-  { id: "marketing_dashboard", label: "Marketing Dashboard", icon: BarChart3, category: "Marketing" },
-  { id: "campaigns", label: "Campaigns", icon: Bot, category: "Marketing" },
-  { id: "social_media", label: "Social Media", icon: Globe, category: "Marketing" },
+  { id: "marketing_dashboard", label: "🔴 Marketing Dashboard", icon: BarChart3, category: "Marketing" },
+  { id: "campaigns", label: "🔴 Campaigns", icon: Bot, category: "Marketing" },
+  { id: "social_media", label: "🔴 Social Media", icon: Globe, category: "Marketing" },
   { id: "marketing_posts", label: "Marketing Posts", icon: Briefcase, category: "Marketing" },
-  { id: "newsletter", label: "Newsletter", icon: Mail, category: "Marketing" },
-  { id: "seo", label: "SEO", icon: Briefcase, category: "Marketing" },
-  { id: "market_research", label: "Market Research", icon: FlaskConical, category: "Marketing" },
-  { id: "brand_assets", label: "Brand Assets", icon: Briefcase, category: "Marketing" },
+  { id: "newsletter", label: "🔴 Newsletter", icon: Mail, category: "Marketing" },
+  { id: "seo", label: "🔴 SEO", icon: Briefcase, category: "Marketing" },
+  { id: "market_research", label: "🔴 Market Research", icon: FlaskConical, category: "Marketing" },
+  { id: "brand_assets", label: "🔴 Brand Assets", icon: Briefcase, category: "Marketing" },
   { id: "press_media", label: "Press & Media", icon: Image, category: "Marketing" },
 
   // Digital Assets
-  { id: "website", label: "Website", icon: Globe, category: "Digital Assets" },
-  { id: "blog", label: "Blog", icon: Briefcase, category: "Digital Assets" },
-  { id: "landing_pages", label: "Landing Pages", icon: Briefcase, category: "Digital Assets" },
-  { id: "media_library", label: "Media Library", icon: Image, category: "Digital Assets" },
-  { id: "videos", label: "Videos", icon: Image, category: "Digital Assets" },
-  { id: "images", label: "Images", icon: Image, category: "Digital Assets" },
+  { id: "website", label: "🔴 Website", icon: Globe, category: "Digital Assets" },
+  { id: "blog", label: "🔴 Blog", icon: Briefcase, category: "Digital Assets" },
+  { id: "landing_pages", label: "🔴 Landing Pages", icon: Briefcase, category: "Digital Assets" },
+  { id: "media_library", label: "🔴 Media Library", icon: Image, category: "Digital Assets" },
+  { id: "videos", label: "🔴 Videos", icon: Image, category: "Digital Assets" },
+  { id: "images", label: "🔴 Images", icon: Image, category: "Digital Assets" },
 
   // D Models
-  { id: "downloads", label: "Downloads", icon: Briefcase, category: "D Models" },
+  { id: "downloads", label: "🔴 Downloads", icon: Briefcase, category: "D Models" },
 
   // Documents
-  { id: "shared_files", label: "Shared Files", icon: FileText, category: "Documents" },
+  { id: "shared_files", label: "🔴 Shared Files", icon: FileText, category: "Documents" },
   { id: "document_generator", label: "Document Generator", icon: FileText, category: "Documents" },
-  { id: "templates", label: "Templates", icon: Briefcase, category: "Documents" },
-  { id: "digital_signatures", label: "Digital Signatures", icon: Briefcase, category: "Documents" },
+  { id: "templates", label: "🔴 Templates", icon: Briefcase, category: "Documents" },
+  { id: "digital_signatures", label: "🔴 Digital Signatures", icon: Briefcase, category: "Documents" },
   { id: "contracts_documents", label: "Contracts", icon: FileText, category: "Documents" },
-  { id: "sop_library", label: "SOP Library", icon: Briefcase, category: "Documents" },
+  { id: "sop_library", label: "🔴 SOP Library", icon: Briefcase, category: "Documents" },
 
   // Operations
-  { id: "operations_dashboard", label: "Operations Dashboard", icon: BarChart3, category: "Operations" },
-  { id: "projects", label: "Projects", icon: Kanban, category: "Operations" },
-  { id: "tasks", label: "Tasks", icon: Kanban, category: "Operations" },
-  { id: "kanban_board", label: "Kanban Board", icon: Kanban, category: "Operations" },
+  { id: "operations_dashboard", label: "🔴 Operations Dashboard", icon: BarChart3, category: "Operations" },
+  { id: "projects", label: "🔴 Projects", icon: Kanban, category: "Operations" },
+  { id: "tasks", label: "🔴 Tasks", icon: Kanban, category: "Operations" },
+  { id: "kanban_board", label: "🔴 Kanban Board", icon: Kanban, category: "Operations" },
   { id: "meetings_operations", label: "Meetings", icon: Calendar, category: "Operations" },
-  { id: "calendar", label: "Calendar", icon: Calendar, category: "Operations" },
-  { id: "approvals", label: "Approvals", icon: Briefcase, category: "Operations" },
-  { id: "announcements", label: "Announcements", icon: Briefcase, category: "Operations" },
+  { id: "calendar", label: "🔴 Calendar", icon: Calendar, category: "Operations" },
+  { id: "approvals", label: "🔴 Approvals", icon: Briefcase, category: "Operations" },
+  { id: "announcements", label: "🔴 Announcements", icon: Briefcase, category: "Operations" },
 
   // IT & System
   { id: "access_control", label: "Access Control", icon: Shield, category: "IT & System" },
-  { id: "user_management", label: "User Management", icon: Users, category: "IT & System" },
-  { id: "roles_permissions", label: "Roles & Permissions", icon: Shield, category: "IT & System" },
-  { id: "api_keys", label: "API Keys", icon: Briefcase, category: "IT & System" },
-  { id: "integrations", label: "Integrations", icon: Globe, category: "IT & System" },
-  { id: "email_settings", label: "Email Settings", icon: Settings, category: "IT & System" },
-  { id: "backup", label: "Backup", icon: Briefcase, category: "IT & System" },
+  { id: "user_management", label: "🔴 User Management", icon: Users, category: "IT & System" },
+  { id: "roles_permissions", label: "🔴 Roles & Permissions", icon: Shield, category: "IT & System" },
+  { id: "api_keys", label: "🔴 API Keys", icon: Briefcase, category: "IT & System" },
+  { id: "integrations", label: "🔴 Integrations", icon: Globe, category: "IT & System" },
+  { id: "email_settings", label: "🔴 Email Settings", icon: Settings, category: "IT & System" },
+  { id: "backup", label: "🔴 Backup", icon: Briefcase, category: "IT & System" },
   { id: "audit_logs", label: "Audit Logs", icon: Briefcase, category: "IT & System" },
-  { id: "activity_logs", label: "Activity Logs", icon: Briefcase, category: "IT & System" },
-  { id: "system_health", label: "System Health", icon: Briefcase, category: "IT & System" },
-  { id: "maintenance_it", label: "Maintenance", icon: Settings, category: "IT & System" },
+  { id: "activity_logs", label: "🔴 Activity Logs", icon: Briefcase, category: "IT & System" },
+  { id: "system_health", label: "🔴 System Health", icon: Briefcase, category: "IT & System" },
+  { id: "maintenance_it", label: "🔴 Maintenance", icon: Settings, category: "IT & System" },
 
   // AI & Automation
-  { id: "ai_dashboard", label: "AI Dashboard", icon: BarChart3, category: "AI & Automation" },
-  { id: "ai_reports", label: "AI Reports", icon: BarChart3, category: "AI & Automation" },
-  { id: "workflow_automation", label: "Workflow Automation", icon: Bot, category: "AI & Automation" },
-  { id: "ai_insights", label: "AI Insights", icon: Bot, category: "AI & Automation" },
-  { id: "ai_predictions", label: "AI Predictions", icon: Bot, category: "AI & Automation" },
-  { id: "scheduled_jobs", label: "Scheduled Jobs", icon: Calendar, category: "AI & Automation" },
+  { id: "ai_dashboard", label: "🔴 AI Dashboard", icon: BarChart3, category: "AI & Automation" },
+  { id: "ai_reports", label: "🔴 AI Reports", icon: BarChart3, category: "AI & Automation" },
+  { id: "workflow_automation", label: "🔴 Workflow Automation", icon: Bot, category: "AI & Automation" },
+  { id: "ai_insights", label: "🔴 AI Insights", icon: Bot, category: "AI & Automation" },
+  { id: "ai_predictions", label: "🔴 AI Predictions", icon: Bot, category: "AI & Automation" },
+  { id: "scheduled_jobs", label: "🔴 Scheduled Jobs", icon: Calendar, category: "AI & Automation" },
 
   // Analytics
-  { id: "business_analytics", label: "Business Analytics", icon: BarChart3, category: "Analytics" },
-  { id: "sales_analytics_analytics", label: "Sales Analytics", icon: BarChart3, category: "Analytics" },
-  { id: "finance_analytics", label: "Finance Analytics", icon: BarChart3, category: "Analytics" },
-  { id: "hr_analytics", label: "HR Analytics", icon: BarChart3, category: "Analytics" },
-  { id: "manufacturing_analytics", label: "Manufacturing Analytics", icon: BarChart3, category: "Analytics" },
-  { id: "marketing_analytics", label: "Marketing Analytics", icon: BarChart3, category: "Analytics" },
-  { id: "custom_reports", label: "Custom Reports", icon: BarChart3, category: "Analytics" },
+  { id: "business_analytics", label: "🔴 Business Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "sales_analytics_analytics", label: "🔴 Sales Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "finance_analytics", label: "🔴 Finance Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "hr_analytics", label: "🔴 HR Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "manufacturing_analytics", label: "🔴 Manufacturing Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "marketing_analytics", label: "🔴 Marketing Analytics", icon: BarChart3, category: "Analytics" },
+  { id: "custom_reports", label: "🔴 Custom Reports", icon: BarChart3, category: "Analytics" },
 
   // Administration
-  { id: "company_settings", label: "Company Settings", icon: Settings, category: "Administration" },
-  { id: "branch_settings", label: "Branch Settings", icon: Settings, category: "Administration" },
-  { id: "currency", label: "Currency", icon: Briefcase, category: "Administration" },
-  { id: "tax_configuration", label: "Tax Configuration", icon: Settings, category: "Administration" },
-  { id: "holidays", label: "Holidays", icon: Calendar, category: "Administration" },
-  { id: "business_hours", label: "Business Hours", icon: Briefcase, category: "Administration" },
-  { id: "notifications_administration", label: "Notifications", icon: Briefcase, category: "Administration" },
-  { id: "licenses", label: "Licenses", icon: Briefcase, category: "Administration" },
+  { id: "company_settings", label: "🔴 Company Settings", icon: Settings, category: "Administration" },
+  { id: "branch_settings", label: "🔴 Branch Settings", icon: Settings, category: "Administration" },
+  { id: "currency", label: "🔴 Currency", icon: Briefcase, category: "Administration" },
+  { id: "tax_configuration", label: "🔴 Tax Configuration", icon: Settings, category: "Administration" },
+  { id: "holidays", label: "🔴 Holidays", icon: Calendar, category: "Administration" },
+  { id: "business_hours", label: "🔴 Business Hours", icon: Briefcase, category: "Administration" },
+  { id: "notifications_administration", label: "🔴 Notifications", icon: Briefcase, category: "Administration" },
+  { id: "licenses", label: "🔴 Licenses", icon: Briefcase, category: "Administration" },
 
   // My Workspace (Personal)
-  { id: "my_tasks", label: "My Tasks", icon: Kanban, category: "My Workspace (Personal)" },
-  { id: "my_calendar", label: "My Calendar", icon: Calendar, category: "My Workspace (Personal)" },
-  { id: "my_documents", label: "My Documents", icon: FileText, category: "My Workspace (Personal)" },
-  { id: "my_attendance", label: "My Attendance", icon: Briefcase, category: "My Workspace (Personal)" },
-  { id: "my_performance", label: "My Performance", icon: Briefcase, category: "My Workspace (Personal)" },
-  { id: "my_notifications", label: "My Notifications", icon: Briefcase, category: "My Workspace (Personal)" },
-  { id: "profile", label: "Profile", icon: FileText, category: "My Workspace (Personal)" },
+  { id: "my_tasks", label: "🔴 My Tasks", icon: Kanban, category: "My Workspace (Personal)" },
+  { id: "my_calendar", label: "🔴 My Calendar", icon: Calendar, category: "My Workspace (Personal)" },
+  { id: "my_documents", label: "🔴 My Documents", icon: FileText, category: "My Workspace (Personal)" },
+  { id: "my_attendance", label: "🔴 My Attendance", icon: Briefcase, category: "My Workspace (Personal)" },
+  { id: "my_performance", label: "🔴 My Performance", icon: Briefcase, category: "My Workspace (Personal)" },
+  { id: "my_notifications", label: "🔴 My Notifications", icon: Briefcase, category: "My Workspace (Personal)" },
+  { id: "profile", label: "🔴 Profile", icon: FileText, category: "My Workspace (Personal)" },
 ];
 
 const FINANCIAL_HOLIDAYS = [
@@ -1092,13 +1093,13 @@ const Admin = () => {
                 {activeTab === "stock_adjustment" && <PlaceholderPage title="Stock Adjustment" category="Inventory & Warehouse" />}
                 {activeTab === "batch_tracking" && <PlaceholderPage title="Batch Tracking" category="Inventory & Warehouse" />}
                 {activeTab === "barcode_management" && <PlaceholderPage title="Barcode Management" category="Inventory & Warehouse" />}
-                {activeTab === "production_dashboard" && <PlaceholderPage title="Production Dashboard" category="Manufacturing" />}
-                {activeTab === "bill_of_materials_bom" && <PlaceholderPage title="Bill of Materials (BOM)" category="Manufacturing" />}
-                {activeTab === "production_orders" && <PlaceholderPage title="Production Orders" category="Manufacturing" />}
-                {activeTab === "quality_check" && <PlaceholderPage title="Quality Check" category="Manufacturing" />}
-                {activeTab === "machines" && <PlaceholderPage title="Machines" category="Manufacturing" />}
-                {activeTab === "maintenance" && <PlaceholderPage title="Maintenance" category="Manufacturing" />}
-                {activeTab === "production_reports" && <PlaceholderPage title="Production Reports" category="Manufacturing" />}
+                {activeTab === "production_dashboard" && <ManufacturingManagement initialTab="dashboard" />}
+                {activeTab === "bill_of_materials_bom" && <ManufacturingManagement initialTab="bom" />}
+                {activeTab === "production_orders" && <ManufacturingManagement initialTab="orders" />}
+                {activeTab === "quality_check" && <ManufacturingManagement initialTab="quality" />}
+                {activeTab === "machines" && <ManufacturingManagement initialTab="machines" />}
+                {activeTab === "maintenance" && <ManufacturingManagement initialTab="maintenance" />}
+                {activeTab === "production_reports" && <ManufacturingManagement initialTab="reports" />}
                 {activeTab === "finance_dashboard" && <PlaceholderPage title="Finance Dashboard" category="Finance & Accounting" />}
                 {activeTab === "chart_of_accounts" && <PlaceholderPage title="Chart of Accounts" category="Finance & Accounting" />}
                 {activeTab === "journal_entries" && <PlaceholderPage title="Journal Entries" category="Finance & Accounting" />}
