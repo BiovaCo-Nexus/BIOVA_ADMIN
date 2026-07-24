@@ -35,7 +35,7 @@ const AuthProtectedRoute: React.FC<AuthProtectedRouteProps> = ({ children }) => 
  if (!session?.user) {
  // No session — go silent blank, not login page
  setLoading(false);
- navigate('/', { replace: true });
+ navigate('/auth', { replace: true });
  return;
  }
 
@@ -44,7 +44,7 @@ const AuthProtectedRoute: React.FC<AuthProtectedRouteProps> = ({ children }) => 
  // Sign out silently — no toast, no hint
  await supabase.auth.signOut();
  setLoading(false);
- navigate('/', { replace: true });
+ navigate('/auth', { replace: true });
  return;
  }
 
