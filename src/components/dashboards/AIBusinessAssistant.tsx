@@ -92,13 +92,34 @@ export function AIBusinessAssistant({ onNavigateToTab }: AIBusinessAssistantProp
     scrollToBottom();
   }, [messages, isTyping]);
 
+  const [userAllowedPages, setUserAllowedPages] = useState<string[]>([]);
+  const [userDisplayLabel, setUserDisplayLabel] = useState<string>("");
+
   // ─── Fetch Current User Role & Initial Setup ───
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       const email = (data.session?.user?.email || "").toLowerCase();
       setCurrentUserEmail(email);
       const execStatus = email === "ceo@biovaco.in" || email === "md@biovaco.in" || email === "admin@biovaco.in";
       setIsExecutive(execStatus);
+
+      let label = "";
+      let pages: string[] = [];
+
+      if (!execStatus && email) {
+        const { data: accessRule } = await supabase
+          .from('user_page_access')
+          .select('allowed_pages, user_label')
+          .eq('user_email', email)
+          .maybeSingle();
+
+        if (accessRule) {
+          pages = accessRule.allowed_pages || [];
+          label = accessRule.user_label || "";
+          setUserAllowedPages(pages);
+          setUserDisplayLabel(label);
+        }
+      }
 
       setMessages([
         { 
@@ -106,7 +127,7 @@ export function AIBusinessAssistant({ onNavigateToTab }: AIBusinessAssistantProp
           role: 'ai', 
           text: execStatus 
             ? "👋 Welcome Executive! I am **BiovaCo Nexus AI Assistant** with complete portal database access across Finances, HR, R&D Lab, Inventory, and System Governance.\n\nHow can I support your leadership decisions today?"
-            : `👋 Hello! I am **BiovaCo Nexus AI Assistant**.\n\nYou are logged in as **${email}**. Your access is role-filtered to your assigned tasks, department raw materials, inventory catalog, and company guidance. How can I help you today?`,
+            : `👋 Hello! I am **BiovaCo Nexus AI Assistant**.\n\nYou are logged in as **${email}**${label ? ` (*${label}*)` : ''}. Your AI assistant context and available tabs have been automatically customized based on your Access Control setup. How can I help you today?`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);

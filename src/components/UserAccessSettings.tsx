@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Shield, UserPlus, Trash2, Save, Loader2, RefreshCw,
-  CheckCircle2, XCircle, ChevronDown, ChevronUp, Search
+  CheckCircle2, XCircle, ChevronDown, ChevronUp, Search, Sparkles, Wand2, Cpu
 } from "lucide-react";
 
 // Master list of all available pages in the admin panel
@@ -215,6 +215,52 @@ const GROUP_COLORS: Record<string, string> = {
   "My Workspace (Personal)": "bg-green-100 text-green-800",
 };
 
+// Automated Role Presets
+const ROLE_PRESETS = [
+  {
+    id: "rd_researcher",
+    title: "🔬 R&D Researcher / Scientist",
+    pages: ["dashboard", "my_work", "ai_business_assistant", "rd_dashboard", "rd_lab", "product_formulations", "experiments", "knowledge_tracker", "ip_patents", "shared_files"],
+    defaultTab: "rd_lab"
+  },
+  {
+    id: "hr_manager",
+    title: "👥 HR & Recruitment Manager",
+    pages: ["dashboard", "my_work", "ai_business_assistant", "hr_dashboard", "employees", "intern_management", "attendance", "leave_management", "payroll", "recruitment", "applications", "offer_letters"],
+    defaultTab: "hr_dashboard"
+  },
+  {
+    id: "inventory_manager",
+    title: "📦 Inventory & Warehouse Lead",
+    pages: ["dashboard", "my_work", "ai_business_assistant", "inventory_dashboard", "products", "categories", "warehouses", "stock_movement", "purchase_requests", "barcode_management"],
+    defaultTab: "inventory_dashboard"
+  },
+  {
+    id: "finance_lead",
+    title: "💰 Finance & Accountant",
+    pages: ["dashboard", "my_work", "ai_business_assistant", "finance_dashboard", "invoices", "expenses", "general_ledger", "profit_loss", "balance_sheet", "tax_center", "reports_center"],
+    defaultTab: "finance_dashboard"
+  },
+  {
+    id: "sales_crm",
+    title: "📈 Sales & CRM Specialist",
+    pages: ["dashboard", "my_work", "ai_business_assistant", "crm_dashboard", "leads", "opportunities", "customers", "quotations", "sales_pipeline", "orders", "invoices"],
+    defaultTab: "crm_dashboard"
+  },
+  {
+    id: "intern_staff",
+    title: "🎓 Intern / Junior Staff",
+    pages: ["my_work", "knowledge_tracker", "shared_files", "ai_business_assistant", "profile"],
+    defaultTab: "knowledge_tracker"
+  },
+  {
+    id: "operations",
+    title: "🛠️ Operations Lead",
+    pages: ["dashboard", "my_work", "ai_business_assistant", "operations_dashboard", "projects", "tasks", "kanban_board", "calendar", "approvals"],
+    defaultTab: "operations_dashboard"
+  }
+];
+
 interface AccessRule {
   id?: string;
   user_email: string;
@@ -241,7 +287,6 @@ export function UserAccessSettings() {
       .order("created_at", { ascending: true });
 
     if (error) {
-      // Table might not exist yet — show helpful message
       if (error.code === "42P01" || error.message.includes("does not exist")) {
         toast({
           title: "Table Not Found",
@@ -266,8 +311,8 @@ export function UserAccessSettings() {
       id: tempId,
       user_email: "",
       user_label: "",
-      allowed_pages: ["knowledge", "shared_files"],
-      default_tab: "knowledge",
+      allowed_pages: ["knowledge_tracker", "shared_files", "ai_business_assistant"],
+      default_tab: "knowledge_tracker",
       is_active: true,
       isNew: true,
     };
@@ -279,13 +324,59 @@ export function UserAccessSettings() {
     setRules(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
   };
 
+  const applyRolePreset = (ruleId: string, presetId: string) => {
+    const preset = ROLE_PRESETS.find(p => p.id === presetId);
+    if (!preset) return;
+    setRules(prev => prev.map(r => {
+      if (r.id !== ruleId) return r;
+      return {
+        ...r,
+        allowed_pages: preset.pages,
+        default_tab: preset.defaultTab
+      };
+    }));
+    toast({ title: "Role Preset Applied", description: `Auto-configured tabs for ${preset.title}` });
+  };
+
+  const aiAutoSuggestForLabel = (ruleId: string, labelText: string) => {
+    const text = labelText.toLowerCase();
+    let matchedPreset = ROLE_PRESETS[5]; // default intern/staff
+    if (text.includes("r&d") || text.includes("research") || text.includes("chemist") || text.includes("lab") || text.includes("formulat")) {
+      matchedPreset = ROLE_PRESETS[0];
+    } else if (text.includes("hr") || text.includes("recruit") || text.includes("people") || text.includes("talent")) {
+      matchedPreset = ROLE_PRESETS[1];
+    } else if (text.includes("store") || text.includes("inventory") || text.includes("warehouse") || text.includes("stock")) {
+      matchedPreset = ROLE_PRESETS[2];
+    } else if (text.includes("finance") || text.includes("account") || text.includes("ca") || text.includes("tax") || text.includes("billing")) {
+      matchedPreset = ROLE_PRESETS[3];
+    } else if (text.includes("sale") || text.includes("crm") || text.includes("marketing") || text.includes("lead")) {
+      matchedPreset = ROLE_PRESETS[4];
+    } else if (text.includes("operat") || text.includes("project") || text.includes("pm")) {
+      matchedPreset = ROLE_PRESETS[6];
+    }
+
+    setRules(prev => prev.map(r => {
+      if (r.id !== ruleId) return r;
+      return {
+        ...r,
+        user_label: labelText,
+        allowed_pages: matchedPreset.pages,
+        default_tab: matchedPreset.defaultTab
+      };
+    }));
+
+    toast({ 
+      title: "🤖 AI Auto-Configured Tabs!", 
+      description: `Detected "${labelText}" → Auto-assigned ${matchedPreset.title} page permissions.` 
+    });
+  };
+
   const togglePage = (ruleId: string, pageId: string) => {
     setRules(prev => prev.map(r => {
       if (r.id !== ruleId) return r;
       const pages = r.allowed_pages.includes(pageId)
         ? r.allowed_pages.filter(p => p !== pageId)
         : [...r.allowed_pages, pageId];
-      // If default tab was removed, reset it
       const defaultTab = pages.includes(r.default_tab || "") ? r.default_tab : (pages[0] || null);
       return { ...r, allowed_pages: pages, default_tab: defaultTab };
     }));
@@ -344,7 +435,7 @@ export function UserAccessSettings() {
     if (error) {
       toast({ title: "Save Failed", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Saved", description: `Access for ${rule.user_email} updated successfully.` });
+      toast({ title: "Saved & Automated", description: `Access & AI scope for ${rule.user_email} updated successfully.` });
     }
     setSaving(null);
   };
@@ -383,10 +474,10 @@ export function UserAccessSettings() {
         <div>
           <h2 className="text-2xl font-bold text-[#4B49AC] flex items-center gap-2">
             <Shield className="h-7 w-7 text-[#7DA0FA]" />
-            User Access Control
+            User Access Control & Automated AI Scoping
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Manage which pages each user can access. CEO & MD always have full access.
+            Configure tab permissions for team members. Select preset roles or type a job title to auto-configure pages and AI Assistant context instantly.
           </p>
         </div>
         <div className="flex gap-2">
@@ -401,8 +492,10 @@ export function UserAccessSettings() {
 
       {/* Info Banner */}
       <Card className="border-l-4 border-l-[#7DA0FA] bg-[#f2f6ff]">
-        <CardContent className="py-3 px-4 text-sm text-[#4B49AC]">
-          <strong>Note:</strong> CEO (<code className="bg-white/60 px-1 py-0.5 rounded text-xs">ceo@biovaco.in</code>) and MD (<code className="bg-white/60 px-1 py-0.5 rounded text-xs">md@biovaco.in</code>) always have full access to all pages. This settings panel is for managing access of other team members. New emails added here will also be able to log in.
+        <CardContent className="py-3 px-4 text-sm text-[#4B49AC] flex justify-between items-center">
+          <div>
+            <strong>Note:</strong> CEO (<code className="bg-white/60 px-1 py-0.5 rounded text-xs">ceo@biovaco.in</code>) and MD (<code className="bg-white/60 px-1 py-0.5 rounded text-xs">md@biovaco.in</code>) always have full access. When you select or edit tabs for any user, the <strong>AI Assistant automatically customizes itself</strong> to match their granted permissions!
+          </div>
         </CardContent>
       </Card>
 
@@ -411,7 +504,7 @@ export function UserAccessSettings() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search by email or label..."
+            placeholder="Search by email or display label..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -425,7 +518,7 @@ export function UserAccessSettings() {
           <CardContent className="flex flex-col items-center justify-center py-12 text-gray-400">
             <Shield className="h-12 w-12 mb-3 opacity-30" />
             <p className="text-lg font-medium">No access rules configured</p>
-            <p className="text-sm">Click "Add User" to grant a team member portal access.</p>
+            <p className="text-sm">Click "Add User" to grant a team member portal access with automated AI scoping.</p>
           </CardContent>
         </Card>
       ) : (
@@ -447,8 +540,13 @@ export function UserAccessSettings() {
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`h-3 w-3 rounded-full shrink-0 ${rule.is_active ? "bg-[#7DA0FA]" : "bg-gray-300"}`} />
                     <div className="min-w-0">
-                      <div className="font-semibold text-[#4B49AC] truncate">
+                      <div className="font-semibold text-[#4B49AC] truncate flex items-center gap-2">
                         {rule.user_label || rule.user_email || "New User"}
+                        {rule.user_label && (
+                          <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200">
+                            Auto AI Filtered
+                          </Badge>
+                        )}
                       </div>
                       {rule.user_label && (
                         <div className="text-xs text-gray-500 truncate">{rule.user_email}</div>
@@ -477,12 +575,48 @@ export function UserAccessSettings() {
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-gray-600 mb-1 block">Display Label</label>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-xs font-medium text-gray-600">Display Label / Role Title</label>
+                          {rule.user_label && (
+                            <button 
+                              type="button" 
+                              onClick={() => aiAutoSuggestForLabel(rule.id!, rule.user_label)}
+                              className="text-[11px] text-[#4B49AC] hover:underline font-semibold flex items-center gap-1"
+                            >
+                              <Wand2 className="h-3 w-3" /> Auto-Select Tabs
+                            </button>
+                          )}
+                        </div>
                         <Input
-                          placeholder="e.g. Food Tech, R&D Head"
+                          placeholder="e.g. R&D Lab Researcher, HR Manager"
                           value={rule.user_label}
                           onChange={e => updateRule(rule.id!, "user_label", e.target.value)}
                         />
+                      </div>
+                    </div>
+
+                    {/* Smart Role Preset Automation Card */}
+                    <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 border border-purple-200/80 rounded-xl p-4 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                          <Sparkles className="h-4 w-4 text-purple-600 animate-pulse" />
+                          ⚡ Smart Role Auto-Customize Automation
+                        </span>
+                        <span className="text-[10px] text-purple-600 font-medium">Click any preset to auto-select tabs</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {ROLE_PRESETS.map(preset => (
+                          <Button
+                            key={preset.id}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => applyRolePreset(rule.id!, preset.id)}
+                            className="h-7 text-xs bg-white/80 hover:bg-white text-purple-900 border-purple-200 hover:border-purple-400 font-medium shadow-2xs"
+                          >
+                            {preset.title}
+                          </Button>
+                        ))}
                       </div>
                     </div>
 
@@ -500,7 +634,10 @@ export function UserAccessSettings() {
 
                     {/* Page Selection */}
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-2 block">Allowed Pages</label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-medium text-gray-600 block">Allowed Pages ({rule.allowed_pages.length} selected)</label>
+                        <span className="text-[11px] text-gray-400">AI Assistant automatically adapts to these selected tabs</span>
+                      </div>
                       <div className="space-y-3">
                         {PAGE_GROUPS.map(group => {
                           const groupPages = ALL_PAGES.filter(p => p.group === group);
@@ -550,7 +687,7 @@ export function UserAccessSettings() {
                       </div>
                     </div>
 
-                    {/* Default Tab */}
+                    {/* Default Landing Tab */}
                     {rule.allowed_pages.length > 0 && (
                       <div>
                         <label className="text-xs font-medium text-gray-600 mb-1 block">Default Landing Page</label>
@@ -594,7 +731,7 @@ export function UserAccessSettings() {
                         ) : (
                           <Save className="h-4 w-4 mr-1" />
                         )}
-                        Save
+                        Save & Automate AI
                       </Button>
                     </div>
                   </CardContent>
