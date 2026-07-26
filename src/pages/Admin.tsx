@@ -1020,27 +1020,6 @@ const Admin = () => {
             ) : (
               <>
                 {activeTab === "dashboard" && <UniversalDashboard onNavigateToTab={handleNavigateToTab} />}
-                {activeTab === "core_ops_dashboard" && <CoreOperationsDashboard />}
-                {activeTab === "hr_dashboard" && <HRTeamDashboard />}
-                {activeTab === "marketing_dashboard" && <MarketingDashboard />}
-                {activeTab === "media_dashboard" && <MediaDashboard />}
-                {activeTab === "timetable" && <CeoMdTimetable />}
-                {activeTab === "audit" && <AdminActivityLogs onNavigateToTab={handleNavigateToTab} />}
-                {activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} onNavigateToTab={handleNavigateToTab} />}
-                {activeTab === "posts" && <MarketingPostsManagement />}
-                {activeTab === "newsletter" && <NewsletterManagement />}
-                { activeTab === "interns" && <InternManagement /> }
-                { activeTab === "documents" && <DocumentGenerator initialPayload={documentPayload} onClearPayload={() => setDocumentPayload(undefined)} /> }
-                {activeTab === "jobs" && <JobPositionsManagement />}
-                {activeTab === "maintenance" && <MaintenanceManagement />}
-                {activeTab === "business" && <BusinessManagement />}
-                {activeTab === "market_research" && <MarketResearchHub />}
-                {activeTab === "shared_files" && <SharedFilesManager />}
-                {activeTab === "knowledge" && <KnowledgeTracker />}
-                {activeTab === "rdlab" && <RDLabManagement />}
-                {activeTab === "news" && <NewsManagement />}
-                {activeTab === "access_settings" && <UserAccessSettings />}
-                {activeTab === "dashboard" && <UniversalDashboard onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "my_work" && <MyWork onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "notifications" && <Notifications onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "ai_business_assistant" && <AIBusinessAssistant onNavigateToTab={handleNavigateToTab} />}
@@ -1144,29 +1123,29 @@ const Admin = () => {
                 {activeTab === "knowledge_tracker" && <KnowledgeTracker />}
                 {activeTab === "compliance_ai" && <ComplianceAI />}
                 {activeTab === "ip_patents" && <RDLabManagement initialTab="vault" />}
-                {activeTab === "marketing_dashboard" && <PlaceholderPage title="Marketing Dashboard" category="Marketing" />}
+                {activeTab === "marketing_dashboard" && <MarketingDashboard />}
                 {activeTab === "campaigns" && <PlaceholderPage title="Campaigns" category="Marketing" />}
                 {activeTab === "social_media" && <PlaceholderPage title="Social Media" category="Marketing" />}
                 {activeTab === "marketing_posts" && <MarketingPostsManagement />}
                 {activeTab === "newsletter" && <PlaceholderPage title="Newsletter" category="Marketing" />}
                 {activeTab === "seo" && <PlaceholderPage title="SEO" category="Marketing" />}
-                {activeTab === "market_research" && <PlaceholderPage title="Market Research" category="Marketing" />}
+                {activeTab === "market_research" && <MarketResearchHub />}
                 {activeTab === "brand_assets" && <PlaceholderPage title="Brand Assets" category="Marketing" />}
                 {activeTab === "press_media" && <NewsManagement />}
                 {activeTab === "website" && <PlaceholderPage title="Website" category="Digital Assets" />}
                 {activeTab === "blog" && <PlaceholderPage title="Blog" category="Digital Assets" />}
                 {activeTab === "landing_pages" && <PlaceholderPage title="Landing Pages" category="Digital Assets" />}
-                {activeTab === "media_library" && <PlaceholderPage title="Media Library" category="Digital Assets" />}
+                {activeTab === "media_library" && <MediaDashboard />}
                 {activeTab === "videos" && <PlaceholderPage title="Videos" category="Digital Assets" />}
                 {activeTab === "images" && <PlaceholderPage title="Images" category="Digital Assets" />}
                 {activeTab === "downloads" && <PlaceholderPage title="Downloads" category="D Models" />}
-                {activeTab === "shared_files" && <PlaceholderPage title="Shared Files" category="Documents" />}
+                {activeTab === "shared_files" && <SharedFilesManager />}
                 {activeTab === "document_generator" && <DocumentGenerator initialPayload={documentPayload} onClearPayload={() => setDocumentPayload(undefined)} />}
                 {activeTab === "templates" && <PlaceholderPage title="Templates" category="Documents" />}
                 {activeTab === "digital_signatures" && <PlaceholderPage title="Digital Signatures" category="Documents" />}
                 {activeTab === "contracts_documents" && <Contracts />}
                 {activeTab === "sop_library" && <PlaceholderPage title="SOP Library" category="Documents" />}
-                {activeTab === "operations_dashboard" && <PlaceholderPage title="Operations Dashboard" category="Operations" />}
+                {activeTab === "operations_dashboard" && <CoreOperationsDashboard />}
                 {activeTab === "projects" && <PlaceholderPage title="Projects" category="Operations" />}
                 {activeTab === "tasks" && <PlaceholderPage title="Tasks" category="Operations" />}
                 {activeTab === "kanban_board" && <PlaceholderPage title="Kanban Board" category="Operations" />}
@@ -1184,14 +1163,14 @@ const Admin = () => {
                 {activeTab === "audit_logs" && <AdminActivityLogs onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "activity_logs" && <PlaceholderPage title="Activity Logs" category="IT & System" />}
                 {activeTab === "system_health" && <PlaceholderPage title="System Health" category="IT & System" />}
-                {activeTab === "maintenance_it" && <PlaceholderPage title="Maintenance" category="IT & System" />}
+                {activeTab === "maintenance_it" && <MaintenanceManagement />}
                 {activeTab === "ai_dashboard" && <PlaceholderPage title="AI Dashboard" category="AI & Automation" />}
                 {activeTab === "ai_reports" && <PlaceholderPage title="AI Reports" category="AI & Automation" />}
                 {activeTab === "workflow_automation" && <PlaceholderPage title="Workflow Automation" category="AI & Automation" />}
                 {activeTab === "ai_insights" && <PlaceholderPage title="AI Insights" category="AI & Automation" />}
                 {activeTab === "ai_predictions" && <PlaceholderPage title="AI Predictions" category="AI & Automation" />}
                 {activeTab === "scheduled_jobs" && <PlaceholderPage title="Scheduled Jobs" category="AI & Automation" />}
-                {activeTab === "business_analytics" && <PlaceholderPage title="Business Analytics" category="Analytics" />}
+                {activeTab === "business_analytics" && <BusinessManagement />}
                 {activeTab === "sales_analytics_analytics" && <PlaceholderPage title="Sales Analytics" category="Analytics" />}
                 {activeTab === "finance_analytics" && <PlaceholderPage title="Finance Analytics" category="Analytics" />}
                 {activeTab === "hr_analytics" && <PlaceholderPage title="HR Analytics" category="Analytics" />}
