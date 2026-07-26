@@ -5,10 +5,11 @@ import {
   Building2, Users, Briefcase, TrendingUp, IndianRupee, Activity, Calendar, 
   Target, Zap, Clock, ShieldCheck, Mail, Globe, Database, Server, Package, 
   AlertTriangle, CheckCircle2, ChevronRight, Download, Plus, ArrowUpRight, ArrowDownRight,
-  Loader2, BellRing, Sparkles, FileText, X, Bell, Flame, CalendarClock, CircleAlert, Check
+  Loader2, BellRing, Sparkles, FileText, X, Bell, Flame, CalendarClock, CircleAlert, Check, RefreshCw
 } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useTimeFilter } from "@/hooks/useTimeFilter"
+import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -35,7 +36,10 @@ interface UniversalDashboardProps {
 
 export function UniversalDashboard({ onNavigateToTab }: UniversalDashboardProps) {
   const { timeFilter, setTimeFilter, filterDataByDate } = useTimeFilter();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [customAiInsights, setCustomAiInsights] = useState<Array<{ title: string; description: string; type: 'success' | 'warning' | 'info' | 'neutral' }> | null>(null);
 
   // States
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -446,6 +450,156 @@ export function UniversalDashboard({ onNavigateToTab }: UniversalDashboardProps)
     return [...builtInDepts, ...customDepts];
   }, [interns, applications, projects, inventory, expenses, totalRevenue, totalExpense, netProfit, pendingExp, lowStock, rdMaterials, dbDepartments]);
 
+  // ─── REAL AUTONOMOUS AI EXECUTIVE INSIGHTS COMPUTATION ───
+  const computedAiInsights = useMemo(() => {
+    const activeStaffCount = interns.filter(i => i.status === 'Active').length;
+    const pendingAppsCount = filteredApps.length;
+    const lowStockCount = lowStock.length;
+    const totalInv = inventory.length || 0;
+
+    const insights = [];
+
+    // 1. Revenue & Financial Health
+    if (netProfit > 0 && totalRevenue > 0) {
+      insights.push({
+        title: "Revenue Trajectory Positive",
+        description: `Current MRR & tracked revenue stands at ₹${(totalRevenue/1000).toFixed(1)}k with a net margin of ${grossMargin}%. Operational growth is exceeding baseline targets.`,
+        type: "success" as const
+      });
+    } else if (netProfit < 0 && totalRevenue > 0) {
+      insights.push({
+        title: "Cost Optimization Focus",
+        description: `Tracked operating expenditures currently exceed revenue by ₹${Math.abs(netProfit/1000).toFixed(1)}k. Operational overhead audit recommended in Finance module.`,
+        type: "warning" as const
+      });
+    } else {
+      insights.push({
+        title: "Financial Tracking Active",
+        description: `Recorded revenue is ₹${formatINR(totalRevenue)} against ₹${formatINR(totalExpense)} in expenditures. Maintain steady billing monitoring.`,
+        type: "info" as const
+      });
+    }
+
+    // 2. Inventory Risk Analysis
+    if (lowStockCount === 0) {
+      insights.push({
+        title: "Inventory Health Optimal",
+        description: `All ${totalInv} tracked catalog SKUs are currently above minimum reserve thresholds. Stock reserves are well-balanced with zero shortages.`,
+        type: "success" as const
+      });
+    } else {
+      const names = lowStock.slice(0, 3).map((inv: any) => inv.name || inv.item_name || 'SKU').join(', ');
+      insights.push({
+        title: "Inventory Risk Detected",
+        description: `${lowStockCount} SKU${lowStockCount !== 1 ? 's are' : ' is'} critically low (${names}${lowStockCount > 3 ? '...' : ''}). Immediate procurement & purchase order generation recommended.`,
+        type: "warning" as const
+      });
+    }
+
+    // 3. Talent & Workforce Trajectory
+    if (pendingAppsCount > 0) {
+      insights.push({
+        title: "Active Talent Pipeline",
+        description: `High recruitment activity with ${pendingAppsCount} pending application${pendingAppsCount !== 1 ? 's' : ''} this period. Scale HR screening to support the ${activeStaffCount}-member team.`,
+        type: "info" as const
+      });
+    } else {
+      insights.push({
+        title: "Workforce Capacity Stable",
+        description: `Active staff stands at ${activeStaffCount} members supporting ${projects.length} enterprise initiatives with zero recruitment bottlenecks.`,
+        type: "neutral" as const
+      });
+    }
+
+    // 4. Cash Flow & Liquid Reserves
+    if (cashAvailable > 0 && totalExpense > 0) {
+      const estimatedMonths = Math.max(1, Math.round(cashAvailable / (totalExpense / 3 || 1)));
+      insights.push({
+        title: "Cash Flow & Runway Stable",
+        description: `Estimated liquid capital of ₹${(cashAvailable/1000).toFixed(1)}k provides approx. ${estimatedMonths} months of operational runway at current burn rate.`,
+        type: "success" as const
+      });
+    } else if (cashAvailable <= 0) {
+      insights.push({
+        title: "Liquid Capital Notice",
+        description: `Tracked liquid cash requires replenishment from pending receivables or shareholder capital injections to extend operational buffer.`,
+        type: "warning" as const
+      });
+    } else {
+      insights.push({
+        title: "Operational Liquidity Steady",
+        description: `Available cash reserves stand at ₹${formatINR(cashAvailable)}. Treasury and capital allocation metrics are operating within normal parameters.`,
+        type: "neutral" as const
+      });
+    }
+
+    return insights;
+  }, [totalRevenue, totalExpense, netProfit, grossMargin, lowStock, inventory.length, filteredApps.length, interns, projects.length, cashAvailable]);
+
+  const displayedAiInsights = customAiInsights || computedAiInsights;
+
+  const handleGenerateLiveAiInsights = useCallback(async () => {
+    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+    if (!apiKey) {
+      toast({
+        title: "AI Scan Notice",
+        description: "Using real-time database computation. For deep generative analysis, configure your OpenRouter API Key.",
+        variant: "default"
+      });
+      return;
+    }
+
+    setIsGeneratingAi(true);
+    try {
+      const activeStaffCount = interns.filter(i => i.status === 'Active').length;
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": window.location.origin,
+          "X-Title": "BiovaCo Nexus Executive Portal"
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          max_tokens: 1500,
+          messages: [
+            {
+              role: "system",
+              content: `You are the BiovaCo Nexus Autonomous Executive AI Copilot. Analyze the following real-time portal metrics: Total Revenue: ₹${totalRevenue}, Net Profit: ₹${netProfit}, Available Liquid Cash: ₹${cashAvailable}, Active Staff: ${activeStaffCount}, Total Inventory SKUs: ${inventory.length}, Low Stock SKUs: ${lowStock.length}, Pending Job Applications: ${filteredApps.length}, Active Projects/Tasks: ${projects.length}. Return exactly 4 concise, factual, high-impact executive insights as a JSON array of objects with keys: "title" (short 2-4 words title), "description" (1-2 sentences factual explanation and strategic advice based on the exact numbers), "type" (one of: "success", "warning", "info", "neutral"). Do not output any text or markdown formatting outside the JSON array.`
+            },
+            {
+              role: "user",
+              content: "Generate real-time executive insights based on current database metrics."
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) throw new Error("API response failed");
+      const data = await response.json();
+      let content = data.choices[0]?.message?.content || "";
+      content = content.replace(/```json/g, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setCustomAiInsights(parsed);
+        toast({
+          title: "AI Analysis Updated",
+          description: "Autonomous executive intelligence generated from live database metrics.",
+        });
+      }
+    } catch (err) {
+      console.error("Failed to generate AI insights:", err);
+      toast({
+        title: "Live Scan Reverted",
+        description: "Switched to local real-time database calculation.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  }, [totalRevenue, netProfit, cashAvailable, interns, inventory.length, lowStock.length, filteredApps.length, projects.length, toast]);
+
   // Chart Data
   const financialData = useMemo(() => {
     const grouping = timeFilter === '7days' || timeFilter === '30days' ? 'MMM dd' : 'MMM yyyy';
@@ -849,43 +1003,59 @@ export function UniversalDashboard({ onNavigateToTab }: UniversalDashboardProps)
         </Card>
 
         {/* AI INSIGHTS */}
-        <Card className="shadow-sm border-indigo-100 bg-gradient-to-br from-indigo-50/50 to-white">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-bold text-indigo-950 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-indigo-600" /> AI Executive Insights
-            </CardTitle>
-            <CardDescription>Real-time autonomous business intelligence</CardDescription>
+        <Card className="shadow-sm border-indigo-100 bg-gradient-to-br from-indigo-50/50 to-white flex flex-col justify-between">
+          <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle className="text-base font-bold text-indigo-950 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-indigo-600 animate-pulse" /> AI Executive Insights
+              </CardTitle>
+              <CardDescription className="text-xs mt-0.5">Real-time autonomous business intelligence from live database</CardDescription>
+            </div>
+            <Button
+              onClick={handleGenerateLiveAiInsights}
+              disabled={isGeneratingAi}
+              variant="outline"
+              size="sm"
+              className="h-7 text-[11px] font-semibold bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 shadow-xs shrink-0 flex items-center gap-1.5"
+              title="Generate fresh generative AI analysis from live database records"
+            >
+              {isGeneratingAi ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
+                  Analyzing DB...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-3 w-3 text-indigo-600" />
+                  Live AI Scan
+                </>
+              )}
+            </Button>
           </CardHeader>
-          <CardContent>
-            <ul className="space-y-4">
-              <li className="flex items-start gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                <div className="mt-0.5 bg-emerald-100 p-1.5 rounded-full"><TrendingUp className="h-4 w-4 text-emerald-600" /></div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Revenue Growth Optimal</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Current MRR trajectory suggests hitting Q3 targets 12 days early.</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                <div className="mt-0.5 bg-rose-100 p-1.5 rounded-full"><AlertTriangle className="h-4 w-4 text-rose-600" /></div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Inventory Risk Detected</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{lowStock.length} SKUs are critically low. Reorder recommended.</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                <div className="mt-0.5 bg-blue-100 p-1.5 rounded-full"><Users className="h-4 w-4 text-blue-600" /></div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Hiring Suggestion</p>
-                  <p className="text-xs text-gray-500 mt-0.5">High application volume ({filteredApps.length} this period). Scale up HR screening.</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                <div className="mt-0.5 bg-amber-100 p-1.5 rounded-full"><Activity className="h-4 w-4 text-amber-600" /></div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Cash Flow Stable</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Runway extends well past 24 months at current burn rate.</p>
-                </div>
-              </li>
+          <CardContent className="flex-1">
+            <ul className="space-y-3">
+              {displayedAiInsights.map((insight, idx) => {
+                const iconMap = {
+                  success: { icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-100" },
+                  warning: { icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-100" },
+                  info: { icon: Users, color: "text-blue-600", bg: "bg-blue-100" },
+                  neutral: { icon: Activity, color: "text-indigo-600", bg: "bg-indigo-100" }
+                };
+                const config = iconMap[insight.type] || iconMap.neutral;
+                const IconComponent = config.icon;
+
+                return (
+                  <li key={idx} className="flex items-start gap-3 bg-white p-3 rounded-xl border border-gray-100/80 shadow-xs hover:shadow-sm transition-all duration-200 animate-in fade-in slide-in-from-right-2" style={{ animationDelay: `${idx * 75}ms` }}>
+                    <div className={`mt-0.5 ${config.bg} p-1.5 rounded-full shrink-0`}>
+                      <IconComponent className={`h-4 w-4 ${config.color}`} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-900 leading-tight">{insight.title}</p>
+                      <p className="text-[11px] text-gray-600 mt-1 leading-relaxed">{insight.description}</p>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </CardContent>
         </Card>
