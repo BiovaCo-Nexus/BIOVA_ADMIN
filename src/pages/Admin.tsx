@@ -608,9 +608,22 @@ const Admin = () => {
   useEffect(() => {
     // Check authentication first
     const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      let session;
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn('Admin auth check failed (invalid/expired token):', error.message);
+          await supabase.auth.signOut({ scope: 'local' });
+          navigate("/auth");
+          return;
+        }
+        session = data.session;
+      } catch (err: any) {
+        console.warn('Admin getSession threw:', err?.message || err);
+        await supabase.auth.signOut({ scope: 'local' });
+        navigate("/auth");
+        return;
+      }
       if (!session) {
         navigate("/auth")
         return
@@ -667,11 +680,10 @@ const Admin = () => {
       })
       navigate("/auth")
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
+      // If global signout fails (e.g. invalid token), force local cleanup
+      console.warn('Global signOut failed, clearing local session:', error.message);
+      await supabase.auth.signOut({ scope: 'local' });
+      navigate("/auth")
     }
   }
 

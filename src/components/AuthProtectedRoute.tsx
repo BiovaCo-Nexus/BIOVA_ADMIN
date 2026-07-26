@@ -12,8 +12,9 @@ interface AuthProtectedRouteProps {
  * SECURITY BEHAVIOUR:
  *
  * ✅ Valid @biovaco.in session → render admin dashboard
- * 🔇 No session → silent blank (NOT login redirect)
- * 🔇 Wrong domain session → sign out silently → silent blank
+ * 🔇 No session → redirect to /auth
+ * 🔇 Wrong domain session → sign out silently → redirect to /auth
+ * 🔇 Invalid/expired refresh token → clear session → redirect to /auth
  *
  * We intentionally do NOT redirect to the login page here.
  * If someone stumbles onto /admin without knowing the login URL,
@@ -29,36 +30,76 @@ const AuthProtectedRoute: React.FC<AuthProtectedRouteProps> = ({ children }) => 
 
  useEffect(() => {
  const handleAuthCheck = async (session: Session | null) => {
- setSession(session);
- setUser(session?.user ?? null);
+  setSession(session);
+  setUser(session?.user ?? null);
 
- if (!session?.user) {
- // No session — go silent blank, not login page
- setLoading(false);
- navigate('/auth', { replace: true });
- return;
- }
+  if (!session?.user) {
+   // No session — redirect to auth
+   setLoading(false);
+   navigate('/auth', { replace: true });
+   return;
+  }
 
- // STRICT DOMAIN CHECK — only @biovaco.in allowed
- if (!session.user.email?.endsWith('@biovaco.in')) {
- // Sign out silently — no toast, no hint
- await supabase.auth.signOut();
- setLoading(false);
- navigate('/auth', { replace: true });
- return;
- }
+  // STRICT DOMAIN CHECK — only @biovaco.in allowed
+  if (!session.user.email?.endsWith('@biovaco.in')) {
+   // Sign out silently — no toast, no hint
+   await supabase.auth.signOut({ scope: 'local' });
+   setLoading(false);
+   navigate('/auth', { replace: true });
+   return;
+  }
 
- setLoading(false);
+  setLoading(false);
  };
 
  const { data: { subscription } } = supabase.auth.onAuthStateChange(
- (_event, session) => {
- handleAuthCheck(session);
- }
+  (event, session) => {
+   // If a token refresh fails, the session becomes invalid
+   // Sign out locally and redirect to auth
+   if (event === 'TOKEN_REFRESHED' && !session) {
+    supabase.auth.signOut({ scope: 'local' }).then(() => {
+     setUser(null);
+     setSession(null);
+     setLoading(false);
+     navigate('/auth', { replace: true });
+    });
+    return;
+   }
+   // Handle explicit sign-out events
+   if (event === 'SIGNED_OUT') {
+    setUser(null);
+    setSession(null);
+    setLoading(false);
+    navigate('/auth', { replace: true });
+    return;
+   }
+   handleAuthCheck(session);
+  }
  );
 
- supabase.auth.getSession().then(({ data: { session } }) => {
- handleAuthCheck(session);
+ // Initial session check — catch errors from invalid refresh tokens
+ supabase.auth.getSession().then(({ data: { session }, error }) => {
+  if (error) {
+   console.warn('Auth session error (invalid/expired token):', error.message);
+   // Clear any stale local auth data and redirect
+   supabase.auth.signOut({ scope: 'local' }).then(() => {
+    setUser(null);
+    setSession(null);
+    setLoading(false);
+    navigate('/auth', { replace: true });
+   });
+   return;
+  }
+  handleAuthCheck(session);
+ }).catch((err) => {
+  // Fallback: if getSession itself throws (e.g. network error, corrupt token)
+  console.warn('Auth getSession threw:', err?.message || err);
+  supabase.auth.signOut({ scope: 'local' }).then(() => {
+   setUser(null);
+   setSession(null);
+   setLoading(false);
+   navigate('/auth', { replace: true });
+  });
  });
 
  return () => subscription.unsubscribe();
@@ -66,12 +107,12 @@ const AuthProtectedRoute: React.FC<AuthProtectedRouteProps> = ({ children }) => 
 
  if (loading) {
  return (
- <div className="min-h-screen bg-muted/20 flex items-center justify-center">
- <div className="text-center">
- <BiovaCoLogo className="h-16 w-auto mx-auto mb-4 animate-pulse" />
- <p className="text-foreground font-medium">Loading...</p>
- </div>
- </div>
+  <div className="min-h-screen bg-muted/20 flex items-center justify-center">
+  <div className="text-center">
+   <BiovaCoLogo className="h-16 w-auto mx-auto mb-4 animate-pulse" />
+   <p className="text-foreground font-medium">Loading...</p>
+  </div>
+  </div>
  );
  }
 

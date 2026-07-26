@@ -10,11 +10,11 @@ import { useToast } from "@/hooks/use-toast"
 import { useOfflineSync } from "@/hooks/useOfflineSync"
 import type { KnowledgeItem } from "@/hooks/useOfflineSync"
 import {
- Plus, Trash2, X, Check, CheckCircle2, Circle, Clock,
- AlertTriangle, BookOpen, TrendingUp, Server, Search,
- Filter, ChevronDown, ChevronUp, Edit, Loader2,
- BarChart3, Target, Lightbulb, ShieldCheck, XCircle,
- Wifi, WifiOff, RefreshCw, CloudOff, User
+  Plus, Trash2, X, Check, CheckCircle2, Circle, Clock,
+  AlertTriangle, BookOpen, TrendingUp, Server, Search,
+  Filter, ChevronDown, ChevronUp, Edit, Loader2,
+  BarChart3, Target, Lightbulb, ShieldCheck, XCircle,
+  Wifi, WifiOff, RefreshCw, CloudOff, User, Lock, UserCheck
 } from "lucide-react"
 
 type Priority = "critical" | "high" | "medium" | "low"
@@ -22,105 +22,143 @@ type Status = "pending" | "in_progress" | "validated" | "rejected"
 type Category = "system" | "market" | "competitor" | "regulation" | "technology" | "customer"
 
 const CATEGORIES: { value: Category; label: string; icon: any; color: string }[] = [
- { value: "system", label: "System", icon: Server, color: "bg-[#4B49AC]/10 text-[#4B49AC] border-[#4B49AC]/20" },
- { value: "market", label: "Market", icon: TrendingUp, color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
- { value: "competitor", label: "Competitor", icon: Target, color: "bg-[#4B49AC]/10 text-[#4B49AC] border-[#4B49AC]/20" },
- { value: "regulation", label: "Regulation", icon: ShieldCheck, color: "bg-[#4B49AC]/10 text-[#4B49AC] border-[#4B49AC]/20" },
- { value: "technology", label: "Technology", icon: Lightbulb, color: "bg-cyan-100 text-cyan-800 border-cyan-200" },
- { value: "customer", label: "Customer", icon: BookOpen, color: "bg-pink-100 text-pink-800 border-pink-200" },
+  { value: "system", label: "System", icon: Server, color: "bg-[#4B49AC]/10 text-[#4B49AC] border-[#4B49AC]/20" },
+  { value: "market", label: "Market", icon: TrendingUp, color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  { value: "competitor", label: "Competitor", icon: Target, color: "bg-[#4B49AC]/10 text-[#4B49AC] border-[#4B49AC]/20" },
+  { value: "regulation", label: "Regulation", icon: ShieldCheck, color: "bg-[#4B49AC]/10 text-[#4B49AC] border-[#4B49AC]/20" },
+  { value: "technology", label: "Technology", icon: Lightbulb, color: "bg-cyan-100 text-cyan-800 border-cyan-200" },
+  { value: "customer", label: "Customer", icon: BookOpen, color: "bg-pink-100 text-pink-800 border-pink-200" },
 ]
 const PRIORITIES: { value: Priority; label: string; color: string }[] = [
- { value: "critical", label: "Critical", color: "bg-red-100 text-red-800 border-red-300" },
- { value: "high", label: "High", color: "bg-orange-100 text-orange-800 border-orange-300" },
- { value: "medium", label: "Medium", color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
- { value: "low", label: "Low", color: "bg-gray-100 text-gray-700 border-gray-300" },
+  { value: "critical", label: "Critical", color: "bg-red-100 text-red-800 border-red-300" },
+  { value: "high", label: "High", color: "bg-orange-100 text-orange-800 border-orange-300" },
+  { value: "medium", label: "Medium", color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
+  { value: "low", label: "Low", color: "bg-gray-100 text-gray-700 border-gray-300" },
 ]
 const STATUSES: { value: Status; label: string; icon: any; color: string }[] = [
- { value: "pending", label: "Pending", icon: Circle, color: "bg-slate-100 text-slate-700" },
- { value: "in_progress", label: "In Progress", icon: Clock, color: "bg-[#4B49AC] text-white border-0" },
- { value: "validated", label: "Validated", icon: CheckCircle2, color: "bg-primary/10 text-primary border-0" },
- { value: "rejected", label: "Rejected", icon: XCircle, color: "bg-red-100 text-red-700" },
+  { value: "pending", label: "Pending", icon: Circle, color: "bg-slate-100 text-slate-700" },
+  { value: "in_progress", label: "In Progress", icon: Clock, color: "bg-[#4B49AC] text-white border-0" },
+  { value: "validated", label: "Validated", icon: CheckCircle2, color: "bg-primary/10 text-primary border-0" },
+  { value: "rejected", label: "Rejected", icon: XCircle, color: "bg-red-100 text-red-700" },
 ]
 
 const emptyForm = () => ({
- title: "", description: "", category: "system" as Category, priority: "medium" as Priority,
- status: "pending" as Status, source: "", validation_notes: "", due_date: "", assigned_to: ""
+  title: "", description: "", category: "system" as Category, priority: "medium" as Priority,
+  status: "pending" as Status, source: "", validation_notes: "", due_date: "", assigned_to: ""
 })
 
 export function KnowledgeTracker() {
- const { toast } = useToast()
- const { items, isOnline, isLoading, isSyncing, pendingCount, addItem, updateItem, deleteItem, forceSync } = useOfflineSync()
- const [isSaving, setIsSaving] = useState(false)
- const [isEditing, setIsEditing] = useState(false)
- const [editId, setEditId] = useState<string | null>(null)
- const [form, setForm] = useState(emptyForm())
- const [searchQuery, setSearchQuery] = useState("")
- const [filterCategory, setFilterCategory] = useState<string>("all")
- const [filterStatus, setFilterStatus] = useState<string>("all")
- const [filterPriority, setFilterPriority] = useState<string>("all")
- const [expandedId, setExpandedId] = useState<string | null>(null)
- 
- const [userEmail, setUserEmail] = useState<string | null>(null)
- const [interns, setInterns] = useState<{name: string, email: string}[]>([])
- 
- useEffect(() => {
- supabase.auth.getSession().then(({ data }) => {
- const email = data.session?.user?.email || null
- setUserEmail(email)
- 
- if (email === "ceo@biovaco.in" || email === "md@biovaco.in") {
- supabase.from('interns').select('name, email').eq('status', 'Active')
- .then(({ data: internData }) => {
- if (internData) setInterns(internData)
- })
- }
- })
- }, [])
- 
- const isExecutive = userEmail === "ceo@biovaco.in" || userEmail === "md@biovaco.in"
+  const { toast } = useToast()
+  const { items, isOnline, isLoading, isSyncing, pendingCount, addItem, updateItem, deleteItem, forceSync } = useOfflineSync()
+  const [isSaving, setIsSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [form, setForm] = useState(emptyForm())
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filterCategory, setFilterCategory] = useState<string>("all")
+  const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [filterPriority, setFilterPriority] = useState<string>("all")
+  const [filterAssignee, setFilterAssignee] = useState<string>("all")
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [interns, setInterns] = useState<{name: string, email: string}[]>([])
+  
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const email = data.session?.user?.email || null
+      setUserEmail(email)
+      
+      if (email === "ceo@biovaco.in" || email === "md@biovaco.in") {
+        supabase.from('interns').select('name, email').eq('status', 'Active')
+        .then(({ data: internData }) => {
+          if (internData) setInterns(internData)
+        })
+      }
+    })
+  }, [])
+  
+  const isExecutive = userEmail === "ceo@biovaco.in" || userEmail === "md@biovaco.in"
 
- const sendAssignmentEmail = async (internEmail: string, title: string, desc: string, prio: string) => {
- const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY
- if (!BREVO_API_KEY) return
+  // ─── STRICT SECURITY & ROLE FILTERING ─────────────────────────────────────────
+  // Non-executive staff/interns can ONLY see tasks assigned to them or created by them.
+  // Executive (CEO & MD) can see all company tasks or filter by assignee.
+  const userAccessibleItems = useMemo(() => {
+    if (!userEmail) return []
 
- const internName = interns.find(i => i.email === internEmail)?.name || "Intern"
+    const normUserEmail = userEmail.toLowerCase().trim()
 
- const emailHtml = `
- <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; border: 1px solid #ddd; border-top: 4px solid #18181b;">
- <h2 style="color: #18181b;">BiovaCo Nexus - New Task Assigned</h2>
- <p>Hello <strong>${internName}</strong>,</p>
- <p>A new task has been assigned to you by the Executive Team.</p>
- <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
- <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9; width: 120px;"><strong>Task Title</strong></td><td style="padding: 8px; border: 1px solid #eee;">${title}</td></tr>
- <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9;"><strong>Priority</strong></td><td style="padding: 8px; border: 1px solid #eee;">${prio.toUpperCase()}</td></tr>
- <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9;"><strong>Details</strong></td><td style="padding: 8px; border: 1px solid #eee;">${desc || "No description provided."}</td></tr>
- </table>
- <p style="color: #777; font-size: 12px; margin-top: 20px;">Please login to the BiovaCo Nexus portal to update the status of this task.</p>
- </div>
- `
- const payload = {
- sender: { name: "BiovaCo Nexus Admin", email: "no-reply@biovaco.in" },
- to: [{ email: internEmail, name: internName }],
- subject: `[New Task Assigned] ${title}`,
- htmlContent: emailHtml
- }
- 
- await fetch("https://api.brevo.com/v3/smtp/email", {
- method: "POST",
- headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
- body: JSON.stringify(payload)
- }).catch(console.error)
- }
+    if (isExecutive) {
+      if (filterAssignee === "mine") {
+        return items.filter(item => {
+          const assignees = (item.assigned_to || '').split(',').map(e => e.toLowerCase().trim())
+          return assignees.includes(normUserEmail) || item.created_by?.toLowerCase().trim() === normUserEmail
+        })
+      }
+      if (filterAssignee !== "all") {
+        const normTarget = filterAssignee.toLowerCase().trim()
+        return items.filter(item => {
+          const assignees = (item.assigned_to || '').split(',').map(e => e.toLowerCase().trim())
+          return assignees.includes(normTarget) || item.created_by?.toLowerCase().trim() === normTarget
+        })
+      }
+      return items
+    }
 
- const stats = useMemo(() => {
- const total = items.length
- const validated = items.filter(i => i.status === "validated").length
- const pending = items.filter(i => i.status === "pending").length
- const inProgress = items.filter(i => i.status === "in_progress").length
- const critical = items.filter(i => i.priority === "critical" && i.status !== "validated").length
- const overdue = items.filter(i => i.due_date && new Date(i.due_date) < new Date() && i.status !== "validated" && i.status !== "rejected").length
- return { total, validated, pending, inProgress, critical, overdue }
- }, [items])
+    // STRICT NON-EXECUTIVE SECURITY RULE:
+    // Only return tasks explicitly assigned to or created by this non-executive user.
+    // Tasks assigned to CEO, MD, or other staff members are COMPLETELY EXCLUDED.
+    return items.filter(item => {
+      const assignees = (item.assigned_to || '').split(',').map(e => e.toLowerCase().trim())
+      const isAssigned = assignees.includes(normUserEmail)
+      const isCreator = item.created_by?.toLowerCase().trim() === normUserEmail
+      return isAssigned || isCreator
+    })
+  }, [items, userEmail, isExecutive, filterAssignee])
+
+  const sendAssignmentEmail = async (internEmail: string, title: string, desc: string, prio: string) => {
+    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY
+    if (!BREVO_API_KEY) return
+
+    const internName = interns.find(i => i.email === internEmail)?.name || "Intern"
+
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; border: 1px solid #ddd; border-top: 4px solid #18181b;">
+        <h2 style="color: #18181b;">BiovaCo Nexus - New Task Assigned</h2>
+        <p>Hello <strong>${internName}</strong>,</p>
+        <p>A new task has been assigned to you by the Executive Team.</p>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+          <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9; width: 120px;"><strong>Task Title</strong></td><td style="padding: 8px; border: 1px solid #eee;">${title}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9;"><strong>Priority</strong></td><td style="padding: 8px; border: 1px solid #eee;">${prio.toUpperCase()}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9;"><strong>Details</strong></td><td style="padding: 8px; border: 1px solid #eee;">${desc || "No description provided."}</td></tr>
+        </table>
+        <p style="color: #777; font-size: 12px; margin-top: 20px;">Please login to the BiovaCo Nexus portal to update the status of this task.</p>
+      </div>
+    `
+    const payload = {
+      sender: { name: "BiovaCo Nexus Admin", email: "no-reply@biovaco.in" },
+      to: [{ email: internEmail, name: internName }],
+      subject: `[New Task Assigned] ${title}`,
+      htmlContent: emailHtml
+    }
+    
+    await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
+      body: JSON.stringify(payload)
+    }).catch(console.error)
+  }
+
+  // Calculate statistics ONLY based on user-accessible items
+  const stats = useMemo(() => {
+    const total = userAccessibleItems.length
+    const validated = userAccessibleItems.filter(i => i.status === "validated").length
+    const pending = userAccessibleItems.filter(i => i.status === "pending").length
+    const inProgress = userAccessibleItems.filter(i => i.status === "in_progress").length
+    const critical = userAccessibleItems.filter(i => i.priority === "critical" && i.status !== "validated").length
+    const overdue = userAccessibleItems.filter(i => i.due_date && new Date(i.due_date) < new Date() && i.status !== "validated" && i.status !== "rejected").length
+    return { total, validated, pending, inProgress, critical, overdue }
+  }, [userAccessibleItems])
 
   const getCatMeta = (c: string) => CATEGORIES.find(x => x.value === c) || CATEGORIES[0]
   const getPriMeta = (p: string) => PRIORITIES.find(x => x.value === p) || PRIORITIES[2]
@@ -152,7 +190,7 @@ export function KnowledgeTracker() {
   };
 
   const filteredItems = useMemo(() => {
-    return items.filter(item => {
+    return userAccessibleItems.filter(item => {
       if (!deepSearch(item, searchQuery)) return false
       if (filterCategory !== "all" && item.category !== filterCategory) return false
       if (filterStatus !== "all" && item.status !== filterStatus) return false
@@ -168,7 +206,7 @@ export function KnowledgeTracker() {
       
       return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
     })
-  }, [items, searchQuery, filterCategory, filterStatus, filterPriority])
+  }, [userAccessibleItems, searchQuery, filterCategory, filterStatus, filterPriority])
 
   // Automation: Auto-delete duplicates based on identical titles
   useEffect(() => {
@@ -201,350 +239,417 @@ export function KnowledgeTracker() {
     deduplicate();
   }, [items, isLoading]);
 
- const handleSubmit = async (e: React.FormEvent) => {
- e.preventDefault()
- if (!form.title.trim()) { toast({ title: "Title is required", variant: "destructive" }); return }
- setIsSaving(true)
- if (editId) {
- await updateItem(editId, {
- ...form,
- description: form.description || null,
- source: form.source || null,
- validation_notes: form.validation_notes || null,
- due_date: form.due_date || null,
- })
- 
- const assignees = (form.assigned_to || '').split(',').filter(Boolean)
- const internAssignees = assignees.filter(email => interns.some(i => i.email === email))
- for (const email of internAssignees) {
- sendAssignmentEmail(email, form.title, form.description, form.priority)
- }
- 
- toast({ title: isOnline ? "Item updated" : "Item updated (will sync when online)" })
- } else {
- await addItem({
- ...form,
- created_by: userEmail,
- assigned_to: form.assigned_to || userEmail,
- description: form.description || null,
- source: form.source || null,
- validation_notes: form.validation_notes || null,
- due_date: form.due_date || null,
- })
- 
- const assignees = (form.assigned_to || '').split(',').filter(Boolean)
- const internAssignees = assignees.filter(email => interns.some(i => i.email === email))
- for (const email of internAssignees) {
- sendAssignmentEmail(email, form.title, form.description, form.priority)
- }
- 
- toast({ title: isOnline ? "Item created" : "Item saved offline (will sync when online)" })
- }
- setIsSaving(false)
- resetForm()
- }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.title.trim()) { toast({ title: "Title is required", variant: "destructive" }); return }
+    setIsSaving(true)
+    
+    // Determine target assignees: if non-executive, force assignment to self
+    const targetAssignedTo = isExecutive 
+      ? (form.assigned_to || userEmail || "") 
+      : (userEmail || "")
 
- const handleDelete = async (id: string) => {
- if (!window.confirm("Delete this knowledge item?")) return
- await deleteItem(id)
- toast({ title: isOnline ? "Item deleted" : "Item deleted (will sync when online)" })
- }
+    if (editId) {
+      await updateItem(editId, {
+        ...form,
+        assigned_to: targetAssignedTo,
+        description: form.description || null,
+        source: form.source || null,
+        validation_notes: form.validation_notes || null,
+        due_date: form.due_date || null,
+      })
+      
+      const assignees = targetAssignedTo.split(',').filter(Boolean)
+      const internAssignees = assignees.filter(email => interns.some(i => i.email === email))
+      for (const email of internAssignees) {
+        sendAssignmentEmail(email, form.title, form.description, form.priority)
+      }
+      
+      toast({ title: isOnline ? "Item updated" : "Item updated (will sync when online)" })
+    } else {
+      await addItem({
+        ...form,
+        created_by: userEmail,
+        assigned_to: targetAssignedTo,
+        description: form.description || null,
+        source: form.source || null,
+        validation_notes: form.validation_notes || null,
+        due_date: form.due_date || null,
+      })
+      
+      const assignees = targetAssignedTo.split(',').filter(Boolean)
+      const internAssignees = assignees.filter(email => interns.some(i => i.email === email))
+      for (const email of internAssignees) {
+        sendAssignmentEmail(email, form.title, form.description, form.priority)
+      }
+      
+      toast({ title: isOnline ? "Item created" : "Item saved offline (will sync when online)" })
+    }
+    setIsSaving(false)
+    resetForm()
+  }
 
- const handleStatusChange = async (id: string, status: Status) => {
- await updateItem(id, { status })
- toast({ title: `Status → ${status.replace("_", " ")}` })
- }
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Delete this knowledge item?")) return
+    await deleteItem(id)
+    toast({ title: isOnline ? "Item deleted" : "Item deleted (will sync when online)" })
+  }
 
- const handleEdit = (item: KnowledgeItem) => {
- setForm({
- title: item.title, description: item.description || "", category: item.category as Category,
- priority: item.priority as Priority, status: item.status as Status, source: item.source || "",
- validation_notes: item.validation_notes || "", due_date: item.due_date || "", assigned_to: item.assigned_to || ""
- })
- setEditId(item.id)
- setIsEditing(true)
- }
+  const handleStatusChange = async (id: string, status: Status) => {
+    await updateItem(id, { status })
+    toast({ title: `Status → ${status.replace("_", " ")}` })
+  }
 
- const resetForm = () => { setForm(emptyForm()); setEditId(null); setIsEditing(false) }
+  const handleEdit = (item: KnowledgeItem) => {
+    setForm({
+      title: item.title, description: item.description || "", category: item.category as Category,
+      priority: item.priority as Priority, status: item.status as Status, source: item.source || "",
+      validation_notes: item.validation_notes || "", due_date: item.due_date || "", assigned_to: item.assigned_to || ""
+    })
+    setEditId(item.id)
+    setIsEditing(true)
+  }
 
- if (isLoading && items.length === 0) {
- return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-foreground" /></div>
- }
+  const resetForm = () => { setForm(emptyForm()); setEditId(null); setIsEditing(false) }
 
- return (
- <div className="space-y-6">
- {(!isOnline || pendingCount > 0) && (
- <div className={`flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg border ${
- !isOnline
- ? "bg-muted/50 border-border text-foreground"
- : "bg-muted/50 border-border text-foreground"
- }`}>
- <div className="flex items-center gap-2">
- {!isOnline ? (
- <>
- <WifiOff className="h-4 w-4 shrink-0" />
- <span className="text-sm font-medium">Offline Mode — Data is saved locally and will auto-sync when internet returns</span>
- </>
- ) : (
- <>
- <CloudOff className="h-4 w-4 shrink-0" />
- <span className="text-sm font-medium">{pendingCount} pending change{pendingCount > 1 ? "s" : ""} waiting to sync</span>
- </>
- )}
- </div>
- <div className="flex items-center gap-2">
- {pendingCount > 0 && (
- <Badge variant="outline" className="bg-white text-xs">{pendingCount} queued</Badge>
- )}
- {isOnline && pendingCount > 0 && (
- <Button variant="outline" size="sm" className="h-7 text-xs" onClick={forceSync} disabled={isSyncing}>
- <RefreshCw className={`h-3 w-3 mr-1 ${isSyncing ? "animate-spin" : ""}`} /> Sync Now
- </Button>
- )}
- </div>
- </div>
- )}
+  if (isLoading && items.length === 0) {
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-foreground" /></div>
+  }
 
- <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
- <div>
- <div className="flex items-center gap-2">
- <h2 className="text-2xl font-bold text-foreground">Knowledge Tracker</h2>
- <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${isOnline ? "bg-muted/50 text-foreground border-border" : "bg-muted/50 text-foreground border-border"}`}>
- {isOnline ? <><Wifi className="h-3 w-3 mr-0.5" />Online</> : <><WifiOff className="h-3 w-3 mr-0.5" />Offline</>}
- </Badge>
- </div>
- <p className="text-sm text-gray-500 mt-1">Track & validate system and market knowledge</p>
- </div>
- {!isEditing && (
- <Button onClick={() => { resetForm(); setIsEditing(true) }} className="bg-primary hover:bg-primary/90 text-white">
- <Plus className="h-4 w-4 mr-2" /> Add Knowledge Item
- </Button>
- )}
- </div>
+  return (
+    <div className="space-y-6">
+      {(!isOnline || pendingCount > 0) && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg border bg-muted/50 border-border text-foreground">
+          <div className="flex items-center gap-2">
+            {!isOnline ? (
+              <>
+                <WifiOff className="h-4 w-4 shrink-0" />
+                <span className="text-sm font-medium">Offline Mode — Data is saved locally and will auto-sync when internet returns</span>
+              </>
+            ) : (
+              <>
+                <CloudOff className="h-4 w-4 shrink-0" />
+                <span className="text-sm font-medium">{pendingCount} pending change{pendingCount > 1 ? "s" : ""} waiting to sync</span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {pendingCount > 0 && (
+              <Badge variant="outline" className="bg-white text-xs">{pendingCount} queued</Badge>
+            )}
+            {isOnline && pendingCount > 0 && (
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={forceSync} disabled={isSyncing}>
+                <RefreshCw className={`h-3 w-3 mr-1 ${isSyncing ? "animate-spin" : ""}`} /> Sync Now
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
- <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
- {[
- { label: "Total", value: stats.total, icon: BarChart3, bg: "bg-primary text-primary-foreground", text: "text-white", accent: "text-foreground" },
- { label: "Pending", value: stats.pending, icon: Circle, bg: "bg-white", text: "text-slate-800", accent: "text-slate-400" },
- { label: "In Progress", value: stats.inProgress, icon: Clock, bg: "bg-white", text: "text-foreground", accent: "text-foreground" },
- { label: "Validated", value: stats.validated, icon: CheckCircle2, bg: "bg-white", text: "text-foreground", accent: "text-foreground" },
- { label: "Critical", value: stats.critical, icon: AlertTriangle, bg: "bg-white", text: "text-red-700", accent: "text-red-400" },
- { label: "Overdue", value: stats.overdue, icon: AlertTriangle, bg: stats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-white", text: stats.overdue > 0 ? "text-red-800" : "text-gray-700", accent: "text-red-400" },
- ].map(s => (
- <Card key={s.label} className={`${s.bg} border `}>
- <CardContent className="p-3 flex items-center gap-3">
- <s.icon className={`h-5 w-5 ${s.accent} shrink-0`} />
- <div>
- <p className={`text-xl font-bold ${s.text}`}>{s.value}</p>
- <p className={`text-[11px] ${s.accent} font-medium`}>{s.label}</p>
- </div>
- </CardContent>
- </Card>
- ))}
- </div>
+      {/* Header & Access Control Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-2xl font-bold text-foreground">Knowledge Tracker</h2>
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${isOnline ? "bg-muted/50 text-foreground border-border" : "bg-muted/50 text-foreground border-border"}`}>
+              {isOnline ? <><Wifi className="h-3 w-3 mr-0.5" />Online</> : <><WifiOff className="h-3 w-3 mr-0.5" />Offline</>}
+            </Badge>
 
- {isEditing && (
- <Card className=" animate-in slide-in-from-top-2 duration-300">
- <CardHeader className="pb-3">
- <div className="flex justify-between items-center">
- <CardTitle className="text-foreground">{editId ? "Edit Item" : "New Knowledge Item"}</CardTitle>
- <Button variant="ghost" size="sm" onClick={resetForm}><X className="h-4 w-4" /></Button>
- </div>
- </CardHeader>
- <CardContent>
- <form onSubmit={handleSubmit} className="space-y-4">
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
- <div className="space-y-1.5">
- <label className="text-sm font-medium text-gray-700">Title *</label>
- <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="e.g. Competitor X launched new product line" />
- </div>
- <div className="space-y-1.5">
- <label className="text-sm font-medium text-gray-700">Source</label>
- <Input value={form.source} onChange={e => setForm({...form, source: e.target.value})} placeholder="e.g. Industry report, Internal audit" />
- </div>
- <div className="space-y-1.5">
- <label className="text-sm font-medium text-gray-700">Category</label>
- <Select value={form.category} onValueChange={v => setForm({...form, category: v as Category})}><SelectTrigger><SelectValue /></SelectTrigger>
- <SelectContent>{CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
- </Select>
- </div>
- <div className="space-y-1.5">
- <label className="text-sm font-medium text-gray-700">Priority</label>
- <Select value={form.priority} onValueChange={v => setForm({...form, priority: v as Priority})}><SelectTrigger><SelectValue /></SelectTrigger>
- <SelectContent>{PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
- </Select>
- </div>
- <div className="space-y-1.5">
- <label className="text-sm font-medium text-gray-700">Status</label>
- <Select value={form.status} onValueChange={v => setForm({...form, status: v as Status})}><SelectTrigger><SelectValue /></SelectTrigger>
- <SelectContent>{STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
- </Select>
- </div>
- <div className="space-y-1.5">
- <label className="text-sm font-medium text-gray-700">Due Date</label>
- <Input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} />
- </div>
- 
- {isExecutive && (
- <div className="space-y-1.5">
- <label className="text-sm font-medium">Assign To (Select Multiple)</label>
- <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-gray-50/50 max-h-40 overflow-y-auto">
- {[
- { label: 'CEO', email: 'ceo@biovaco.in' },
- { label: 'MD', email: 'md@biovaco.in' },
- ...interns.map(i => ({ label: `${i.name} (Intern)`, email: i.email }))
- ].map(opt => {
- const isSelected = (form.assigned_to || '').split(',').includes(opt.email);
- return (
- <Badge 
- key={opt.email} 
- variant={isSelected ? "default" : "outline"} 
- className={`cursor-pointer transition-colors ${isSelected ? 'bg-[#4B49AC] text-white hover:bg-[#3e3d93]' : 'hover:bg-gray-100 bg-white'}`}
- onClick={() => {
- let current = (form.assigned_to || '').split(',').filter(Boolean);
- if (current.includes(opt.email)) current = current.filter(e => e !== opt.email);
- else current.push(opt.email);
- setForm({...form, assigned_to: current.join(',')});
- }}
- >
- {opt.label}
- </Badge>
- );
- })}
- </div>
- </div>
- )}
- </div>
- <div className="space-y-1.5">
- <label className="text-sm font-medium text-gray-700">Description</label>
- <Textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Detailed description..." rows={3} />
- </div>
- <div className="space-y-1.5">
- <label className="text-sm font-medium text-gray-700">Validation Notes</label>
- <Textarea value={form.validation_notes} onChange={e => setForm({...form, validation_notes: e.target.value})} placeholder="How was this validated?..." rows={2} />
- </div>
- <div className="flex justify-end gap-2 pt-2">
- <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
- <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-white">
- {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
- {editId ? "Update" : "Create"}
- </Button>
- </div>
- </form>
- </CardContent>
- </Card>
- )}
+            {!isExecutive ? (
+              <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[11px] px-2 py-0.5 font-medium flex items-center gap-1">
+                <Lock className="h-3 w-3 text-emerald-600" />
+                Personal Tasks View ({userEmail?.split('@')[0]})
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 text-[11px] px-2 py-0.5 font-medium flex items-center gap-1">
+                <UserCheck className="h-3 w-3 text-blue-600" />
+                Executive Access (All Tasks)
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            {!isExecutive 
+              ? "Showing tasks assigned strictly to your account." 
+              : "Track, assign, and validate tasks across all organization members."}
+          </p>
+        </div>
 
- <Card className=""><CardContent className="p-3">
- <div className="flex flex-col sm:flex-row gap-3">
- <div className="relative flex-1">
- <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
- <Input className="pl-9" placeholder="Deep search... title, description, category, priority, assignee, date, notes" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
- </div>
- <Select value={filterCategory} onValueChange={setFilterCategory}>
- <SelectTrigger className="w-full sm:w-[150px]"><Filter className="h-3.5 w-3.5 mr-1.5 text-gray-400" /><SelectValue placeholder="Category" /></SelectTrigger>
- <SelectContent><SelectItem value="all">All Categories</SelectItem>{CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
- </Select>
- <Select value={filterStatus} onValueChange={setFilterStatus}>
- <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
- <SelectContent><SelectItem value="all">All Statuses</SelectItem>{STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
- </Select>
- <Select value={filterPriority} onValueChange={setFilterPriority}>
- <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Priority" /></SelectTrigger>
- <SelectContent><SelectItem value="all">All Priorities</SelectItem>{PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
- </Select>
- </div>
- </CardContent></Card>
+        {!isEditing && (
+          <Button onClick={() => { resetForm(); setIsEditing(true) }} className="bg-primary hover:bg-primary/90 text-white">
+            <Plus className="h-4 w-4 mr-2" /> Add Knowledge Item
+          </Button>
+        )}
+      </div>
 
- {filteredItems.length === 0 ? (
- <Card className=""><CardContent className="p-12 text-center">
- <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
- <p className="text-gray-500 font-medium">No knowledge items found</p>
- <p className="text-sm text-gray-400 mt-1">{items.length === 0 ? 'Click "Add Knowledge Item" to get started' : "Try adjusting your filters"}</p>
- </CardContent></Card>
- ) : (
- <div className="space-y-3">
- {filteredItems.map(item => {
- const cat = getCatMeta(item.category), pri = getPriMeta(item.priority), sta = getStaMeta(item.status)
- const StaIcon = sta.icon, CatIcon = cat.icon
- const isExpanded = expandedId === item.id
- const isOverdue = item.due_date && new Date(item.due_date) < new Date() && item.status !== "validated" && item.status !== "rejected"
- return (
- <Card key={item.id} className={`shadow-sm hover: ${isOverdue ? "" : item.priority === "critical" ? "" : item.priority === "high" ? "" : ""}`}>
- <CardContent className="p-4">
- <div className="flex items-start gap-3">
- <button onClick={() => handleStatusChange(item.id, item.status === "validated" ? "pending" : item.status === "pending" ? "in_progress" : "validated")}
- className="mt-0.5 shrink-0 transition-transform hover:scale-110" title="Toggle status">
- <StaIcon className={`h-5 w-5 ${item.status === "validated" ? "text-foreground" : item.status === "in_progress" ? "text-foreground" : item.status === "rejected" ? "text-red-400" : "text-gray-400"}`} />
- </button>
- <div className="flex-1 min-w-0">
- <div className="flex items-center gap-2 flex-wrap">
- <h3 className={`font-semibold text-gray-900 ${item.status === "validated" ? "line-through opacity-60" : ""}`}>{item.title}</h3>
- {isOverdue && <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px] px-1.5 py-0">OVERDUE</Badge>}
- </div>
- <div className="flex items-center gap-2 mt-1.5 flex-wrap">
- <Badge variant="outline" className={`${cat.color} text-[11px] px-1.5 py-0 border`}><CatIcon className="h-3 w-3 mr-1" />{cat.label}</Badge>
- <Badge variant="outline" className={`${pri.color} text-[11px] px-1.5 py-0 border`}>{pri.label}</Badge>
- <Badge variant="outline" className={`${sta.color} text-[11px] px-1.5 py-0`}>{sta.label}</Badge>
- {item.assigned_to && (
- <div className="flex flex-wrap gap-1 mt-1">
- {item.assigned_to.split(',').filter(Boolean).map(email => (
- <Badge key={email} variant="outline" className="bg-muted/50 text-foreground border-border text-[10px] px-1.5 py-0">
- <User className="h-3 w-3 mr-1" />
- {email.split('@')[0]}
- </Badge>
- ))}
- </div>
- )}
- {item.due_date && <span className="text-[11px] text-gray-400">Due: {item.due_date}</span>}
- {item.source && <span className="text-[11px] text-gray-400 hidden sm:inline">· {item.source}</span>}
- </div>
- </div>
- <div className="flex items-center gap-1 shrink-0">
- <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExpandedId(isExpanded ? null : item.id)}>
- {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
- </Button>
- <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
- <Edit className="h-4 w-4 text-foreground" />
- </Button>
- <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(item.id)}>
- <Trash2 className="h-4 w-4 text-red-500" />
- </Button>
- </div>
- </div>
- {isExpanded && (
- <div className="mt-4 pl-8 space-y-3 animate-in slide-in-from-top-1 duration-200">
- {item.description && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Description</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{item.description}</p></div>}
- {item.validation_notes && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Validation Notes</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{item.validation_notes}</p></div>}
- {item.source && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Source</p><p className="text-sm text-gray-700">{item.source}</p></div>}
- <div className="flex gap-4 text-[11px] text-gray-400 pt-1 border-t border-gray-100">
- <span>Created: {new Date(item.created_at).toLocaleDateString()}</span>
- <span>Updated: {new Date(item.updated_at).toLocaleDateString()}</span>
- </div>
- <div className="flex gap-2 pt-1">
- {STATUSES.map(s => (
- <Button key={s.value} variant={item.status === s.value ? "default" : "outline"} size="sm"
- className={`text-xs h-7 ${item.status === s.value ? "bg-primary text-primary-foreground" : ""}`}
- onClick={() => handleStatusChange(item.id, s.value)}>
- <s.icon className="h-3 w-3 mr-1" /> {s.label}
- </Button>
- ))}
- </div>
- </div>
- )}
- </CardContent>
- </Card>
- )
- })}
- </div>
- )}
+      {/* KPI Stats (Reflects accessible tasks for logged-in user) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[
+          { label: "Total Tasks", value: stats.total, icon: BarChart3, bg: "bg-primary text-primary-foreground", text: "text-white", accent: "text-foreground" },
+          { label: "Pending", value: stats.pending, icon: Circle, bg: "bg-white", text: "text-slate-800", accent: "text-slate-400" },
+          { label: "In Progress", value: stats.inProgress, icon: Clock, bg: "bg-white", text: "text-foreground", accent: "text-foreground" },
+          { label: "Validated", value: stats.validated, icon: CheckCircle2, bg: "bg-white", text: "text-foreground", accent: "text-foreground" },
+          { label: "Critical", value: stats.critical, icon: AlertTriangle, bg: "bg-white", text: "text-red-700", accent: "text-red-400" },
+          { label: "Overdue", value: stats.overdue, icon: AlertTriangle, bg: stats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-white", text: stats.overdue > 0 ? "text-red-800" : "text-gray-700", accent: "text-red-400" },
+        ].map(s => (
+          <Card key={s.label} className={`${s.bg} border`}>
+            <CardContent className="p-3 flex items-center gap-3">
+              <s.icon className={`h-5 w-5 ${s.accent} shrink-0`} />
+              <div>
+                <p className={`text-xl font-bold ${s.text}`}>{s.value}</p>
+                <p className={`text-[11px] ${s.accent} font-medium`}>{s.label}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
- {filteredItems.length > 0 && (
- <p className="text-xs text-gray-400 text-center">
- Showing {filteredItems.length} of {items.length} items · {stats.validated} validated ({items.length > 0 ? Math.round(stats.validated / items.length * 100) : 0}%)
- {pendingCount > 0 && <span className="text-foreground ml-2">· {pendingCount} pending sync</span>}
- </p>
- )}
- </div>
- )
+      {/* Form Drawer */}
+      {isEditing && (
+        <Card className="animate-in slide-in-from-top-2 duration-300">
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-foreground">{editId ? "Edit Item" : "New Knowledge Item"}</CardTitle>
+              <Button variant="ghost" size="sm" onClick={resetForm}><X className="h-4 w-4" /></Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-gray-700">Title *</label>
+                  <Input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="e.g. Competitor X launched new product line" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-gray-700">Source</label>
+                  <Input value={form.source} onChange={e => setForm({...form, source: e.target.value})} placeholder="e.g. Industry report, Internal audit" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-gray-700">Category</label>
+                  <Select value={form.category} onValueChange={v => setForm({...form, category: v as Category})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-gray-700">Priority</label>
+                  <Select value={form.priority} onValueChange={v => setForm({...form, priority: v as Priority})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-gray-700">Status</label>
+                  <Select value={form.status} onValueChange={v => setForm({...form, status: v as Status})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-gray-700">Due Date</label>
+                  <Input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} />
+                </div>
+                
+                {isExecutive && (
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-sm font-medium">Assign To (Select Multiple)</label>
+                    <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-gray-50/50 max-h-40 overflow-y-auto">
+                      {[
+                        { label: 'CEO', email: 'ceo@biovaco.in' },
+                        { label: 'MD', email: 'md@biovaco.in' },
+                        ...interns.map(i => ({ label: `${i.name} (Intern)`, email: i.email }))
+                      ].map(opt => {
+                        const isSelected = (form.assigned_to || '').split(',').includes(opt.email);
+                        return (
+                          <Badge 
+                            key={opt.email} 
+                            variant={isSelected ? "default" : "outline"} 
+                            className={`cursor-pointer transition-colors ${isSelected ? 'bg-[#4B49AC] text-white hover:bg-[#3e3d93]' : 'hover:bg-gray-100 bg-white'}`}
+                            onClick={() => {
+                              let current = (form.assigned_to || '').split(',').filter(Boolean);
+                              if (current.includes(opt.email)) current = current.filter(e => e !== opt.email);
+                              else current.push(opt.email);
+                              setForm({...form, assigned_to: current.join(',')});
+                            }}
+                          >
+                            {opt.label}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700">Description</label>
+                <Textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Detailed description..." rows={3} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700">Validation Notes</label>
+                <Textarea value={form.validation_notes} onChange={e => setForm({...form, validation_notes: e.target.value})} placeholder="How was this validated?..." rows={2} />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+                <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-white">
+                  {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+                  {editId ? "Update" : "Create"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Filter Controls Bar */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Deep Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input className="pl-9 text-sm" placeholder="Deep search title, description, notes..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            </div>
+
+            {/* Executive Assignee Filter Dropdown */}
+            {isExecutive && (
+              <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+                <SelectTrigger className="w-full sm:w-[170px] text-xs">
+                  <User className="h-3.5 w-3.5 mr-1.5 text-gray-400" />
+                  <SelectValue placeholder="All Assignees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assignees</SelectItem>
+                  <SelectItem value="mine">Assigned to Me</SelectItem>
+                  <SelectItem value="ceo@biovaco.in">CEO Tasks</SelectItem>
+                  <SelectItem value="md@biovaco.in">MD Tasks</SelectItem>
+                  {interns.map(i => (
+                    <SelectItem key={i.email} value={i.email}>{i.name} (Intern)</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Category Filter */}
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-full sm:w-[150px] text-xs"><Filter className="h-3.5 w-3.5 mr-1.5 text-gray-400" /><SelectValue placeholder="Category" /></SelectTrigger>
+              <SelectContent><SelectItem value="all">All Categories</SelectItem>{CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+            </Select>
+
+            {/* Status Filter */}
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-full sm:w-[150px] text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent><SelectItem value="all">All Statuses</SelectItem>{STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+            </Select>
+
+            {/* Priority Filter */}
+            <Select value={filterPriority} onValueChange={setFilterPriority}>
+              <SelectTrigger className="w-full sm:w-[150px] text-xs"><SelectValue placeholder="Priority" /></SelectTrigger>
+              <SelectContent><SelectItem value="all">All Priorities</SelectItem>{PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Task List */}
+      {filteredItems.length === 0 ? (
+        <Card><CardContent className="p-12 text-center">
+          <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500 font-medium">No knowledge items found</p>
+          <p className="text-sm text-gray-400 mt-1">
+            {!isExecutive 
+              ? "No tasks assigned to your email at the moment." 
+              : items.length === 0 ? 'Click "Add Knowledge Item" to get started' : "Try adjusting your filters"}
+          </p>
+        </CardContent></Card>
+      ) : (
+        <div className="space-y-3">
+          {filteredItems.map(item => {
+            const cat = getCatMeta(item.category), pri = getPriMeta(item.priority), sta = getStaMeta(item.status)
+            const StaIcon = sta.icon, CatIcon = cat.icon
+            const isExpanded = expandedId === item.id
+            const isOverdue = item.due_date && new Date(item.due_date) < new Date() && item.status !== "validated" && item.status !== "rejected"
+            return (
+              <Card key={item.id} className="shadow-sm hover:shadow-md transition-all border-gray-200/80">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <button 
+                      onClick={() => handleStatusChange(item.id, item.status === "validated" ? "pending" : item.status === "pending" ? "in_progress" : "validated")}
+                      className="mt-0.5 shrink-0 transition-transform hover:scale-110" 
+                      title="Toggle status"
+                    >
+                      <StaIcon className={`h-5 w-5 ${item.status === "validated" ? "text-foreground" : item.status === "in_progress" ? "text-foreground" : item.status === "rejected" ? "text-red-400" : "text-gray-400"}`} />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className={`font-semibold text-gray-900 ${item.status === "validated" ? "line-through opacity-60" : ""}`}>{item.title}</h3>
+                        {isOverdue && <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px] px-1.5 py-0">OVERDUE</Badge>}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <Badge variant="outline" className={`${cat.color} text-[11px] px-1.5 py-0 border`}><CatIcon className="h-3 w-3 mr-1" />{cat.label}</Badge>
+                        <Badge variant="outline" className={`${pri.color} text-[11px] px-1.5 py-0 border`}>{pri.label}</Badge>
+                        <Badge variant="outline" className={`${sta.color} text-[11px] px-1.5 py-0`}>{sta.label}</Badge>
+                        {item.assigned_to && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {item.assigned_to.split(',').filter(Boolean).map(email => (
+                              <Badge key={email} variant="outline" className="bg-muted/50 text-foreground border-border text-[10px] px-1.5 py-0">
+                                <User className="h-3 w-3 mr-1" />
+                                {email.split('@')[0]}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        {item.due_date && <span className="text-[11px] text-gray-400">Due: {item.due_date}</span>}
+                        {item.source && <span className="text-[11px] text-gray-400 hidden sm:inline">· {item.source}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExpandedId(isExpanded ? null : item.id)}>
+                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
+                        <Edit className="h-4 w-4 text-foreground" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(item.id)}>
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="mt-4 pl-8 space-y-3 animate-in slide-in-from-top-1 duration-200">
+                      {item.description && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Description</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{item.description}</p></div>}
+                      {item.validation_notes && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Validation Notes</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{item.validation_notes}</p></div>}
+                      {item.source && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Source</p><p className="text-sm text-gray-700">{item.source}</p></div>}
+                      <div className="flex gap-4 text-[11px] text-gray-400 pt-1 border-t border-gray-100">
+                        <span>Created: {new Date(item.created_at).toLocaleDateString()}</span>
+                        <span>Updated: {new Date(item.updated_at).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        {STATUSES.map(s => (
+                          <Button 
+                            key={s.value} 
+                            variant={item.status === s.value ? "default" : "outline"} 
+                            size="sm"
+                            className={`text-xs h-7 ${item.status === s.value ? "bg-primary text-primary-foreground" : ""}`}
+                            onClick={() => handleStatusChange(item.id, s.value)}
+                          >
+                            <s.icon className="h-3 w-3 mr-1" /> {s.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      {filteredItems.length > 0 && (
+        <p className="text-xs text-gray-400 text-center">
+          Showing {filteredItems.length} of {userAccessibleItems.length} accessible items · {stats.validated} validated
+          {pendingCount > 0 && <span className="text-foreground ml-2">· {pendingCount} pending sync</span>}
+        </p>
+      )}
+    </div>
+  )
 }

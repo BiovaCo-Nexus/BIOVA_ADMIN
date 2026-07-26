@@ -8,17 +8,28 @@ import AuthProtectedRoute from "@/components/AuthProtectedRoute"
 
 
 
-/** Root: if already authenticated → go to admin, else → silent blank */
+/** Root: if already authenticated → go to admin, else → auth page */
 const RootRedirect = () => {
  const [loading, setLoading] = useState(true);
  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
  useEffect(() => {
- supabase.auth.getSession().then(({ data: { session } }) => {
- if (session?.user && session.user.email?.endsWith('@biovaco.in')) {
- setIsAuthenticated(true);
- }
- setLoading(false);
+ supabase.auth.getSession().then(({ data: { session }, error }) => {
+  if (error) {
+   // Invalid/expired refresh token — clear stale auth data
+   console.warn('Root auth check failed:', error.message);
+   supabase.auth.signOut({ scope: 'local' });
+   setLoading(false);
+   return;
+  }
+  if (session?.user && session.user.email?.endsWith('@biovaco.in')) {
+  setIsAuthenticated(true);
+  }
+  setLoading(false);
+ }).catch((err) => {
+  console.warn('Root getSession threw:', err?.message || err);
+  supabase.auth.signOut({ scope: 'local' });
+  setLoading(false);
  });
  }, []);
 
