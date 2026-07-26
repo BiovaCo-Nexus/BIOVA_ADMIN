@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { 
   Bot, User, Send, Sparkles, Loader2, RefreshCw, Trash2, Download, 
   IndianRupee, Users, Package, AlertTriangle, Briefcase, CheckCircle2, ChevronRight,
-  TrendingUp, ShieldAlert, Cpu
+  TrendingUp, ShieldAlert, Cpu, Lock, ShieldCheck, FileText
 } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
@@ -26,15 +26,11 @@ interface AIBusinessAssistantProps {
 
 export function AIBusinessAssistant({ onNavigateToTab }: AIBusinessAssistantProps) {
   const { toast } = useToast();
-  
-  const [messages, setMessages] = useState<Message[]>([
-    { 
-      id: 'welcome',
-      role: 'ai', 
-      text: "👋 Hello! I am **BiovaCo Nexus AI Executive Assistant**, powered by real-time portal database intelligence and Gemini GenAI.\n\nI have live context of your entire organization: **Finances, HR Team, Job Applications, Inventory SKUs, R&D Lab Materials, Knowledge Tracker Tasks**, and **System Logs**.\n\nHow can I assist your leadership decisions today?",
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
+
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  const [isExecutive, setIsExecutive] = useState<boolean>(false);
+
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isFetchingDB, setIsFetchingDB] = useState(true);
@@ -96,7 +92,28 @@ export function AIBusinessAssistant({ onNavigateToTab }: AIBusinessAssistantProp
     scrollToBottom();
   }, [messages, isTyping]);
 
-  // ─── Fetch Full Portal Database Context ───
+  // ─── Fetch Current User Role & Initial Setup ───
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const email = (data.session?.user?.email || "").toLowerCase();
+      setCurrentUserEmail(email);
+      const execStatus = email === "ceo@biovaco.in" || email === "md@biovaco.in" || email === "admin@biovaco.in";
+      setIsExecutive(execStatus);
+
+      setMessages([
+        { 
+          id: 'welcome',
+          role: 'ai', 
+          text: execStatus 
+            ? "👋 Welcome Executive! I am **BiovaCo Nexus AI Assistant** with complete portal database access across Finances, HR, R&D Lab, Inventory, and System Governance.\n\nHow can I support your leadership decisions today?"
+            : `👋 Hello! I am **BiovaCo Nexus AI Assistant**.\n\nYou are logged in as **${email}**. Your access is role-filtered to your assigned tasks, department raw materials, inventory catalog, and company guidance. How can I help you today?`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    });
+  }, []);
+
+  // ─── Fetch Portal Database Context ───
   const fetchPortalContext = useCallback(async () => {
     setIsFetchingDB(true);
     try {
@@ -122,7 +139,7 @@ export function AIBusinessAssistant({ onNavigateToTab }: AIBusinessAssistantProp
       const deptList = deptRes.data || [];
       const rawMatList = rawMatRes.data || [];
 
-      // Calculations
+      // Financial Calculations
       const revFromExp = expList.filter(e => e.type === 'revenue' || e.category?.toLowerCase() === 'revenue').reduce((a, c) => a + (c.amount || 0), 0);
       const revFromInvc = invcList.reduce((a, c) => a + (c.total_amount || 0), 0);
       const revFromInc = incList.reduce((a, c) => a + (c.total_amount || c.amount || 0), 0);
@@ -174,19 +191,41 @@ export function AIBusinessAssistant({ onNavigateToTab }: AIBusinessAssistantProp
     fetchPortalContext();
   }, [fetchPortalContext]);
 
-  // ─── Local Fallback Query Engine (If API Key unavailable or offline) ───
-  const generateLocalFallbackAnswer = (userQuery: string): { response: string; tab?: string; label?: string } => {
+  // Filter tasks specific to logged-in user
+  const userAssignedTasks = useMemo(() => {
+    if (!currentUserEmail) return [];
+    if (isExecutive) return dbSnapshot.rawKnowledge;
+    const lowerEmail = currentUserEmail.toLowerCase();
+    return dbSnapshot.rawKnowledge.filter(k => 
+      (k.assigned_to && k.assigned_to.toLowerCase().includes(lowerEmail)) ||
+      (k.created_by && k.created_by.toLowerCase() === lowerEmail)
+    );
+  }, [dbSnapshot.rawKnowledge, currentUserEmail, isExecutive]);
+
+  // ─── Local Role-Aware Fallback Query Engine ───
+  const generateRoleAwareFallbackAnswer = (userQuery: string): { response: string; tab?: string; label?: string } => {
     const q = userQuery.toLowerCase();
 
-    if (q.includes('revenue') || q.includes('profit') || q.includes('finance') || q.includes('money') || q.includes('income')) {
+    // Restricted Financial Query check for Non-Executives
+    if (q.includes('revenue') || q.includes('profit') || q.includes('finance') || q.includes('money') || q.includes('income') || q.includes('expense') || q.includes('salary') || q.includes('bank')) {
+      if (!isExecutive) {
+        return {
+          response: `🔒 **Access Restricted:** Financial and executive performance metrics are strictly restricted to executive leadership (CEO/MD). You have access to your assigned tasks, department raw materials, and inventory catalogs.`
+        };
+      }
       return {
-        response: `📊 **Financial Status Breakdown:**\n\n• **Total Revenue Recorded:** ₹${dbSnapshot.revenue.toLocaleString('en-IN')}\n• **Total Expenses:** ₹${dbSnapshot.expenses.toLocaleString('en-IN')}\n• **Net Profit:** ₹${dbSnapshot.netProfit.toLocaleString('en-IN')}\n• **Pending Expense Approvals:** ${dbSnapshot.pendingExpenses}\n\nYour financial status is currently operating at a **${dbSnapshot.revenue > 0 ? ((dbSnapshot.netProfit / dbSnapshot.revenue) * 100).toFixed(1) : 0}% Gross Margin**.`,
+        response: `📊 **Financial Status Breakdown (Executive Scope):**\n\n• **Total Revenue Recorded:** ₹${dbSnapshot.revenue.toLocaleString('en-IN')}\n• **Total Expenses:** ₹${dbSnapshot.expenses.toLocaleString('en-IN')}\n• **Net Profit:** ₹${dbSnapshot.netProfit.toLocaleString('en-IN')}\n• **Pending Expense Approvals:** ${dbSnapshot.pendingExpenses}\n\nYour financial status is currently operating at a **${dbSnapshot.revenue > 0 ? ((dbSnapshot.netProfit / dbSnapshot.revenue) * 100).toFixed(1) : 0}% Gross Margin**.`,
         tab: 'business',
         label: 'Open Finance & Business Module'
       };
     }
 
-    if (q.includes('intern') || q.includes('staff') || q.includes('employee') || q.includes('team') || q.includes('hr')) {
+    if (q.includes('intern') || q.includes('staff') || q.includes('employee') || q.includes('team') || q.includes('hr') || q.includes('applicant')) {
+      if (!isExecutive) {
+        return {
+          response: `👥 **Team & Department Info:**\n\n• **Active Staff Members:** ${dbSnapshot.activeInterns}\n• **Company Departments:** ${dbSnapshot.departmentsCount}\n\nFor HR applicant details or recruitment management, please contact your department manager.`
+        };
+      }
       const sampleNames = dbSnapshot.rawInterns.slice(0, 5).map(i => `${i.name} (${i.role || 'Staff'})`).join(', ');
       return {
         response: `👥 **HR & Team Operations Summary:**\n\n• **Active Staff/Interns:** ${dbSnapshot.activeInterns} out of ${dbSnapshot.totalInterns} registered members\n• **New Job Applications:** ${dbSnapshot.pendingApplications} pending review\n• **Total Received Applications:** ${dbSnapshot.totalApplications}\n\n**Sample Members:** ${sampleNames || 'None registered yet'}`,
@@ -198,15 +237,30 @@ export function AIBusinessAssistant({ onNavigateToTab }: AIBusinessAssistantProp
     if (q.includes('stock') || q.includes('inventory') || q.includes('product') || q.includes('sku') || q.includes('reorder')) {
       const lowNames = dbSnapshot.lowStockSKUs.map(i => `${i.name} (${i.quantity} left)`).join(', ');
       return {
-        response: `📦 **Inventory & Stock Overview:**\n\n• **Total SKUs in Catalog:** ${dbSnapshot.totalInventorySKUs}\n• **Low Stock Warnings:** ${dbSnapshot.lowStockSKUs.length} items below minimum threshold\n\n${dbSnapshot.lowStockSKUs.length > 0 ? `⚠️ **Reorder Recommended For:** ${lowNames}` : '✅ All stock levels are currently healthy!'}`,
+        response: `📦 **Inventory Catalog Overview:**\n\n• **Total SKUs in Catalog:** ${dbSnapshot.totalInventorySKUs}\n• **Low Stock Alerts:** ${dbSnapshot.lowStockSKUs.length} items below minimum threshold\n\n${dbSnapshot.lowStockSKUs.length > 0 ? `⚠️ **Reorder Recommended For:** ${lowNames}` : '✅ All stock levels are currently healthy!'}`,
         tab: 'business',
-        label: 'Manage Inventory'
+        label: 'View Inventory Catalog'
       };
     }
 
-    if (q.includes('task') || q.includes('knowledge') || q.includes('critical') || q.includes('due') || q.includes('project')) {
+    if (q.includes('task') || q.includes('my work') || q.includes('assigned') || q.includes('todo') || q.includes('knowledge')) {
+      if (!isExecutive) {
+        if (userAssignedTasks.length === 0) {
+          return {
+            response: `📋 **Your Assigned Tasks:**\n\nYou currently have **0 pending tasks** explicitly assigned to ${currentUserEmail}.\n\nCheck back when your manager assigns new knowledge items or tasks!`,
+            tab: 'knowledge_tracker',
+            label: 'Open Knowledge Tracker'
+          };
+        }
+        const taskList = userAssignedTasks.slice(0, 5).map(t => `• **${t.title}** (Status: ${t.status || 'Pending'}, Priority: ${t.priority || 'Medium'})`).join('\n');
+        return {
+          response: `📋 **Your Assigned Tasks (${userAssignedTasks.length}):**\n\n${taskList}\n\nAll tasks outside your scope are hidden for privacy.`,
+          tab: 'knowledge_tracker',
+          label: 'Manage My Assigned Tasks'
+        };
+      }
       return {
-        response: `📋 **Knowledge Tracker & Task Status:**\n\n• **Total Registered Tasks:** ${dbSnapshot.knowledgeTotal}\n• **Validated Tasks:** ${dbSnapshot.knowledgeValidated}\n• **Critical Pending Alerts:** ${dbSnapshot.knowledgeCritical.length}\n\n${dbSnapshot.knowledgeCritical.length > 0 ? `🔥 **Critical Tasks:** ${dbSnapshot.knowledgeCritical.map(c => c.title).join(', ')}` : '✅ No critical overdue task alerts found.'}`,
+        response: `📋 **Company Knowledge Tracker Overview:**\n\n• **Total Registered Tasks:** ${dbSnapshot.knowledgeTotal}\n• **Validated Tasks:** ${dbSnapshot.knowledgeValidated}\n• **Critical Pending Alerts:** ${dbSnapshot.knowledgeCritical.length}\n\n${dbSnapshot.knowledgeCritical.length > 0 ? `🔥 **Critical Tasks:** ${dbSnapshot.knowledgeCritical.map(c => c.title).join(', ')}` : '✅ No critical overdue task alerts found.'}`,
         tab: 'knowledge_tracker',
         label: 'Open Knowledge Tracker'
       };
@@ -221,17 +275,20 @@ export function AIBusinessAssistant({ onNavigateToTab }: AIBusinessAssistantProp
     }
 
     return {
-      response: `💡 **BiovaCo Nexus System Snapshot:**\n\n• **Revenue:** ₹${dbSnapshot.revenue.toLocaleString('en-IN')}\n• **Active Staff:** ${dbSnapshot.activeInterns}\n• **Inventory SKUs:** ${dbSnapshot.totalInventorySKUs} (${dbSnapshot.lowStockSKUs.length} Low Stock)\n• **Tasks & R&D:** ${dbSnapshot.knowledgeTotal} items (${dbSnapshot.knowledgeCritical.length} Critical)\n\nAsk me specific questions about your finances, hiring pipeline, inventory stock, or pending tasks!`
+      response: `💡 **BiovaCo Nexus System Assistant:**\n\n` +
+        (isExecutive 
+          ? `• **Revenue:** ₹${dbSnapshot.revenue.toLocaleString('en-IN')}\n• **Active Staff:** ${dbSnapshot.activeInterns}\n• **Inventory SKUs:** ${dbSnapshot.totalInventorySKUs}\n• **Tasks & R&D:** ${dbSnapshot.knowledgeTotal} items\n\nAsk me specific questions about your executive finances, hiring pipeline, stock levels, or task governance!`
+          : `• **Assigned Tasks:** ${userAssignedTasks.length} items\n• **Inventory Catalog:** ${dbSnapshot.totalInventorySKUs} SKUs\n• **R&D Materials:** ${dbSnapshot.rdRawMaterialsCount} items\n\nAsk me about your assigned tasks, raw materials, or catalog stock!`)
     };
   };
 
-  // ─── Call OpenRouter AI (Gemini 2.5 Flash) with Live DB System Context ───
+  // ─── Process User Query ───
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
-    
+
     const userText = input.trim();
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
+
     const userMsg: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -245,34 +302,42 @@ export function AIBusinessAssistant({ onNavigateToTab }: AIBusinessAssistantProp
 
     const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
 
-    // Prepare System Prompt with live DB Context
-    const systemPrompt = `
-You are BiovaCo Nexus AI Business Assistant, an executive AI co-pilot for BiovaCo.
-You have real-time access to the entire company database across Finance, HR, Inventory, Knowledge Tracker, R&D Lab, and Departments.
+    // Build Role-Restricted System Prompt
+    const systemPrompt = isExecutive 
+      ? `
+You are BiovaCo Nexus AI Assistant, an executive AI co-pilot for BiovaCo leadership.
+User: ${currentUserEmail} (Role: CEO/MD/Executive).
 
-LIVE DATABASE CONTEXT (Current Snapshot):
-- Finance: Total Revenue: ₹${dbSnapshot.revenue}, Total Expenses: ₹${dbSnapshot.expenses}, Net Profit: ₹${dbSnapshot.netProfit}, Pending Claims: ${dbSnapshot.pendingExpenses}
-- HR & Team: Active Staff/Interns: ${dbSnapshot.activeInterns} (Total: ${dbSnapshot.totalInterns}), Pending Job Applications: ${dbSnapshot.pendingApplications} (Total: ${dbSnapshot.totalApplications})
-- Inventory: Total SKUs: ${dbSnapshot.totalInventorySKUs}, Low Stock SKUs: ${dbSnapshot.lowStockSKUs.length} (${JSON.stringify(dbSnapshot.lowStockSKUs.map(i => ({ name: i.name, qty: i.quantity, min: i.min_stock })))})
-- Knowledge Tracker & Tasks: Total Items: ${dbSnapshot.knowledgeTotal}, Validated: ${dbSnapshot.knowledgeValidated}, Critical Alerts: ${dbSnapshot.knowledgeCritical.length} (${JSON.stringify(dbSnapshot.knowledgeCritical.map(c => c.title))})
-- R&D Raw Materials: ${dbSnapshot.rdRawMaterialsCount} cataloged items
-- Departments Count: ${dbSnapshot.departmentsCount}
+FULL EXECUTIVE DATABASE CONTEXT:
+- Finance: Total Revenue: ₹${dbSnapshot.revenue}, Total Expenses: ₹${dbSnapshot.expenses}, Net Profit: ₹${dbSnapshot.netProfit}, Pending Expense Claims: ${dbSnapshot.pendingExpenses}
+- HR: Active Staff: ${dbSnapshot.activeInterns} (Total: ${dbSnapshot.totalInterns}), Pending Job Applications: ${dbSnapshot.pendingApplications}
+- Inventory: Total SKUs: ${dbSnapshot.totalInventorySKUs}, Low Stock SKUs: ${dbSnapshot.lowStockSKUs.length} (${JSON.stringify(dbSnapshot.lowStockSKUs.map(i => ({ name: i.name, qty: i.quantity })))})
+- Tasks & Governance: Total Items: ${dbSnapshot.knowledgeTotal}, Validated: ${dbSnapshot.knowledgeValidated}, Critical Alerts: ${dbSnapshot.knowledgeCritical.length} (${JSON.stringify(dbSnapshot.knowledgeCritical.map(c => c.title))})
+- R&D Materials: ${dbSnapshot.rdRawMaterialsCount} items cataloged
 
 INSTRUCTIONS:
-1. Provide concise, executive-grade, highly structured responses.
-2. Use markdown formatting like bolding, bullet points, numbers, and clean headings.
-3. Be professional, accurate, and directly address the user's question using the live database numbers.
-4. If appropriate, recommend actionable executive decisions based on the data.
+Provide structured, concise, executive-level insights with bold headers and clear bullet points.
+`
+      : `
+You are BiovaCo Nexus AI Assistant.
+User: ${currentUserEmail} (Role: Staff / Team Member).
+
+ROLE-BASED RESTRICTIONS (STRICT SECURITY ENFORCEMENT):
+1. User is a standard team member, NOT an executive director.
+2. STRICT RULE: DO NOT disclose company revenue, net profit, total financial budget, executive salaries, or bank balances.
+3. If the user asks about revenue, profit, finances, or salary, reply with:
+   "🔒 Access Restricted: Financial and executive performance metrics are strictly restricted to executive leadership (CEO/MD). You have access to your assigned tasks, department raw materials, and inventory catalogs."
+4. User's Assigned Tasks (${userAssignedTasks.length} items): ${JSON.stringify(userAssignedTasks.map(t => ({ title: t.title, status: t.status, due: t.due_date })))}
+5. Catalog Inventory (${dbSnapshot.totalInventorySKUs} SKUs) and R&D Raw Materials (${dbSnapshot.rdRawMaterialsCount} items) are accessible for operational queries.
 `;
 
     if (!apiKey) {
-      // Use smart local analyzer if no API key is present
       setTimeout(() => {
-        const local = generateLocalFallbackAnswer(userText);
+        const local = generateRoleAwareFallbackAnswer(userText);
         setMessages(prev => [...prev, {
           id: `ai-${Date.now()}`,
           role: 'ai',
-          text: `${local.response}\n\n*(Note: Set VITE_OPENROUTER_API_KEY in .env for full conversational GenAI abilities)*`,
+          text: local.response,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           actionTab: local.tab,
           actionLabel: local.label
@@ -303,29 +368,26 @@ INSTRUCTIONS:
       });
 
       if (!response.ok) {
-        throw new Error(`OpenRouter Error: ${response.status} ${response.statusText}`);
+        throw new Error(`API Response Status: ${response.status}`);
       }
 
       const data = await response.json();
-      const aiReply = data.choices[0]?.message?.content || "I've processed your query.";
+      const aiReply = data.choices[0]?.message?.content || "I've processed your request.";
 
-      // Determine navigation action if user query aligns with specific tabs
+      // Determine navigation suggestion
       let suggestedTab: string | undefined = undefined;
       let suggestedLabel: string | undefined = undefined;
       const lowerQ = userText.toLowerCase();
 
-      if (lowerQ.includes('finance') || lowerQ.includes('expense') || lowerQ.includes('revenue')) {
+      if (isExecutive && (lowerQ.includes('finance') || lowerQ.includes('expense') || lowerQ.includes('revenue'))) {
         suggestedTab = 'business';
         suggestedLabel = 'Open Financial Overview';
-      } else if (lowerQ.includes('intern') || lowerQ.includes('applicant') || lowerQ.includes('hire')) {
-        suggestedTab = 'interns';
-        suggestedLabel = 'Open HR Management';
+      } else if (lowerQ.includes('task') || lowerQ.includes('assigned') || lowerQ.includes('work')) {
+        suggestedTab = 'knowledge_tracker';
+        suggestedLabel = 'Open Knowledge Tracker';
       } else if (lowerQ.includes('inventory') || lowerQ.includes('stock')) {
         suggestedTab = 'business';
         suggestedLabel = 'View Inventory Catalog';
-      } else if (lowerQ.includes('task') || lowerQ.includes('tracker')) {
-        suggestedTab = 'knowledge_tracker';
-        suggestedLabel = 'Open Knowledge Tracker';
       } else if (lowerQ.includes('raw material') || lowerQ.includes('r&d')) {
         suggestedTab = 'raw_materials';
         suggestedLabel = 'Open R&D Library';
@@ -340,9 +402,9 @@ INSTRUCTIONS:
         actionLabel: suggestedLabel
       }]);
 
-    } catch (err: any) {
-      console.warn("OpenRouter fetch failed, using smart DB fallback:", err);
-      const local = generateLocalFallbackAnswer(userText);
+    } catch (err) {
+      console.warn("Using smart role-aware fallback:", err);
+      const local = generateRoleAwareFallbackAnswer(userText);
       setMessages(prev => [...prev, {
         id: `ai-${Date.now()}`,
         role: 'ai',
@@ -360,7 +422,7 @@ INSTRUCTIONS:
     setMessages([{ 
       id: 'welcome',
       role: 'ai', 
-      text: "Chat history cleared. I am ready for your next query based on live portal data!",
+      text: "Chat history reset. How can I assist you with your portal data?",
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }]);
   };
@@ -374,7 +436,7 @@ INSTRUCTIONS:
     a.download = `BiovaCo_AI_Assistant_Log_${new Date().toISOString().slice(0,10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: "Chat Log Exported", description: "Saved AI conversation text log." });
+    toast({ title: "Log Exported", description: "Saved AI chat text log." });
   };
 
   const formatINR = (val: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
@@ -383,18 +445,31 @@ INSTRUCTIONS:
     <div className="max-w-6xl mx-auto h-[82vh] flex flex-col pb-4 animate-in fade-in slide-in-from-bottom-4 duration-500 font-sans">
       
       {/* ────────────────────────
-          HEADER & LIVE DB STATUS BAR
+          HEADER & ROLE ACCESS BADGE
       ──────────────────────── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-[#4B49AC] to-[#7DA0FA] text-white shadow-md">
-              <Bot className="h-6 w-6" />
-            </div>
-            AI Business Assistant & Portal Copilot
-          </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Connected to OpenRouter (Gemini GenAI) & Live Portal Database
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-[#4B49AC] to-[#7DA0FA] text-white shadow-md">
+                <Bot className="h-6 w-6" />
+              </div>
+              AI Business Assistant & Portal Copilot
+            </h2>
+            <Badge variant="outline" className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+              isExecutive 
+                ? 'bg-purple-50 text-purple-700 border-purple-300' 
+                : 'bg-blue-50 text-blue-700 border-blue-300'
+            }`}>
+              {isExecutive ? (
+                <><Lock className="h-3 w-3 mr-1 inline" /> Executive Mode</>
+              ) : (
+                <><ShieldCheck className="h-3 w-3 mr-1 inline" /> Role-Filtered Access</>
+              )}
+            </Badge>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Powered by BiovaCo Enterprise Intelligence & Live Portal Context
           </p>
         </div>
 
@@ -409,7 +484,7 @@ INSTRUCTIONS:
             title="Sync Latest Database Snapshot"
           >
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isFetchingDB ? 'animate-spin text-[#4B49AC]' : 'text-gray-500'}`} />
-            {isFetchingDB ? 'Syncing DB...' : 'Sync Data'}
+            {isFetchingDB ? 'Syncing...' : 'Sync Data'}
           </Button>
           <Button 
             variant="outline" 
@@ -430,27 +505,50 @@ INSTRUCTIONS:
         </div>
       </div>
 
-      {/* Live DB Quick Metrics Bar */}
+      {/* Live DB Quick Metrics Bar (Role-Filtered) */}
       <div className="bg-white border border-gray-200 rounded-xl p-2.5 mb-4 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-100 text-emerald-700">
-          <IndianRupee className="h-3.5 w-3.5" />
-          <span className="font-bold">Rev: {formatINR(dbSnapshot.revenue)}</span>
-        </div>
-        <div className="flex items-center gap-2 px-2 py-1 bg-purple-50 rounded-lg border border-purple-100 text-purple-700">
-          <Users className="h-3.5 w-3.5" />
-          <span className="font-bold">Team: {dbSnapshot.activeInterns} Active</span>
-        </div>
-        <div className={`flex items-center gap-2 px-2 py-1 rounded-lg border ${dbSnapshot.lowStockSKUs.length > 0 ? 'bg-amber-50 border-amber-200 text-amber-800 font-bold animate-pulse' : 'bg-teal-50 border-teal-100 text-teal-700 font-semibold'}`}>
-          <Package className="h-3.5 w-3.5" />
-          <span>SKUs: {dbSnapshot.totalInventorySKUs} ({dbSnapshot.lowStockSKUs.length} Low)</span>
-        </div>
-        <div className={`flex items-center gap-2 px-2 py-1 rounded-lg border ${dbSnapshot.knowledgeCritical.length > 0 ? 'bg-red-50 border-red-200 text-red-700 font-bold' : 'bg-blue-50 border-blue-100 text-blue-700 font-semibold'}`}>
-          <Briefcase className="h-3.5 w-3.5" />
-          <span>Tasks: {dbSnapshot.knowledgeTotal} ({dbSnapshot.knowledgeCritical.length} Critical)</span>
-        </div>
+        {isExecutive ? (
+          <>
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-50 rounded-lg border border-emerald-100 text-emerald-700 font-bold">
+              <IndianRupee className="h-3.5 w-3.5" />
+              <span>Rev: {formatINR(dbSnapshot.revenue)}</span>
+            </div>
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-purple-50 rounded-lg border border-purple-100 text-purple-700 font-bold">
+              <Users className="h-3.5 w-3.5" />
+              <span>Team: {dbSnapshot.activeInterns} Active</span>
+            </div>
+            <div className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border ${dbSnapshot.lowStockSKUs.length > 0 ? 'bg-amber-50 border-amber-200 text-amber-800 font-bold' : 'bg-teal-50 border-teal-100 text-teal-700 font-semibold'}`}>
+              <Package className="h-3.5 w-3.5" />
+              <span>SKUs: {dbSnapshot.totalInventorySKUs} ({dbSnapshot.lowStockSKUs.length} Low)</span>
+            </div>
+            <div className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border ${dbSnapshot.knowledgeCritical.length > 0 ? 'bg-red-50 border-red-200 text-red-700 font-bold' : 'bg-blue-50 border-blue-100 text-blue-700 font-semibold'}`}>
+              <Briefcase className="h-3.5 w-3.5" />
+              <span>Tasks: {dbSnapshot.knowledgeTotal} ({dbSnapshot.knowledgeCritical.length} Critical)</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-indigo-50 rounded-lg border border-indigo-100 text-indigo-700 font-bold">
+              <Briefcase className="h-3.5 w-3.5" />
+              <span>My Assigned Tasks: {userAssignedTasks.length}</span>
+            </div>
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-teal-50 rounded-lg border border-teal-100 text-teal-700 font-semibold">
+              <Package className="h-3.5 w-3.5" />
+              <span>Catalog SKUs: {dbSnapshot.totalInventorySKUs}</span>
+            </div>
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-100 text-amber-800 font-semibold">
+              <Package className="h-3.5 w-3.5" />
+              <span>R&D Materials: {dbSnapshot.rdRawMaterialsCount} Items</span>
+            </div>
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-purple-50 rounded-lg border border-purple-100 text-purple-700 font-semibold">
+              <Users className="h-3.5 w-3.5" />
+              <span>Departments: {dbSnapshot.departmentsCount}</span>
+            </div>
+          </>
+        )}
         <div className="flex items-center gap-1.5 text-[11px] text-gray-400 font-medium ml-auto">
-          <Cpu className="h-3.5 w-3.5 text-[#4B49AC]" />
-          Gemini 2.5 Flash Live
+          <ShieldCheck className="h-3.5 w-3.5 text-[#4B49AC]" />
+          DB Verified
         </div>
       </div>
 
@@ -507,7 +605,7 @@ INSTRUCTIONS:
               </div>
               <div className="p-3.5 bg-white border border-gray-200 shadow-xs rounded-2xl rounded-tl-xs flex items-center gap-2.5 text-xs text-gray-500 font-medium">
                 <Loader2 className="h-4 w-4 animate-spin text-[#4B49AC]" /> 
-                Consulting OpenRouter GenAI & Database context...
+                Processing live database context...
               </div>
             </div>
           )}
@@ -515,14 +613,14 @@ INSTRUCTIONS:
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Bar & Prompt Chips */}
+        {/* Input Bar & Role-Based Prompt Chips */}
         <div className="p-4 bg-white border-t border-gray-100 space-y-3">
           <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200 focus-within:border-[#4B49AC] focus-within:ring-1 focus-within:ring-[#4B49AC] transition-all">
             <Input 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask anything about finances, active interns, low stock SKUs, or pending tasks..."
+              placeholder={isExecutive ? "Ask about finances, team, inventory SKUs, or pending tasks..." : "Ask about your assigned tasks, R&D materials, or catalog inventory..."}
               className="border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm"
               disabled={isTyping}
             />
@@ -535,43 +633,71 @@ INSTRUCTIONS:
             </Button>
           </div>
 
-          {/* Quick Prompt Chips */}
+          {/* Role-Specific Quick Prompt Chips */}
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide text-xs">
-            <Badge 
-              variant="outline" 
-              className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
-              onClick={() => { setInput("Give me an executive summary of current revenue, expenses, and net profit."); }}
-            >
-              📊 Financial Summary
-            </Badge>
-            <Badge 
-              variant="outline" 
-              className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
-              onClick={() => { setInput("What is our current HR team count and pending job application pipeline?"); }}
-            >
-              👥 HR & Hiring Pipeline
-            </Badge>
-            <Badge 
-              variant="outline" 
-              className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
-              onClick={() => { setInput("List all low stock inventory SKUs and reorder recommendations."); }}
-            >
-              ⚠️ Low Stock SKUs
-            </Badge>
-            <Badge 
-              variant="outline" 
-              className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
-              onClick={() => { setInput("What critical or overdue tasks in Knowledge Tracker require immediate executive attention?"); }}
-            >
-              🔥 Critical Tasks
-            </Badge>
-            <Badge 
-              variant="outline" 
-              className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
-              onClick={() => { setInput("Summarize our R&D Lab raw material inventory catalog size."); }}
-            >
-              🧪 R&D Materials
-            </Badge>
+            {isExecutive ? (
+              <>
+                <Badge 
+                  variant="outline" 
+                  className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
+                  onClick={() => { setInput("Give me an executive financial summary of current revenue, expenses, and net profit."); }}
+                >
+                  📊 Financial Summary
+                </Badge>
+                <Badge 
+                  variant="outline" 
+                  className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
+                  onClick={() => { setInput("What is our current HR team count and pending job application pipeline?"); }}
+                >
+                  👥 HR & Hiring Pipeline
+                </Badge>
+                <Badge 
+                  variant="outline" 
+                  className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
+                  onClick={() => { setInput("List all low stock inventory SKUs and reorder recommendations."); }}
+                >
+                  ⚠️ Low Stock SKUs
+                </Badge>
+                <Badge 
+                  variant="outline" 
+                  className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
+                  onClick={() => { setInput("What critical or overdue tasks in Knowledge Tracker require immediate executive attention?"); }}
+                >
+                  🔥 Critical Tasks
+                </Badge>
+              </>
+            ) : (
+              <>
+                <Badge 
+                  variant="outline" 
+                  className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
+                  onClick={() => { setInput("List all my assigned tasks and pending work items."); }}
+                >
+                  📋 My Assigned Tasks
+                </Badge>
+                <Badge 
+                  variant="outline" 
+                  className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
+                  onClick={() => { setInput("Summarize our R&D Lab raw material inventory catalog."); }}
+                >
+                  🧪 R&D Materials Catalog
+                </Badge>
+                <Badge 
+                  variant="outline" 
+                  className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
+                  onClick={() => { setInput("Check available catalog inventory items."); }}
+                >
+                  📦 Available SKUs
+                </Badge>
+                <Badge 
+                  variant="outline" 
+                  className="cursor-pointer hover:bg-gray-100 whitespace-nowrap text-xs text-gray-600 font-medium border-gray-200 py-1"
+                  onClick={() => { setInput("List company departments and team structure."); }}
+                >
+                  🏢 Departments Overview
+                </Badge>
+              </>
+            )}
           </div>
         </div>
 
