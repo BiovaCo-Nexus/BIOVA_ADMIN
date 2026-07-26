@@ -1043,7 +1043,7 @@ const Admin = () => {
                 {activeTab === "dashboard" && <UniversalDashboard onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "my_work" && <MyWork onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "notifications" && <Notifications onNavigateToTab={handleNavigateToTab} />}
-                {activeTab === "ai_business_assistant" && <AIBusinessAssistant />}
+                {activeTab === "ai_business_assistant" && <AIBusinessAssistant onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "global_search" && <GlobalSearch onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "ceo_dashboard" && <CEODashboard onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "md_dashboard" && <MDDashboard onNavigateToTab={handleNavigateToTab} />}
