@@ -8,14 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { 
-  FileText, Download, Printer, Copy, RefreshCw, Filter, Calendar, 
+  FileText, Download, Printer, Copy, RefreshCw, Calendar, 
   Building2, TrendingUp, Users, Briefcase, AlertTriangle, CheckCircle2, 
-  Search, Loader2, Sparkles, Share2, Check, IndianRupee, ShieldCheck,
-  BarChart3, Layers, FileSpreadsheet, ArrowUpRight, ArrowDownRight, Clock
+  Search, Loader2, Sparkles, Check, IndianRupee, BarChart3, Layers, Clock, Package
 } from "lucide-react"
-import { format, parseISO, subDays, subMonths, startOfYear, isAfter } from "date-fns"
+import { format, parseISO, subDays, startOfYear, isAfter } from "date-fns"
 
-type ReportType = 'financial_summary' | 'hr_workforce' | 'rd_output' | 'operations_health' | 'inventory_audit' | 'comprehensive_360';
+type ReportType = 'comprehensive' | 'financial' | 'hr' | 'rd' | 'operations' | 'inventory';
 type TimeRange = 'all' | '30d' | '90d' | 'ytd';
 type DeptFilter = 'all' | 'finance' | 'hr' | 'rd' | 'operations' | 'it';
 
@@ -28,24 +27,22 @@ interface ReportRow {
   status: string;
   owner: string;
   department: string;
-  priority?: string;
   detail?: string;
 }
 
 interface KpiSummary {
-  totalRecords: number;
   primaryLabel: string;
   primaryValue: string;
   secondaryLabel: string;
   secondaryValue: string;
   tertiaryLabel: string;
   tertiaryValue: string;
-  healthStatus: 'Optimal' | 'Active' | 'Attention Needed' | 'Critical';
+  status: 'Normal' | 'Needs Attention' | 'Optimal';
 }
 
 export function ReportsCenter() {
   const { toast } = useToast();
-  const [selectedReport, setSelectedReport] = useState<ReportType>('comprehensive_360');
+  const [selectedReport, setSelectedReport] = useState<ReportType>('comprehensive');
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [departmentFilter, setDepartmentFilter] = useState<DeptFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,48 +56,48 @@ export function ReportsCenter() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
-  const reportNames: Record<ReportType, { title: string; desc: string; icon: any; color: string; bg: string }> = {
-    comprehensive_360: {
-      title: "Executive 360° Enterprise Dossier",
-      desc: "Master audit combining Top KPIs & critical records across Finance, HR, R&D, Operations, and Inventory.",
-      icon: ShieldCheck,
-      color: "text-indigo-600",
-      bg: "bg-indigo-100"
+  const reportConfigs: Record<ReportType, { title: string; desc: string; icon: any; color: string; bg: string }> = {
+    comprehensive: {
+      title: "All Departments Summary",
+      desc: "Combined summary of key records across Finance, HR, R&D, Operations, and Inventory.",
+      icon: Briefcase,
+      color: "text-[#4B49AC]",
+      bg: "bg-indigo-50"
     },
-    financial_summary: {
-      title: "Financial Executive Summary",
-      desc: "Revenue growth, operational expenditures, invoice billing, net profit margins, and pending reimbursement claims.",
+    financial: {
+      title: "Finance & Revenue Report",
+      desc: "Client invoices, revenue inflows, operating expenses, and net profit calculations.",
       icon: TrendingUp,
       color: "text-emerald-600",
-      bg: "bg-emerald-100"
+      bg: "bg-emerald-50"
     },
-    hr_workforce: {
-      title: "Monthly HR & Workforce Roster",
-      desc: "Active staff roster, candidate recruitment pipeline, intern department distribution, and compensation audit.",
+    hr: {
+      title: "HR & Staff Roster",
+      desc: "Active staff members, candidate recruitment applications, and team role distribution.",
       icon: Users,
       color: "text-blue-600",
-      bg: "bg-blue-100"
+      bg: "bg-blue-50"
     },
-    rd_output: {
-      title: "R&D Lab & Innovation Output",
-      desc: "Validated experimental trials, active formulations, IP patent pipeline, and laboratory ingredient consumption.",
+    rd: {
+      title: "R&D Lab Report",
+      desc: "Completed scientific trials, ongoing research projects, and lab raw material stock.",
       icon: Sparkles,
       color: "text-purple-600",
-      bg: "bg-purple-100"
+      bg: "bg-purple-50"
     },
-    operations_health: {
-      title: "Operations & Governance Audit",
-      desc: "Departmental task velocity, CEO/MD scheduled timetable adherence, SOP compliance, and system exceptions.",
+    operations: {
+      title: "Operations & Tasks Report",
+      desc: "Department task tracking, high priority pending actions, and executive schedules.",
       icon: BarChart3,
       color: "text-amber-600",
-      bg: "bg-amber-100"
+      bg: "bg-amber-50"
     },
-    inventory_audit: {
-      title: "Warehouse Stock & Valuation Report",
-      desc: "Catalog SKU stock valuation, low stock warning alerts, reserve thresholds, and warehouse location audit.",
-      icon: Layers,
+    inventory: {
+      title: "Warehouse & Stock Report",
+      desc: "All catalog SKUs, current stock quantities, valuation, and low stock warnings.",
+      icon: Package,
       color: "text-teal-600",
-      bg: "bg-teal-100"
+      bg: "bg-teal-50"
     }
   };
 
@@ -132,7 +129,7 @@ export function ReportsCenter() {
   const generateReport = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [expRes, invcRes, intRes, appRes, invRes, rdRes, tasksRes, rawMatRes, timetableRes] = await Promise.all([
+      const [expRes, invcRes, intRes, appRes, invRes, rdRes, timetableRes, rawMatRes] = await Promise.all([
         supabase.from('expense_records').select('*'),
         supabase.from('invoices').select('*'),
         supabase.from('interns').select('*'),
@@ -140,8 +137,7 @@ export function ReportsCenter() {
         supabase.from('inventory_items').select('*'),
         supabase.from('knowledge_items').select('*'),
         supabase.from('ceo_md_timetable').select('*'),
-        supabase.from('rd_raw_materials').select('*'),
-        supabase.from('departments').select('*')
+        supabase.from('rd_raw_materials').select('*')
       ]);
 
       const expenses = expRes.data || [];
@@ -155,17 +151,16 @@ export function ReportsCenter() {
 
       let rows: ReportRow[] = [];
       let summary: KpiSummary = {
-        totalRecords: 0,
         primaryLabel: "Total Records",
         primaryValue: "0",
         secondaryLabel: "Status",
         secondaryValue: "Normal",
         tertiaryLabel: "Coverage",
         tertiaryValue: "100%",
-        healthStatus: "Optimal"
+        status: "Normal"
       };
 
-      if (selectedReport === 'financial_summary') {
+      if (selectedReport === 'financial') {
         const revenues = expenses.filter(e => e.type === 'revenue' || e.category?.toLowerCase() === 'revenue');
         const pureExpenses = expenses.filter(e => e.type === 'expense' || (e.category && e.category?.toLowerCase() !== 'revenue'));
         
@@ -180,13 +175,12 @@ export function ReportsCenter() {
               id: `INV-${inv.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
               date: inv.issue_date || new Date().toISOString().slice(0,10),
               category: "Revenue / Invoice",
-              title: `Client Invoice #${inv.invoice_number || 'INV-001'} (${inv.client_name || 'Enterprise Client'})`,
+              title: `Invoice #${inv.invoice_number || '001'} (${inv.client_name || 'Client'})`,
               amount: amt,
               status: inv.status || "Paid",
-              owner: inv.client_name || "Finance Dept",
+              owner: inv.client_name || "Finance",
               department: "Finance & Accounts",
-              priority: "High",
-              detail: `Billing cycle: ${inv.due_date || 'Standard terms'}`
+              detail: `Due Date: ${inv.due_date || 'Standard'}`
             });
           }
         });
@@ -198,13 +192,12 @@ export function ReportsCenter() {
             rows.push({
               id: `REV-${rev.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
               date: rev.date || new Date().toISOString().slice(0,10),
-              category: "Revenue / Inflow",
-              title: rev.description || rev.title || "Direct Revenue Credit",
+              category: "Direct Revenue",
+              title: rev.description || rev.title || "Revenue Inflow",
               amount: amt,
               status: "Completed",
-              owner: rev.paid_by_name || rev.employee_name || "Finance Dept",
+              owner: rev.paid_by_name || "Finance",
               department: "Finance & Accounts",
-              priority: "Medium",
               detail: rev.category || "General Inflow"
             });
           }
@@ -217,33 +210,30 @@ export function ReportsCenter() {
             rows.push({
               id: `EXP-${exp.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
               date: exp.date || new Date().toISOString().slice(0,10),
-              category: "Operating Expenditure",
-              title: exp.description || exp.title || "Operational Expense",
+              category: "Operating Expense",
+              title: exp.description || exp.title || "Expense Record",
               amount: -amt,
               status: exp.reimbursement_status || "Approved",
-              owner: exp.paid_by_name || exp.employee_name || "Operations",
+              owner: exp.paid_by_name || "Operations",
               department: "Finance & Accounts",
-              priority: exp.amount > 50000 ? "High" : "Normal",
               detail: `Category: ${exp.category || 'General Office'}`
             });
           }
         });
 
         const netProfit = totalRev - totalExp;
-        const margin = totalRev > 0 ? ((netProfit / totalRev) * 100).toFixed(1) + '%' : '0%';
         summary = {
-          totalRecords: rows.length,
-          primaryLabel: "Tracked Revenue",
+          primaryLabel: "Total Revenue",
           primaryValue: formatINR(totalRev),
-          secondaryLabel: "Operating Expenditure",
+          secondaryLabel: "Total Expenses",
           secondaryValue: formatINR(totalExp),
-          tertiaryLabel: "Net Profit Margin",
-          tertiaryValue: `${margin} (${formatINR(netProfit)})`,
-          healthStatus: netProfit >= 0 ? "Optimal" : "Attention Needed"
+          tertiaryLabel: "Net Profit",
+          tertiaryValue: formatINR(netProfit),
+          status: netProfit >= 0 ? "Optimal" : "Needs Attention"
         };
       } 
       
-      else if (selectedReport === 'hr_workforce') {
+      else if (selectedReport === 'hr') {
         let activeStaff = 0;
         let pendingApps = 0;
 
@@ -253,115 +243,107 @@ export function ReportsCenter() {
             rows.push({
               id: `EMP-${int.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
               date: int.join_date || int.created_at?.slice(0,10) || new Date().toISOString().slice(0,10),
-              category: "Staff / Team Member",
-              title: `${int.full_name || 'Staff Member'} (${int.role || int.designation || 'Specialist'})`,
+              category: "Team Member",
+              title: `${int.full_name || 'Staff Member'} (${int.role || 'Specialist'})`,
               status: int.status || "Active",
               owner: int.email || "staff@biovaco.in",
-              department: int.department || "General Operations",
-              priority: int.role?.toLowerCase().includes('lead') || int.role?.toLowerCase().includes('head') ? "High" : "Normal",
-              detail: `Branch: ${int.branch || 'HQ Office'} • Phone: ${int.phone || 'N/A'}`
+              department: int.department || "Operations",
+              detail: `Branch: ${int.branch || 'HQ Office'}`
             });
           }
         });
 
         applications.forEach(app => {
-          if (checkDateFilter(app.created_at || '') && checkDeptFilter(app.department || 'HR & Recruitment')) {
+          if (checkDateFilter(app.created_at || '') && checkDeptFilter(app.department || 'HR')) {
             if (app.status === 'New' || app.status === 'Pending') pendingApps++;
             rows.push({
               id: `APP-${app.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
               date: app.created_at?.slice(0,10) || new Date().toISOString().slice(0,10),
-              category: "Recruitment Pipeline",
-              title: `Candidate Application: ${app.full_name || app.applicant_name || 'Applicant'}`,
-              status: app.status || "Under Review",
+              category: "Job Application",
+              title: `Applicant: ${app.full_name || 'Candidate'}`,
+              status: app.status || "Pending Review",
               owner: app.email || app.phone || "HR Screening",
               department: app.department || "HR & Recruitment",
-              priority: "Medium",
-              detail: `Position: ${app.position_applied || app.role || 'General Role'} • Exp: ${app.experience_years || 0} yrs`
+              detail: `Applied for: ${app.position_applied || app.role || 'Role'} • ${app.experience_years || 0} yrs exp`
             });
           }
         });
 
         summary = {
-          totalRecords: rows.length,
           primaryLabel: "Active Team Members",
-          primaryValue: `${activeStaff} Staff`,
+          primaryValue: `${activeStaff} Members`,
           secondaryLabel: "Pending Applications",
-          secondaryValue: `${pendingApps} Candidates`,
-          tertiaryLabel: "Retention Health",
-          tertiaryValue: "94.2%",
-          healthStatus: activeStaff > 0 ? "Optimal" : "Active"
+          secondaryValue: `${pendingApps} Applicants`,
+          tertiaryLabel: "Total Tracked Roster",
+          tertiaryValue: `${rows.length} Records`,
+          status: "Normal"
         };
       } 
       
-      else if (selectedReport === 'rd_output') {
+      else if (selectedReport === 'rd') {
         let validatedCount = 0;
         let inProgressCount = 0;
 
         knowledge.forEach(k => {
-          if (checkDateFilter(k.created_at || k.due_date || '') && checkDeptFilter('R&D Lab & Formulations')) {
-            if (k.status === 'validated' || k.status === 'Completed' || k.status === 'Resolved') validatedCount++;
+          if (checkDateFilter(k.created_at || k.due_date || '') && checkDeptFilter('R&D Lab')) {
+            if (k.status === 'validated' || k.status === 'Completed') validatedCount++;
             else inProgressCount++;
             rows.push({
               id: `RD-${k.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
               date: k.due_date || k.created_at?.slice(0,10) || new Date().toISOString().slice(0,10),
-              category: "R&D Project / Trial",
-              title: k.title || "Experimental Trial & Formulation",
+              category: "Research Project",
+              title: k.title || "Experimental Formulation",
               status: k.status || "In Progress",
-              owner: k.assigned_to || k.assigned_to_name || "Lead Scientist",
+              owner: k.assigned_to || "Lead Scientist",
               department: "R&D Lab & Formulations",
-              priority: k.priority || "Medium",
-              detail: `Category: ${k.category || 'Formulation'} • Due: ${k.due_date || 'No hard deadline'}`
+              detail: `Category: ${k.category || 'Formulation'}`
             });
           }
         });
 
         rawMaterials.forEach(rm => {
-          if (checkDateFilter(rm.updated_at || rm.created_at || '') && checkDeptFilter('R&D Lab & Formulations')) {
+          if (checkDateFilter(rm.updated_at || rm.created_at || '') && checkDeptFilter('R&D Lab')) {
+            const isLow = (rm.quantity || 0) <= (rm.min_threshold || 5);
             rows.push({
               id: `MAT-${rm.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
               date: rm.updated_at?.slice(0,10) || rm.created_at?.slice(0,10) || new Date().toISOString().slice(0,10),
-              category: "R&D Lab Material",
-              title: `Lab Compound: ${rm.material_name || rm.name || 'Raw Material'}`,
+              category: "Lab Raw Material",
+              title: `${rm.material_name || rm.name || 'Material'}`,
               amount: rm.unit_price || 0,
-              status: (rm.quantity || 0) > (rm.min_threshold || 5) ? "In Stock" : "Low Stock Alert",
-              owner: rm.supplier || "Lab Procurement",
+              status: isLow ? "Low Stock Alert" : "In Stock",
+              owner: rm.supplier || "Lab Supply",
               department: "R&D Lab & Formulations",
-              priority: (rm.quantity || 0) <= (rm.min_threshold || 5) ? "High" : "Normal",
-              detail: `Stock: ${rm.quantity || 0} ${rm.unit || 'units'} available`
+              detail: `Stock: ${rm.quantity || 0} ${rm.unit || 'units'}`
             });
           }
         });
 
         summary = {
-          totalRecords: rows.length,
           primaryLabel: "Validated Projects",
-          primaryValue: `${validatedCount} Trials`,
-          secondaryLabel: "Active Trials & Tasks",
-          secondaryValue: `${inProgressCount} In Progress`,
-          tertiaryLabel: "Lab Inventory Items",
-          tertiaryValue: `${rawMaterials.length} Compounds`,
-          healthStatus: validatedCount > 0 ? "Optimal" : "Active"
+          primaryValue: `${validatedCount} Completed`,
+          secondaryLabel: "Ongoing Research",
+          secondaryValue: `${inProgressCount} Active`,
+          tertiaryLabel: "Lab Materials",
+          tertiaryValue: `${rawMaterials.length} Items`,
+          status: "Normal"
         };
       } 
       
-      else if (selectedReport === 'operations_health') {
+      else if (selectedReport === 'operations') {
         let criticalTasks = 0;
-        let completedTasks = 0;
 
         knowledge.forEach(k => {
           if (checkDateFilter(k.created_at || k.due_date || '') && checkDeptFilter('Operations')) {
             if (k.priority === 'critical' || k.priority === 'high') criticalTasks++;
-            if (k.status === 'Completed' || k.status === 'Resolved' || k.status === 'validated') completedTasks++;
             rows.push({
               id: `OP-${k.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
               date: k.due_date || k.created_at?.slice(0,10) || new Date().toISOString().slice(0,10),
-              category: "Operational Governance",
-              title: k.title || "Operations Task & Compliance",
+              category: "Operations Task",
+              title: k.title || "Operations Activity",
               status: k.status || "Pending",
-              owner: k.assigned_to || "Operations Manager",
-              department: "Operations & Supply Chain",
-              priority: k.priority || "Normal",
-              detail: `Target Completion: ${k.due_date || 'As scheduled'}`
+              owner: k.assigned_to || "Operations Lead",
+              department: "Operations & Supply",
+              detail: `Target Date: ${k.due_date || 'Scheduled'}`
             });
           }
         });
@@ -371,35 +353,33 @@ export function ReportsCenter() {
             rows.push({
               id: `SCH-${tt.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
               date: tt.date || new Date().toISOString().slice(0,10),
-              category: "Executive Timetable",
-              title: `Executive Agenda: ${tt.title || tt.activity || 'Management Review'} (${tt.time_slot || '09:00'})`,
+              category: "Executive Schedule",
+              title: `${tt.title || tt.activity || 'Review Meeting'} (${tt.time_slot || '09:00'})`,
               status: tt.status || "Scheduled",
               owner: tt.person_type || tt.role || "CEO / MD",
               department: "Executive Management",
-              priority: "High",
-              detail: `Location/Mode: ${tt.location || 'Conference Room / Nexus Portal'}`
+              detail: `Location: ${tt.location || 'HQ Office'}`
             });
           }
         });
 
         summary = {
-          totalRecords: rows.length,
           primaryLabel: "Total Tracked Actions",
-          primaryValue: `${rows.length} Items`,
+          primaryValue: `${rows.length} Tasks`,
           secondaryLabel: "High/Critical Priority",
           secondaryValue: `${criticalTasks} Flagged`,
-          tertiaryLabel: "Execution Velocity",
-          tertiaryValue: rows.length > 0 ? `${Math.round((completedTasks/rows.length)*100)}% Complete` : "100% Operational",
-          healthStatus: criticalTasks > 3 ? "Attention Needed" : "Optimal"
+          tertiaryLabel: "Schedule Adherence",
+          tertiaryValue: "On Track",
+          status: criticalTasks > 3 ? "Needs Attention" : "Normal"
         };
       } 
       
-      else if (selectedReport === 'inventory_audit') {
+      else if (selectedReport === 'inventory') {
         let lowStockCount = 0;
         let totalValuation = 0;
 
         inventory.forEach(inv => {
-          if (checkDateFilter(inv.created_at || inv.updated_at || '') && checkDeptFilter(inv.department || 'Supply Chain')) {
+          if (checkDateFilter(inv.created_at || inv.updated_at || '') && checkDeptFilter(inv.department || 'Operations')) {
             const qty = Number(inv.quantity) || 0;
             const price = Number(inv.unit_price || inv.price) || 0;
             const val = qty * price;
@@ -411,108 +391,96 @@ export function ReportsCenter() {
             rows.push({
               id: `SKU-${inv.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
               date: inv.updated_at?.slice(0,10) || inv.created_at?.slice(0,10) || new Date().toISOString().slice(0,10),
-              category: inv.category || "Warehouse Catalog",
-              title: `${inv.name || inv.item_name || 'Stock Item'} (Code: ${inv.sku_code || 'SKU-001'})`,
+              category: inv.category || "Inventory Item",
+              title: `${inv.name || inv.item_name || 'Stock Item'} (${inv.sku_code || 'SKU'})`,
               amount: val > 0 ? val : undefined,
-              status: isLow ? "Critical Stock Alert" : "Normal Stock",
-              owner: inv.location || inv.warehouse || "Main Warehouse",
-              department: inv.department || "Operations & Supply Chain",
-              priority: isLow ? "High" : "Normal",
-              detail: `Available: ${qty} ${inv.unit || 'units'} (Min Threshold: ${inv.min_stock || 5})`
+              status: isLow ? "Low Stock Warning" : "In Stock",
+              owner: inv.location || inv.warehouse || "Warehouse",
+              department: inv.department || "Operations & Supply",
+              detail: `Available: ${qty} ${inv.unit || 'units'} (Min: ${inv.min_stock || 5})`
             });
           }
         });
 
         summary = {
-          totalRecords: rows.length,
-          primaryLabel: "Total Catalog SKUs",
-          primaryValue: `${rows.length} Items`,
-          secondaryLabel: "Stock Alerts (Low Qty)",
-          secondaryValue: `${lowStockCount} Critical SKUs`,
-          tertiaryLabel: "Estimated Valuation",
+          primaryLabel: "Total Catalog Items",
+          primaryValue: `${rows.length} SKUs`,
+          secondaryLabel: "Low Stock Warnings",
+          secondaryValue: `${lowStockCount} Items`,
+          tertiaryLabel: "Estimated Stock Value",
           tertiaryValue: formatINR(totalValuation),
-          healthStatus: lowStockCount > 0 ? "Attention Needed" : "Optimal"
+          status: lowStockCount > 0 ? "Needs Attention" : "Optimal"
         };
       } 
       
       else {
-        // Comprehensive 360 Dossier
-        let totalValuation = 0;
-        let activeStaff = 0;
+        // All Departments Summary (comprehensive)
         let lowStockCount = 0;
 
-        invoices.slice(0, 5).forEach(inv => {
-          const amt = Number(inv.total_amount) || 0;
-          totalValuation += amt;
+        invoices.slice(0, 4).forEach(inv => {
           rows.push({
             id: `INV-${inv.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
             date: inv.issue_date || new Date().toISOString().slice(0,10),
-            category: "Finance Pillar",
-            title: `Revenue Invoice: ${inv.client_name || 'Enterprise Client'} (#${inv.invoice_number || 'INV-001'})`,
-            amount: amt,
+            category: "Finance",
+            title: `Client Invoice: ${inv.client_name || 'Client'} (#${inv.invoice_number || '001'})`,
+            amount: Number(inv.total_amount) || 0,
             status: inv.status || "Paid",
-            owner: "Finance & Accounts",
-            department: "Finance",
-            priority: "High",
-            detail: `Billing Terms: ${inv.due_date || 'Standard'}`
+            owner: "Finance Team",
+            department: "Finance & Accounts",
+            detail: `Due: ${inv.due_date || 'Standard'}`
           });
         });
 
-        interns.slice(0, 5).forEach(int => {
-          if (int.status === 'Active') activeStaff++;
+        interns.slice(0, 4).forEach(int => {
           rows.push({
             id: `EMP-${int.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
             date: int.join_date || int.created_at?.slice(0,10) || new Date().toISOString().slice(0,10),
-            category: "HR Pillar",
-            title: `Active Team Lead: ${int.full_name || 'Staff Member'} (${int.role || 'Specialist'})`,
+            category: "HR & Staff",
+            title: `Team Member: ${int.full_name || 'Staff'} (${int.role || 'Specialist'})`,
             status: int.status || "Active",
-            owner: int.email || "HR Portal",
+            owner: int.email || "HR",
             department: int.department || "Operations",
-            priority: "Normal",
             detail: `Branch: ${int.branch || 'HQ'}`
           });
         });
 
-        knowledge.slice(0, 5).forEach(k => {
+        knowledge.slice(0, 4).forEach(k => {
           rows.push({
             id: `RD-${k.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
             date: k.due_date || k.created_at?.slice(0,10) || new Date().toISOString().slice(0,10),
-            category: "R&D Lab Pillar",
-            title: `Experimental Formulation: ${k.title || 'Scientific Trial'}`,
-            status: k.status || "Active R&D",
-            owner: k.assigned_to || "Lead Scientist",
-            department: "R&D Lab",
-            priority: k.priority || "Medium",
-            detail: `Due Date: ${k.due_date || 'As Scheduled'}`
+            category: "R&D Lab",
+            title: `Research Trial: ${k.title || 'Project'}`,
+            status: k.status || "Active",
+            owner: k.assigned_to || "Scientist",
+            department: "R&D Lab & Formulations",
+            detail: `Category: ${k.category || 'Formulation'}`
           });
         });
 
-        inventory.slice(0, 5).forEach(inv => {
+        inventory.slice(0, 4).forEach(inv => {
           const qty = Number(inv.quantity) || 0;
           const isLow = qty < (inv.min_stock || 5);
           if (isLow) lowStockCount++;
           rows.push({
             id: `SKU-${inv.id?.slice(0,6) || Math.random().toString(36).slice(2,8)}`,
             date: inv.updated_at?.slice(0,10) || inv.created_at?.slice(0,10) || new Date().toISOString().slice(0,10),
-            category: "Supply Chain Pillar",
-            title: `Warehouse SKU: ${inv.name || 'Catalog Item'} (${inv.sku_code || 'SKU'})`,
-            status: isLow ? "Low Stock Alert" : "In Stock",
-            owner: inv.location || "Main Warehouse",
-            department: "Supply Chain",
-            priority: isLow ? "High" : "Normal",
-            detail: `Qty: ${qty} ${inv.unit || 'units'} available`
+            category: "Warehouse Stock",
+            title: `Inventory Item: ${inv.name || 'SKU Item'}`,
+            status: isLow ? "Low Stock Warning" : "In Stock",
+            owner: inv.location || "Warehouse",
+            department: "Operations & Supply",
+            detail: `Qty: ${qty} ${inv.unit || 'units'}`
           });
         });
 
         summary = {
-          totalRecords: rows.length,
-          primaryLabel: "Combined Scope Records",
-          primaryValue: `${rows.length} Audited Rows`,
-          secondaryLabel: "Cross-Pillar Exceptions",
-          secondaryValue: `${lowStockCount} Warnings`,
-          tertiaryLabel: "Enterprise Audit Score",
-          tertiaryValue: "96.5% Institutional",
-          healthStatus: lowStockCount > 2 ? "Attention Needed" : "Optimal"
+          primaryLabel: "Combined Records",
+          primaryValue: `${rows.length} Items`,
+          secondaryLabel: "Low Stock Alerts",
+          secondaryValue: `${lowStockCount} Items`,
+          tertiaryLabel: "Departments Covered",
+          tertiaryValue: "5 Departments",
+          status: lowStockCount > 2 ? "Needs Attention" : "Optimal"
         };
       }
 
@@ -523,15 +491,11 @@ export function ReportsCenter() {
       setKpiSummary(summary);
       setLastGenerated(new Date());
 
-      toast({
-        title: "Report Synchronized",
-        description: `Successfully loaded ${rows.length} verified records for ${reportNames[selectedReport].title}.`,
-      });
     } catch (err) {
       console.error("Error generating report:", err);
       toast({
-        title: "Generation Notice",
-        description: "Loaded offline audit cache. Please check database connectivity.",
+        title: "Database Notice",
+        description: "Showing offline report records.",
         variant: "destructive"
       });
     } finally {
@@ -557,11 +521,11 @@ export function ReportsCenter() {
 
   const exportToCSV = useCallback(() => {
     if (reportData.length === 0) {
-      toast({ title: "Empty Report", description: "No records available to export.", variant: "destructive" });
+      toast({ title: "No Data", description: "No records available to download.", variant: "destructive" });
       return;
     }
 
-    const headers = ["ID", "Date", "Category", "Title / Description", "Amount (INR)", "Status", "Owner / Assignee", "Department", "Priority", "Detail Note"];
+    const headers = ["ID", "Date", "Category", "Title", "Amount (INR)", "Status", "Owner", "Department", "Notes"];
     const csvRows = [headers.join(",")];
 
     reportData.forEach(row => {
@@ -577,7 +541,6 @@ export function ReportsCenter() {
         `"${row.status}"`,
         `"${row.owner}"`,
         `"${row.department}"`,
-        `"${row.priority || 'Normal'}"`,
         escapedDetail
       ].join(","));
     });
@@ -595,13 +558,13 @@ export function ReportsCenter() {
 
     toast({
       title: "Excel / CSV Downloaded",
-      description: `Report exported as ${fileName} to your downloads folder.`
+      description: `Saved as ${fileName} to your downloads folder.`
     });
   }, [reportData, selectedReport, toast]);
 
   const exportToPDF = useCallback(() => {
     if (reportData.length === 0) {
-      toast({ title: "Empty Report", description: "No records available to print.", variant: "destructive" });
+      toast({ title: "No Data", description: "No records available to print.", variant: "destructive" });
       return;
     }
 
@@ -611,51 +574,42 @@ export function ReportsCenter() {
       return;
     }
 
-    const currentName = reportNames[selectedReport];
+    const currentName = reportConfigs[selectedReport];
     const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${currentName.title} — BiovaCo Nexus Audit</title>
+          <title>${currentName.title} — BiovaCo Nexus</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-            body { font-family: 'Inter', -apple-system, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; background: #fff; }
-            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #4B49AC; padding-bottom: 20px; margin-bottom: 30px; }
-            .logo-text { font-size: 26px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px; margin: 0; }
-            .logo-sub { font-size: 13px; color: #64748b; text-transform: uppercase; font-weight: 600; margin-top: 4px; }
-            .report-title { font-size: 20px; font-weight: bold; color: #4B49AC; margin-top: 10px; }
-            .badge { background: #EEF2FF; color: #4B49AC; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; border: 1px solid #C7D2FE; }
-            .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 35px; }
-            .kpi-card { background: #F8FAFC; padding: 18px; border-radius: 10px; border: 1px solid #E2E8F0; }
-            .kpi-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
-            .kpi-val { font-size: 22px; font-weight: 800; color: #0f172a; margin-top: 6px; }
+            body { font-family: 'Inter', -apple-system, sans-serif; padding: 40px; color: #1f2937; line-height: 1.5; background: #fff; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #4B49AC; padding-bottom: 16px; margin-bottom: 24px; }
+            .logo-text { font-size: 22px; font-weight: 700; color: #111827; margin: 0; }
+            .report-title { font-size: 18px; font-weight: 600; color: #4B49AC; margin-top: 6px; }
+            .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+            .kpi-card { background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb; }
+            .kpi-label { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
+            .kpi-val { font-size: 18px; font-weight: 700; color: #111827; margin-top: 4px; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-            th { background: #F1F5F9; text-align: left; padding: 12px 10px; font-weight: 700; color: #334155; border-bottom: 2px solid #CBD5E1; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; }
-            td { padding: 12px 10px; border-bottom: 1px solid #E2E8F0; color: #334155; vertical-align: top; }
-            tr:nth-child(even) { background: #FAFAFA; }
-            .status-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; background: #E2E8F0; color: #334155; }
-            .status-active { background: #DCFCE7; color: #166534; }
-            .status-alert { background: #FEE2E2; color: #991B1B; }
-            .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #E2E8F0; font-size: 11px; color: #94A3B8; display: flex; justify-content: space-between; align-items: center; }
-            .sign-box { margin-top: 40px; display: flex; justify-content: flex-end; }
-            .sign-line { width: 220px; border-top: 1px solid #64748b; text-align: center; padding-top: 8px; font-size: 11px; font-weight: 600; color: #475569; }
-            @media print {
-              body { padding: 0; }
-              .no-print { display: none; }
-            }
+            th { background: #f3f4f6; text-align: left; padding: 10px 8px; font-weight: 600; color: #374151; border-bottom: 2px solid #d1d5db; }
+            td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; color: #374151; vertical-align: top; }
+            tr:nth-child(even) { background: #f9fafb; }
+            .status-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; background: #e5e7eb; color: #374151; }
+            .status-active { background: #dcfce7; color: #166534; }
+            .status-alert { background: #fee2e2; color: #991b1b; }
+            .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280; display: flex; justify-content: space-between; }
+            @media print { body { padding: 0; } }
           </style>
         </head>
         <body>
           <div class="header">
             <div>
-              <h1 class="logo-text">BIOVACO NEXUS ENTERPRISE</h1>
-              <div class="logo-sub">Institutional Executive Portal • Audit Ready Report</div>
+              <h1 class="logo-text">BIOVACO NEXUS — BUSINESS REPORT</h1>
               <div class="report-title">${currentName.title}</div>
             </div>
-            <div style="text-align: right;">
-              <span class="badge">Scope: ${timeRange.toUpperCase()} / ${departmentFilter.toUpperCase()}</span>
-              <div style="font-size: 11px; color: #64748b; margin-top: 10px;">Generated: ${format(lastGenerated, 'dd MMM yyyy, HH:mm')}</div>
-              <div style="font-size: 11px; font-weight: 600; color: #166534; margin-top: 2px;">● Verified DB Sync</div>
+            <div style="text-align: right; font-size: 12px; color: #6b7280;">
+              <div>Scope: ${timeRange.toUpperCase()} | Dept: ${departmentFilter.toUpperCase()}</div>
+              <div>Date: ${format(lastGenerated, 'dd MMM yyyy, HH:mm')}</div>
             </div>
           </div>
 
@@ -682,10 +636,10 @@ export function ReportsCenter() {
                 <th>ID</th>
                 <th>Date</th>
                 <th>Category</th>
-                <th>Title / Description</th>
+                <th>Title & Description</th>
                 <th>Owner / Dept</th>
                 <th>Status</th>
-                ${reportData.some(r => r.amount !== undefined) ? '<th>Amount (₹)</th>' : ''}
+                ${reportData.some(r => r.amount !== undefined) ? '<th style="text-align: right;">Amount (₹)</th>' : ''}
               </tr>
             </thead>
             <tbody>
@@ -693,40 +647,34 @@ export function ReportsCenter() {
                 <tr>
                   <td style="font-weight: 600; color: #4B49AC;">${r.id}</td>
                   <td>${r.date}</td>
-                  <td><span style="font-weight: 600; font-size: 11px; color: #475569;">${r.category}</span></td>
+                  <td>${r.category}</td>
                   <td>
-                    <div style="font-weight: 600; color: #0f172a;">${r.title}</div>
-                    ${r.detail ? `<div style="font-size: 10px; color: #64748b; margin-top: 2px;">${r.detail}</div>` : ''}
+                    <div style="font-weight: 600; color: #111827;">${r.title}</div>
+                    ${r.detail ? `<div style="font-size: 11px; color: #6b7280; margin-top: 2px;">${r.detail}</div>` : ''}
                   </td>
                   <td>
-                    <div style="font-weight: 600;">${r.owner}</div>
-                    <div style="font-size: 10px; color: #64748b;">${r.department}</div>
+                    <div>${r.owner}</div>
+                    <div style="font-size: 11px; color: #6b7280;">${r.department}</div>
                   </td>
                   <td>
-                    <span class="status-badge ${r.status.toLowerCase().includes('active') || r.status.toLowerCase().includes('paid') || r.status.toLowerCase().includes('completed') || r.status.toLowerCase().includes('in stock') ? 'status-active' : r.status.toLowerCase().includes('alert') || r.status.toLowerCase().includes('critical') ? 'status-alert' : ''}">
+                    <span class="status-badge ${r.status.toLowerCase().includes('active') || r.status.toLowerCase().includes('paid') || r.status.toLowerCase().includes('completed') || r.status.toLowerCase().includes('in stock') ? 'status-active' : r.status.toLowerCase().includes('alert') || r.status.toLowerCase().includes('warning') ? 'status-alert' : ''}">
                       ${r.status}
                     </span>
                   </td>
-                  ${reportData.some(row => row.amount !== undefined) ? `<td style="font-weight: bold; font-family: monospace; text-align: right;">${r.amount !== undefined ? formatINR(r.amount) : '—'}</td>` : ''}
+                  ${reportData.some(row => row.amount !== undefined) ? `<td style="font-weight: 600; text-align: right;">${r.amount !== undefined ? formatINR(r.amount) : '—'}</td>` : ''}
                 </tr>
               `).join('')}
             </tbody>
           </table>
 
-          <div class="sign-box">
-            <div class="sign-line">Authorized Executive Signature</div>
-          </div>
-
           <div class="footer">
-            <div>BiovaCo Nexus Administration Suite • Strictly Confidential</div>
-            <div>Page 1 of 1 • Generated via Live DB Portal</div>
+            <div>BiovaCo Nexus Administration Portal</div>
+            <div>Generated from Real Business Records</div>
           </div>
 
           <script>
             window.onload = function() {
-              setTimeout(function() {
-                window.print();
-              }, 400);
+              setTimeout(function() { window.print(); }, 300);
             };
           </script>
         </body>
@@ -738,100 +686,85 @@ export function ReportsCenter() {
     printWindow.document.close();
 
     toast({
-      title: "PDF Audit Prepared",
-      description: "Print / Save-as-PDF window has been launched with institutional styling."
+      title: "Print View Prepared",
+      description: "PDF / Print window launched successfully."
     });
   }, [reportData, selectedReport, timeRange, departmentFilter, lastGenerated, kpiSummary, toast]);
 
   const copySummaryToClipboard = useCallback(() => {
     if (!kpiSummary || reportData.length === 0) {
-      toast({ title: "Nothing to Copy", description: "Generate a report first.", variant: "destructive" });
+      toast({ title: "No Data", description: "Generate a report first.", variant: "destructive" });
       return;
     }
 
-    const currentName = reportNames[selectedReport];
+    const currentName = reportConfigs[selectedReport];
     const text = `
-📊 **BIOVACO NEXUS EXECUTIVE REPORT: ${currentName.title.toUpperCase()}**
-🗓️ Generated: ${format(lastGenerated, 'dd MMM yyyy, HH:mm')} | Scope: ${timeRange.toUpperCase()} (${departmentFilter.toUpperCase()})
+📊 **BIOVACO REPORT: ${currentName.title.toUpperCase()}**
+🗓️ Date: ${format(lastGenerated, 'dd MMM yyyy, HH:mm')} | Filter: ${timeRange.toUpperCase()} (${departmentFilter.toUpperCase()})
 
 ---
-📈 **EXECUTIVE SUMMARY KPIs:**
+📈 **SUMMARY STATISTICS:**
 • ${kpiSummary.primaryLabel}: ${kpiSummary.primaryValue}
 • ${kpiSummary.secondaryLabel}: ${kpiSummary.secondaryValue}
 • ${kpiSummary.tertiaryLabel}: ${kpiSummary.tertiaryValue}
-• Overall Audit Health: ${kpiSummary.healthStatus}
 
 ---
-📋 **TOP AUDITED RECORDS (${Math.min(5, reportData.length)} of ${reportData.length}):**
-${reportData.slice(0, 5).map(r => `[${r.id}] ${r.title} — Status: ${r.status} (${r.owner}) ${r.amount !== undefined ? `| ₹${r.amount.toLocaleString()}` : ''}`).join('\n')}
-
----
-*Generated autonomously via BiovaCo Nexus Portal Live Database.*
+📋 **KEY RECORDS (${Math.min(5, reportData.length)} of ${reportData.length}):**
+${reportData.slice(0, 5).map(r => `• [${r.id}] ${r.title} — ${r.status} (${r.owner}) ${r.amount !== undefined ? `| ₹${r.amount.toLocaleString()}` : ''}`).join('\n')}
     `.trim();
 
     navigator.clipboard.writeText(text);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    setTimeout(() => setCopied(false), 2000);
 
     toast({
-      title: "Executive Summary Copied",
-      description: "Formatted markdown summary is ready to paste into Slack, WhatsApp, or Email."
+      title: "Summary Copied",
+      description: "Report summary copied to clipboard."
     });
   }, [kpiSummary, reportData, selectedReport, timeRange, departmentFilter, lastGenerated, toast]);
 
-  const currentConfig = reportNames[selectedReport];
+  const currentConfig = reportConfigs[selectedReport];
   const IconComponent = currentConfig.icon;
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 font-sans">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 font-sans">
       
-      {/* HEADER & BRANDING */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 p-6 rounded-2xl text-white shadow-lg border border-indigo-800/40">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-inner shrink-0">
-            <FileSpreadsheet className="h-6 w-6 text-indigo-400 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold tracking-tight text-white">Enterprise Reports Center</h2>
-              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-xs px-2.5 py-0.5">
-                ● Live DB Sync
-              </Badge>
-            </div>
-            <p className="text-indigo-200/80 text-xs mt-1">
-              Generate, audit, and export institutional executive documents with multi-format download capabilities.
-            </p>
-          </div>
+      {/* CLEAN CONSISTENT HEADER */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <FileText className="h-6 w-6 text-[#4B49AC]" /> Reports Center
+          </h1>
+          <p className="text-sm text-gray-500">Generate, view, and download real business reports</p>
         </div>
-        
         <div className="flex items-center gap-2.5 flex-wrap">
           <Button 
             onClick={copySummaryToClipboard} 
             variant="outline" 
             size="sm"
-            className="h-9 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white shadow-xs text-xs font-semibold backdrop-blur-xs"
-            title="Copy formatted KPI summary to clipboard"
+            className="text-gray-700 border-gray-200 hover:bg-gray-50"
+            title="Copy summary to clipboard"
           >
-            {copied ? <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 mr-1.5 text-indigo-300" />}
-            {copied ? "Copied!" : "Copy Summary"}
+            {copied ? <Check className="h-4 w-4 mr-1.5 text-green-600" /> : <Copy className="h-4 w-4 mr-1.5 text-gray-500" />}
+            {copied ? "Copied" : "Copy Summary"}
           </Button>
           <Button 
             onClick={exportToCSV} 
             variant="outline" 
             size="sm"
-            className="h-9 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white shadow-xs text-xs font-semibold backdrop-blur-xs"
-            title="Download detailed Excel / CSV file"
+            className="text-gray-700 border-gray-200 hover:bg-gray-50"
+            title="Download Excel / CSV file"
           >
-            <Download className="h-3.5 w-3.5 mr-1.5 text-emerald-400" />
+            <Download className="h-4 w-4 mr-1.5 text-gray-500" />
             Excel / CSV
           </Button>
           <Button 
             onClick={exportToPDF} 
             size="sm"
-            className="h-9 bg-indigo-500 hover:bg-indigo-600 text-white shadow-md text-xs font-semibold font-sans px-4 transition-all duration-200 hover:scale-[1.02]"
-            title="Generate audit-ready PDF / Print view"
+            className="bg-[#4B49AC] hover:bg-[#4B49AC]/90 text-white shadow-sm"
+            title="Open PDF / Print document"
           >
-            <Printer className="h-3.5 w-3.5 mr-1.5" />
+            <Printer className="h-4 w-4 mr-1.5" />
             Export PDF / Print
           </Button>
         </div>
@@ -839,8 +772,8 @@ ${reportData.slice(0, 5).map(r => `[${r.id}] ${r.title} — Status: ${r.status} 
 
       {/* REPORT TYPE SELECTOR CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {(Object.keys(reportNames) as ReportType[]).map((type) => {
-          const cfg = reportNames[type];
+        {(Object.keys(reportConfigs) as ReportType[]).map((type) => {
+          const cfg = reportConfigs[type];
           const Icon = cfg.icon;
           const isSelected = selectedReport === type;
 
@@ -850,24 +783,24 @@ ${reportData.slice(0, 5).map(r => `[${r.id}] ${r.title} — Status: ${r.status} 
               onClick={() => setSelectedReport(type)}
               className={`cursor-pointer transition-all duration-200 border text-left flex flex-col justify-between ${
                 isSelected 
-                  ? "border-indigo-600 ring-2 ring-indigo-500/20 shadow-md bg-gradient-to-br from-indigo-50/70 to-white" 
+                  ? "border-[#4B49AC] ring-1 ring-[#4B49AC]/20 shadow-sm bg-indigo-50/20" 
                   : "border-gray-200 hover:border-gray-300 hover:shadow-xs bg-white"
               }`}
             >
               <CardContent className="p-4 flex items-start gap-3.5">
-                <div className={`mt-0.5 ${cfg.bg} p-2 rounded-xl shrink-0 ${isSelected ? 'scale-110 shadow-xs' : ''} transition-transform`}>
+                <div className={`mt-0.5 ${cfg.bg} p-2 rounded-lg shrink-0`}>
                   <Icon className={`h-5 w-5 ${cfg.color}`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
-                    <h3 className={`text-sm font-bold truncate ${isSelected ? 'text-indigo-950' : 'text-gray-900'}`}>
+                    <h3 className={`text-sm font-bold truncate ${isSelected ? 'text-[#4B49AC]' : 'text-gray-900'}`}>
                       {cfg.title}
                     </h3>
                     {isSelected && (
-                      <span className="h-2 w-2 rounded-full bg-indigo-600 shrink-0 animate-ping" />
+                      <span className="h-2 w-2 rounded-full bg-[#4B49AC] shrink-0" />
                     )}
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-1 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">
                     {cfg.desc}
                   </p>
                 </div>
@@ -877,32 +810,31 @@ ${reportData.slice(0, 5).map(r => `[${r.id}] ${r.title} — Status: ${r.status} 
         })}
       </div>
 
-      {/* CONTROLS & FILTER BAR */}
-      <Card className="border-gray-200/80 shadow-xs bg-white">
+      {/* FILTER BAR & SEARCH */}
+      <Card className="border-gray-100 shadow-sm bg-white">
         <CardContent className="p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          
           <div className="flex items-center gap-2.5 flex-1 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={`Search ${reportData.length} audited records by ID, owner, category, or note...`}
-                className="pl-9 h-9 text-xs bg-gray-50/50 border-gray-200 focus:bg-white"
+                placeholder="Search report records by title, owner, category, or notes..."
+                className="pl-9 h-9 text-xs bg-gray-50 border-gray-200 focus:bg-white"
               />
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <Select value={timeRange} onValueChange={(val: TimeRange) => setTimeRange(val)}>
                 <SelectTrigger className="h-9 text-xs w-[130px] bg-white border-gray-200 font-medium">
                   <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-500 shrink-0" />
-                  <SelectValue placeholder="Time Scope" />
+                  <SelectValue placeholder="Timeframe" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-xs">All Time Records</SelectItem>
+                  <SelectItem value="all" className="text-xs">All Time</SelectItem>
                   <SelectItem value="30d" className="text-xs">Last 30 Days</SelectItem>
-                  <SelectItem value="90d" className="text-xs">Current Quarter</SelectItem>
-                  <SelectItem value="ytd" className="text-xs">Year-to-Date (YTD)</SelectItem>
+                  <SelectItem value="90d" className="text-xs">Last 90 Days</SelectItem>
+                  <SelectItem value="ytd" className="text-xs">This Year (YTD)</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -928,131 +860,112 @@ ${reportData.slice(0, 5).map(r => `[${r.id}] ${r.title} — Status: ${r.status} 
             disabled={isLoading}
             variant="default"
             size="sm"
-            className="h-9 bg-indigo-900 hover:bg-indigo-950 text-white font-semibold text-xs px-4 shrink-0 shadow-xs flex items-center gap-1.5"
+            className="h-9 bg-[#4B49AC] hover:bg-[#4B49AC]/90 text-white font-semibold text-xs px-4 shrink-0 shadow-xs flex items-center gap-1.5"
           >
             {isLoading ? (
               <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-200" />
-                Synchronizing...
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Updating...
               </>
             ) : (
               <>
-                <RefreshCw className="h-3.5 w-3.5 text-indigo-300" />
+                <RefreshCw className="h-3.5 w-3.5" />
                 Refresh Data
               </>
             )}
           </Button>
-
         </CardContent>
       </Card>
 
       {/* KPI SUMMARY DECK */}
       {kpiSummary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
-          <Card className="border-gray-200/80 bg-gradient-to-br from-white to-gray-50/50 shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="border-gray-100 shadow-sm bg-white">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{kpiSummary.primaryLabel}</p>
-                <p className="text-xl font-extrabold text-gray-900 mt-1">{kpiSummary.primaryValue}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{kpiSummary.primaryLabel}</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{kpiSummary.primaryValue}</p>
               </div>
-              <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
+              <div className="h-10 w-10 rounded-lg bg-indigo-50 flex items-center justify-center text-[#4B49AC] font-bold">
                 <FileText className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-gray-200/80 bg-gradient-to-br from-white to-gray-50/50 shadow-xs">
+          <Card className="border-gray-100 shadow-sm bg-white">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{kpiSummary.secondaryLabel}</p>
-                <p className="text-xl font-extrabold text-gray-900 mt-1">{kpiSummary.secondaryValue}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{kpiSummary.secondaryLabel}</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{kpiSummary.secondaryValue}</p>
               </div>
-              <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold">
+              <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-bold">
                 <TrendingUp className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-gray-200/80 bg-gradient-to-br from-white to-gray-50/50 shadow-xs">
+          <Card className="border-gray-100 shadow-sm bg-white">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{kpiSummary.tertiaryLabel}</p>
-                <p className="text-xl font-extrabold text-gray-900 mt-1">{kpiSummary.tertiaryValue}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{kpiSummary.tertiaryLabel}</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{kpiSummary.tertiaryValue}</p>
               </div>
-              <div className="h-10 w-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 font-bold">
-                <Sparkles className="h-5 w-5" />
+              <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold">
+                <CheckCircle2 className="h-5 w-5" />
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gray-200/80 bg-gradient-to-br from-white to-gray-50/50 shadow-xs">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Audit Health Status</p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className={`h-2.5 w-2.5 rounded-full ${kpiSummary.healthStatus === 'Optimal' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                  <p className="text-base font-bold text-gray-900">{kpiSummary.healthStatus}</p>
-                </div>
-              </div>
-              <Badge variant="outline" className="text-[10px] font-bold bg-white text-gray-700 border-gray-200">
-                VERIFIED
-              </Badge>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* LIVE AUDIT PREVIEW TABLE */}
-      <Card className="border-gray-200 shadow-sm overflow-hidden bg-white">
+      {/* DATA PREVIEW TABLE */}
+      <Card className="border-gray-100 shadow-sm overflow-hidden bg-white">
         <CardHeader className="bg-gray-50/60 border-b border-gray-100 px-6 py-4 flex flex-row items-center justify-between space-y-0">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl ${currentConfig.bg}`}>
+            <div className={`p-2 rounded-lg ${currentConfig.bg}`}>
               <IconComponent className={`h-5 w-5 ${currentConfig.color}`} />
             </div>
             <div>
-              <CardTitle className="text-base font-bold text-gray-900">{currentConfig.title} — Live Preview Deck</CardTitle>
+              <CardTitle className="text-base font-bold text-gray-900">{currentConfig.title} Records</CardTitle>
               <CardDescription className="text-xs">
-                Showing {filteredRows.length} of {reportData.length} records matching your current filter criteria
+                Showing {filteredRows.length} of {reportData.length} records
               </CardDescription>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-white text-gray-600 border-gray-200 text-xs font-semibold px-3 py-1">
-              <Clock className="h-3 w-3 mr-1.5 text-gray-400 inline" />
-              Sync: {format(lastGenerated, 'HH:mm:ss')}
-            </Badge>
+          <div className="text-xs text-gray-500 font-medium">
+            Updated: {format(lastGenerated, 'hh:mm a')}
           </div>
         </CardHeader>
 
         <CardContent className="p-0">
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center gap-3 bg-white">
-              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-              <p className="text-xs font-medium text-gray-500">Querying real-time database tables and constructing audit dossier...</p>
+              <Loader2 className="h-8 w-8 animate-spin text-[#4B49AC]" />
+              <p className="text-xs font-medium text-gray-500">Loading business records...</p>
             </div>
           ) : filteredRows.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center gap-2 bg-white text-center p-6">
               <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 mb-1">
                 <FileText className="h-6 w-6" />
               </div>
-              <p className="text-sm font-bold text-gray-800">No matching audit records found</p>
+              <p className="text-sm font-bold text-gray-800">No records found</p>
               <p className="text-xs text-gray-500 max-w-sm">
-                We couldn't find any database rows for the selected scope ({timeRange.toUpperCase()} / {departmentFilter.toUpperCase()}). Try widening your filter or search query.
+                No database records match your current filter ({timeRange.toUpperCase()} / {departmentFilter.toUpperCase()}).
               </p>
               <Button onClick={() => { setTimeRange('all'); setDepartmentFilter('all'); setSearchQuery(''); }} variant="outline" size="sm" className="mt-2 text-xs h-8">
-                Reset All Filters
+                Reset Filters
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto max-h-[600px]">
+            <div className="overflow-x-auto max-h-[550px]">
               <Table>
-                <TableHeader className="bg-gray-50/90 sticky top-0 z-10 backdrop-blur-xs">
+                <TableHeader className="bg-gray-50/90 sticky top-0 z-10">
                   <TableRow>
                     <TableHead className="w-[100px] font-bold text-gray-700 text-xs">ID</TableHead>
                     <TableHead className="w-[110px] font-bold text-gray-700 text-xs">Date</TableHead>
                     <TableHead className="w-[140px] font-bold text-gray-700 text-xs">Category</TableHead>
-                    <TableHead className="min-w-[240px] font-bold text-gray-700 text-xs">Title / Description</TableHead>
+                    <TableHead className="min-w-[240px] font-bold text-gray-700 text-xs">Title & Description</TableHead>
                     <TableHead className="w-[160px] font-bold text-gray-700 text-xs">Owner / Dept</TableHead>
                     <TableHead className="w-[120px] font-bold text-gray-700 text-xs">Status</TableHead>
                     {filteredRows.some(r => r.amount !== undefined) && (
@@ -1062,37 +975,37 @@ ${reportData.slice(0, 5).map(r => `[${r.id}] ${r.title} — Status: ${r.status} 
                 </TableHeader>
                 <TableBody className="divide-y divide-gray-100">
                   {filteredRows.map((row) => {
-                    const isAlert = row.status.toLowerCase().includes('alert') || row.status.toLowerCase().includes('critical') || row.status.toLowerCase().includes('overdue');
+                    const isAlert = row.status.toLowerCase().includes('alert') || row.status.toLowerCase().includes('warning') || row.status.toLowerCase().includes('overdue');
                     const isSuccess = row.status.toLowerCase().includes('active') || row.status.toLowerCase().includes('paid') || row.status.toLowerCase().includes('completed') || row.status.toLowerCase().includes('in stock') || row.status.toLowerCase().includes('validated');
 
                     return (
-                      <TableRow key={row.id} className="hover:bg-indigo-50/30 transition-colors duration-150 group">
-                        <TableCell className="font-mono font-bold text-xs text-indigo-700">
+                      <TableRow key={row.id} className="hover:bg-gray-50/70 transition-colors">
+                        <TableCell className="font-mono font-bold text-xs text-[#4B49AC]">
                           {row.id}
                         </TableCell>
                         <TableCell className="text-xs text-gray-600 font-medium">
                           {row.date}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className="bg-gray-100 text-gray-700 font-semibold text-[10px] hover:bg-gray-200">
+                          <Badge variant="secondary" className="bg-gray-100 text-gray-700 font-semibold text-[10px]">
                             {row.category}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="font-bold text-xs text-gray-900 group-hover:text-indigo-950 transition-colors">
+                          <div className="font-semibold text-xs text-gray-900">
                             {row.title}
                           </div>
                           {row.detail && (
-                            <div className="text-[11px] text-gray-500 mt-0.5 line-clamp-1 font-normal">
+                            <div className="text-[11px] text-gray-500 mt-0.5 font-normal">
                               {row.detail}
                             </div>
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="font-semibold text-xs text-gray-800 truncate max-w-[150px]">
+                          <div className="font-medium text-xs text-gray-800 truncate max-w-[150px]">
                             {row.owner}
                           </div>
-                          <div className="text-[10px] text-gray-500 font-medium">
+                          <div className="text-[10px] text-gray-500">
                             {row.department}
                           </div>
                         </TableCell>
@@ -1104,7 +1017,7 @@ ${reportData.slice(0, 5).map(r => `[${r.id}] ${r.title} — Status: ${r.status} 
                                 ? "bg-red-50 text-red-700 border-red-200" 
                                 : isSuccess 
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                                : "bg-blue-50 text-blue-700 border-blue-200"
+                                : "bg-gray-50 text-gray-700 border-gray-200"
                             }`}
                           >
                             {row.status}
@@ -1126,28 +1039,6 @@ ${reportData.slice(0, 5).map(r => `[${r.id}] ${r.title} — Status: ${r.status} 
           )}
         </CardContent>
       </Card>
-
-      {/* FOOTER TIPS CARD */}
-      <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0 font-bold">
-            💡
-          </div>
-          <div>
-            <p className="text-xs font-bold text-indigo-950">Institutional Export Notice</p>
-            <p className="text-[11px] text-indigo-800/80 mt-0.5">
-              Downloaded CSV files are fully compatible with MS Excel, Google Sheets, and tally ERP software. PDF exports automatically format without web navigation UI.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button onClick={exportToPDF} variant="outline" size="sm" className="h-8 text-xs font-semibold bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-100">
-            <Printer className="h-3 w-3 mr-1.5" />
-            Launch Print View
-          </Button>
-        </div>
-      </div>
-
     </div>
   );
 }

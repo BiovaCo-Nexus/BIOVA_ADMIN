@@ -1045,7 +1045,7 @@ const Admin = () => {
                 {activeTab === "performance_reviews" && <PerformanceReviews />}
                 {activeTab === "recruitment" && <PlaceholderPage title="Recruitment" category="Human Resources (HRMS)" />}
                 {activeTab === "job_positions" && <JobPositionsManagement />}
-                {activeTab === "applications" && <PlaceholderPage title="Applications" category="Human Resources (HRMS)" />}
+                {activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "offer_letters" && <OfferLetters />}
                 {activeTab === "exit_management" && <ExitManagement />}
                 {activeTab === "assets_assigned" && <AssetsAssigned />}
