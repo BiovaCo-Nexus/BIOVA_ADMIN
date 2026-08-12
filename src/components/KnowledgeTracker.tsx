@@ -63,22 +63,69 @@ export function KnowledgeTracker() {
   
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [interns, setInterns] = useState<{name: string, email: string}[]>([])
+  const [accessUsers, setAccessUsers] = useState<{ label: string; email: string; type: string }[]>([])
   
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       const email = data.session?.user?.email || null
       setUserEmail(email)
       
-      if (email === "ceo@biovaco.in" || email === "md@biovaco.in") {
-        supabase.from('interns').select('name, email').eq('status', 'Active')
+      // Fetch active interns
+      supabase.from('interns').select('name, email').eq('status', 'Active')
         .then(({ data: internData }) => {
           if (internData) setInterns(internData)
         })
-      }
+
+      // Fetch active Access Control users from user_page_access
+      supabase.from('user_page_access')
+        .select('*')
+        .eq('is_active', true)
+        .then(({ data: accessData }) => {
+          if (accessData) {
+            const mapped = accessData.map((u: any) => ({
+              label: u.user_label || u.role || (u.user_email || u.email || 'User'),
+              email: (u.user_email || u.email || '').toLowerCase().trim(),
+              type: u.user_type || 'Team Member'
+            })).filter(u => u.email.includes('@'))
+            setAccessUsers(mapped)
+          }
+        })
     })
   }, [])
   
   const isExecutive = userEmail === "ceo@biovaco.in" || userEmail === "md@biovaco.in"
+
+  const assignableUsers = useMemo(() => {
+    const list: { label: string; email: string; type: string }[] = [
+      { label: "CEO", email: "ceo@biovaco.in", type: "Executive" },
+      { label: "MD", email: "md@biovaco.in", type: "Executive" },
+    ];
+
+    // Add Access Control Users (user_page_access)
+    accessUsers.forEach(u => {
+      if (u.email && !list.some(existing => existing.email === u.email)) {
+        list.push({
+          label: u.label,
+          email: u.email,
+          type: u.type
+        });
+      }
+    });
+
+    // Add Interns table users
+    interns.forEach(i => {
+      const cleanEmail = (i.email || '').toLowerCase().trim();
+      if (cleanEmail && !list.some(existing => existing.email === cleanEmail)) {
+        list.push({
+          label: `${i.name} (Intern)`,
+          email: cleanEmail,
+          type: "Intern"
+        });
+      }
+    });
+
+    return list;
+  }, [accessUsers, interns]);
 
   // ─── STRICT SECURITY & ROLE FILTERING ─────────────────────────────────────────
   // Non-executive staff/interns can ONLY see tasks assigned to them or created by them.
@@ -449,35 +496,49 @@ export function KnowledgeTracker() {
                   <Input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} />
                 </div>
                 
-                {isExecutive && (
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-sm font-medium">Assign To (Select Multiple)</label>
-                    <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-gray-50/50 max-h-40 overflow-y-auto">
-                      {[
-                        { label: 'CEO', email: 'ceo@biovaco.in' },
-                        { label: 'MD', email: 'md@biovaco.in' },
-                        ...interns.map(i => ({ label: `${i.name} (Intern)`, email: i.email }))
-                      ].map(opt => {
-                        const isSelected = (form.assigned_to || '').split(',').includes(opt.email);
-                        return (
-                          <Badge 
-                            key={opt.email} 
-                            variant={isSelected ? "default" : "outline"} 
-                            className={`cursor-pointer transition-colors ${isSelected ? 'bg-[#4B49AC] text-white hover:bg-[#3e3d93]' : 'hover:bg-gray-100 bg-white'}`}
-                            onClick={() => {
-                              let current = (form.assigned_to || '').split(',').filter(Boolean);
-                              if (current.includes(opt.email)) current = current.filter(e => e !== opt.email);
-                              else current.push(opt.email);
-                              setForm({...form, assigned_to: current.join(',')});
-                            }}
-                          >
-                            {opt.label}
-                          </Badge>
-                        );
-                      })}
-                    </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium flex items-center gap-1.5 text-slate-800">
+                      <UserCheck className="h-4 w-4 text-[#4B49AC]" />
+                      Assign To (Select Multiple from Access Control & Team)
+                    </label>
+                    <span className="text-xs text-gray-500 font-normal">Click chips to toggle assignment</span>
                   </div>
-                )}
+                  <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-gray-50/50 max-h-48 overflow-y-auto">
+                    {assignableUsers.map(opt => {
+                      const isSelected = (form.assigned_to || '').split(',').map(e => e.trim().toLowerCase()).includes(opt.email);
+                      return (
+                        <Badge 
+                          key={opt.email} 
+                          variant={isSelected ? "default" : "outline"} 
+                          className={`cursor-pointer transition-all py-1 px-2.5 text-xs flex items-center gap-1.5 ${
+                            isSelected 
+                              ? 'bg-[#4B49AC] text-white hover:bg-[#3e3d93] shadow-2xs font-semibold' 
+                              : 'hover:bg-gray-100 bg-white text-gray-700 border-gray-300'
+                          }`}
+                          onClick={() => {
+                            let current = (form.assigned_to || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+                            if (current.includes(opt.email)) {
+                              current = current.filter(e => e !== opt.email);
+                            } else {
+                              current.push(opt.email);
+                            }
+                            setForm({...form, assigned_to: current.join(',')});
+                          }}
+                        >
+                          <span>{opt.label} ({opt.email})</span>
+                          {opt.type && (
+                            <span className={`text-[10px] px-1 py-0.2 rounded font-medium ${
+                              isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {opt.type}
+                            </span>
+                          )}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-gray-700">Description</label>
@@ -512,17 +573,17 @@ export function KnowledgeTracker() {
             {/* Executive Assignee Filter Dropdown */}
             {isExecutive && (
               <Select value={filterAssignee} onValueChange={setFilterAssignee}>
-                <SelectTrigger className="w-full sm:w-[170px] text-xs">
+                <SelectTrigger className="w-full sm:w-[200px] text-xs">
                   <User className="h-3.5 w-3.5 mr-1.5 text-gray-400" />
                   <SelectValue placeholder="All Assignees" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Assignees</SelectItem>
                   <SelectItem value="mine">Assigned to Me</SelectItem>
-                  <SelectItem value="ceo@biovaco.in">CEO Tasks</SelectItem>
-                  <SelectItem value="md@biovaco.in">MD Tasks</SelectItem>
-                  {interns.map(i => (
-                    <SelectItem key={i.email} value={i.email}>{i.name} (Intern)</SelectItem>
+                  {assignableUsers.map(u => (
+                    <SelectItem key={u.email} value={u.email}>
+                      {u.label} ({u.email})
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
