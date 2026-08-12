@@ -536,8 +536,12 @@ export function UserAccessSettings() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast({ title: "Report Exported 📥", description: "Daily & Weekly working hours report downloaded." });
   };
+
+  const filteredRules = rules.filter(r =>
+    (r.user_email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (r.user_label || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
     return (
