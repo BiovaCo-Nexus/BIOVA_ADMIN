@@ -689,16 +689,15 @@ const Admin = () => {
         return;
       }
 
-      // For non-CEO users, check database access rules by email column safely
+      // For non-CEO users, check database access rules by primary user_email column
       const cleanEmail = email.trim().toLowerCase();
 
       let rulesData: any[] | null = null;
-      let rulesErr: any = null;
 
       const res1 = await supabase
         .from("user_page_access")
         .select("*")
-        .ilike("email", cleanEmail)
+        .ilike("user_email", cleanEmail)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(1);
@@ -710,7 +709,7 @@ const Admin = () => {
           const res2 = await supabase
             .from("user_page_access")
             .select("*")
-            .ilike("user_email", cleanEmail)
+            .ilike("email", cleanEmail)
             .eq("is_active", true)
             .order("created_at", { ascending: false })
             .limit(1);
@@ -718,7 +717,7 @@ const Admin = () => {
             rulesData = res2.data;
           }
         } catch {
-          // ignore column missing error
+          // ignore if column 'email' does not exist
         }
       }
 
