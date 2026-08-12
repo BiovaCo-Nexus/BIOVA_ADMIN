@@ -103,7 +103,8 @@ import {
   ShieldAlert,
   StickyNote,
   Sparkles,
-  Target
+  Target,
+  Cpu
 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Link, useNavigate } from "react-router-dom"
@@ -688,21 +689,43 @@ const Admin = () => {
         return;
       }
 
-      // For non-CEO users, check database access rules using case-insensitive ilike query with limit(1)
+      // For non-CEO users, check database access rules by email column safely
       const cleanEmail = email.trim().toLowerCase();
 
-      const { data: rulesData, error: rulesErr } = await supabase
+      let rulesData: any[] | null = null;
+      let rulesErr: any = null;
+
+      const res1 = await supabase
         .from("user_page_access")
         .select("*")
-        .or(`email.ilike.${cleanEmail},user_email.ilike.${cleanEmail}`)
+        .ilike("email", cleanEmail)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(1);
 
+      if (res1.data && res1.data.length > 0) {
+        rulesData = res1.data;
+      } else {
+        try {
+          const res2 = await supabase
+            .from("user_page_access")
+            .select("*")
+            .ilike("user_email", cleanEmail)
+            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          if (res2.data && res2.data.length > 0) {
+            rulesData = res2.data;
+          }
+        } catch {
+          // ignore column missing error
+        }
+      }
+
       const accessRule = rulesData?.[0];
 
-      if (rulesErr || !accessRule) {
-        console.warn("No active access rule found for:", cleanEmail, rulesErr);
+      if (!accessRule) {
+        console.warn("No active access rule found for:", cleanEmail);
         toast({ title: "Access Denied", description: `No active permission rule found for ${cleanEmail}. Contact Admin.`, variant: "destructive" });
         await supabase.auth.signOut();
         navigate("/auth");
