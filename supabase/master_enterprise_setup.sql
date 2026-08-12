@@ -13,9 +13,14 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS public.user_page_access (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email TEXT NOT NULL UNIQUE,
-    role TEXT DEFAULT 'Executive',
-    accessible_tabs JSONB DEFAULT '[]'::jsonb,
+    user_email TEXT NOT NULL UNIQUE,
+    user_label TEXT,
+    user_type TEXT DEFAULT 'Team Member',
+    target_hours_per_day NUMERIC DEFAULT 8.0,
+    logged_active_seconds NUMERIC DEFAULT 0,
+    last_active_at TIMESTAMPTZ DEFAULT NOW(),
+    allowed_pages TEXT[] DEFAULT '{}',
+    default_tab TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())

@@ -274,6 +274,9 @@ interface AccessRule {
   allowed_pages: string[];
   default_tab: string | null;
   is_active: boolean;
+  user_type?: "Intern" | "Team Member" | "Manager" | "Admin";
+  target_hours_per_day?: number;
+  logged_active_seconds?: number;
   isNew?: boolean;
 }
 
@@ -296,7 +299,7 @@ export function UserAccessSettings() {
       if (error.code === "42P01" || error.message.includes("does not exist")) {
         toast({
           title: "Table Not Found",
-          description: "Please run the SQL setup script first (supabase_user_access_setup.sql).",
+          description: "Please run the SQL setup script first (master_enterprise_setup.sql).",
           variant: "destructive",
         });
       } else {
@@ -304,7 +307,13 @@ export function UserAccessSettings() {
       }
       setRules([]);
     } else {
-      setRules((data || []).map((r: any) => ({ ...r, isNew: false })));
+      setRules((data || []).map((r: any) => ({
+        ...r,
+        user_type: r.user_type || "Team Member",
+        target_hours_per_day: typeof r.target_hours_per_day === "number" ? r.target_hours_per_day : (r.user_type === "Intern" ? 4.0 : 8.0),
+        logged_active_seconds: Number(r.logged_active_seconds || 0),
+        isNew: false
+      })));
     }
     setLoading(false);
   }, [toast]);
@@ -317,6 +326,9 @@ export function UserAccessSettings() {
       id: tempId,
       user_email: "",
       user_label: "",
+      user_type: "Team Member",
+      target_hours_per_day: 8.0,
+      logged_active_seconds: 0,
       allowed_pages: ["knowledge_tracker", "shared_files", "ai_business_assistant"],
       default_tab: "knowledge_tracker",
       is_active: true,
@@ -327,7 +339,14 @@ export function UserAccessSettings() {
   };
 
   const updateRule = (id: string, field: keyof AccessRule, value: any) => {
-    setRules(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+    setRules(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      const updated = { ...r, [field]: value };
+      if (field === "user_type") {
+        updated.target_hours_per_day = value === "Intern" ? 4.0 : 8.0;
+      }
+      return updated;
+    }));
   };
 
   const applyRolePreset = (ruleId: string, presetId: string) => {
@@ -418,6 +437,8 @@ export function UserAccessSettings() {
     const payload = {
       user_email: rule.user_email.toLowerCase().trim(),
       user_label: rule.user_label.trim(),
+      user_type: rule.user_type || "Team Member",
+      target_hours_per_day: Number(rule.target_hours_per_day || (rule.user_type === "Intern" ? 4.0 : 8.0)),
       allowed_pages: rule.allowed_pages,
       default_tab: rule.default_tab,
       is_active: rule.is_active,
@@ -548,18 +569,41 @@ export function UserAccessSettings() {
                     <div className="min-w-0">
                       <div className="font-semibold text-[#4B49AC] truncate flex items-center gap-2">
                         {rule.user_label || rule.user_email || "New User"}
-                        {rule.user_label && (
-                          <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200">
-                            Auto AI Filtered
-                          </Badge>
-                        )}
+                        <Badge variant="outline" className={`text-[10px] ${
+                          rule.user_type === "Intern" ? "bg-purple-50 text-purple-700 border-purple-200" :
+                          rule.user_type === "Manager" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                          rule.user_type === "Admin" ? "bg-gray-900 text-white" :
+                          "bg-blue-50 text-blue-700 border-blue-200"
+                        }`}>
+                          {rule.user_type === "Intern" ? "🎓 Intern" :
+                           rule.user_type === "Manager" ? "👨‍💼 Manager" :
+                           rule.user_type === "Admin" ? "🛡️ Admin" : "💼 Team Member"}
+                        </Badge>
                       </div>
                       {rule.user_label && (
                         <div className="text-xs text-gray-500 truncate">{rule.user_email}</div>
                       )}
                     </div>
                   </div>
+
                   <div className="flex items-center gap-3 shrink-0">
+                    {/* Working Hours Cutoff Progress Badge */}
+                    {(() => {
+                      const loggedHours = ((rule.logged_active_seconds || 0) / 3600).toFixed(1)
+                      const targetHours = rule.target_hours_per_day || (rule.user_type === "Intern" ? 4.0 : 8.0)
+                      const pct = Math.min(100, Math.round(((rule.logged_active_seconds || 0) / (targetHours * 3600)) * 100))
+                      const isMet = (rule.logged_active_seconds || 0) >= (targetHours * 3600)
+
+                      return (
+                        <div className="hidden sm:flex items-center gap-2 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200">
+                          <span className="text-[11px] font-mono text-gray-700">⏱️ {loggedHours}h / {targetHours}h ({pct}%)</span>
+                          <Badge className={`text-[9px] px-1.5 py-0 ${isMet ? "bg-emerald-600 text-white" : "bg-amber-500 text-white"}`}>
+                            {isMet ? "Cutoff Met" : "Pending"}
+                          </Badge>
+                        </div>
+                      )
+                    })()}
+
                     <Badge variant="secondary" className="text-xs">
                       {rule.allowed_pages.length} pages
                     </Badge>
@@ -570,8 +614,8 @@ export function UserAccessSettings() {
                 {/* Expanded Content */}
                 {isExpanded && (
                   <CardContent className="border-t pt-5 space-y-5">
-                    {/* Basic Info */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Basic Info & Account Type */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="text-xs font-medium text-gray-600 mb-1 block">Email Address *</label>
                         <Input
@@ -580,6 +624,7 @@ export function UserAccessSettings() {
                           onChange={e => updateRule(rule.id!, "user_email", e.target.value)}
                         />
                       </div>
+
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <label className="text-xs font-medium text-gray-600">Display Label / Role Title</label>
@@ -589,16 +634,85 @@ export function UserAccessSettings() {
                               onClick={() => aiAutoSuggestForLabel(rule.id!, rule.user_label)}
                               className="text-[11px] text-[#4B49AC] hover:underline font-semibold flex items-center gap-1"
                             >
-                              <Wand2 className="h-3 w-3" /> Auto-Select Tabs
+                              <Wand2 className="h-3 w-3" /> Auto-Select
                             </button>
                           )}
                         </div>
                         <Input
-                          placeholder="e.g. R&D Lab Researcher, HR Manager"
+                          placeholder="e.g. Marketing Intern, R&D Researcher"
                           value={rule.user_label}
                           onChange={e => updateRule(rule.id!, "user_label", e.target.value)}
                         />
                       </div>
+
+                      <div>
+                        <label className="text-xs font-medium text-gray-600 mb-1 block">Account / Member Type *</label>
+                        <Select
+                          value={rule.user_type || "Team Member"}
+                          onValueChange={(v: any) => updateRule(rule.id!, "user_type", v)}
+                        >
+                          <SelectTrigger className="bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Intern">🎓 Intern (4.0 Hrs/Day Target)</SelectItem>
+                            <SelectItem value="Team Member">💼 Team Member (8.0 Hrs/Day Target)</SelectItem>
+                            <SelectItem value="Manager">👨‍💼 Manager (8.0 Hrs/Day Target)</SelectItem>
+                            <SelectItem value="Admin">🛡️ Admin (8.0 Hrs/Day Target)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Working Hours Cutoff & Active Portal Time Tracker Card */}
+                    <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-indigo-200/80 rounded-xl p-4 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
+                          <Cpu className="h-4 w-4 text-[#4B49AC]" />
+                          ⏱️ Portal Working Hours Cutoff & Time Tracker
+                        </span>
+
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-gray-600 font-semibold">Daily Target Cutoff:</span>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            className="w-20 h-7 text-xs bg-white text-center font-bold"
+                            value={rule.target_hours_per_day || (rule.user_type === "Intern" ? 4.0 : 8.0)}
+                            onChange={e => updateRule(rule.id!, "target_hours_per_day", parseFloat(e.target.value) || 4.0)}
+                          />
+                          <span className="text-gray-600">Hrs/Day</span>
+                        </div>
+                      </div>
+
+                      {/* Cutoff Progress Bar */}
+                      {(() => {
+                        const loggedSecs = rule.logged_active_seconds || 0
+                        const loggedHours = (loggedSecs / 3600).toFixed(1)
+                        const targetHours = rule.target_hours_per_day || (rule.user_type === "Intern" ? 4.0 : 8.0)
+                        const pct = Math.min(100, Math.round((loggedSecs / (targetHours * 3600)) * 100))
+                        const isMet = loggedSecs >= (targetHours * 3600)
+
+                        return (
+                          <div className="space-y-1.5 bg-white p-3 rounded-lg border border-indigo-100 shadow-2xs">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-semibold text-gray-700">
+                                Active Time Logged: <strong className="text-[#4B49AC]">{loggedHours} Hours</strong> / {targetHours} Hours Target
+                              </span>
+                              <span className={`font-bold ${isMet ? "text-emerald-700" : "text-amber-600"}`}>
+                                {pct}% Cutoff {isMet ? "Completed ✅" : "In Progress ⏳"}
+                              </span>
+                            </div>
+                            
+                            <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all duration-300 ${isMet ? "bg-emerald-500" : "bg-[#4B49AC]"}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
 
                     {/* Smart Role Preset Automation Card */}

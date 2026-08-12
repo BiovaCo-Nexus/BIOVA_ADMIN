@@ -171,6 +171,7 @@ import { SOPLibraryManagement } from "@/components/documents/SOPLibraryManagemen
 import { CeoMdTimetable } from "@/components/CeoMdTimetable"
 import { ManufacturingManagement } from "@/components/ManufacturingManagement"
 import { UserAccessSettings } from "@/components/UserAccessSettings"
+import { useActiveTimeTracker } from "@/hooks/useActiveTimeTracker"
 import { format } from "date-fns"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 
@@ -438,6 +439,9 @@ const Admin = () => {
   const [calendarDate, setCalendarDate] = useState<Date | undefined>(new Date())
   const navigate = useNavigate()
   const { toast } = useToast()
+
+  // Live Portal Active Working Hours Tracker
+  const activeTracker = useActiveTimeTracker({ userEmail: user?.email, enabled: !!user?.email })
 
   // Holiday computation
   const todayDateStr = format(currentTime, 'yyyy-MM-dd');
@@ -891,6 +895,18 @@ const Admin = () => {
                   {format(currentTime, 'MMM dd, yyyy • hh:mm:ss a')}
                 </span>
               </div>
+
+              {/* Active Working Hours Tracker Badge */}
+              {user?.email && (
+                <div className={`hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border shadow-sm text-xs font-semibold whitespace-nowrap ${
+                  activeTracker.isCompleted 
+                    ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
+                    : "bg-indigo-50/80 text-[#4B49AC] border-indigo-100"
+                }`}>
+                  <Cpu className="h-3.5 w-3.5 text-[#4B49AC]" />
+                  <span>⏱️ Work: {activeTracker.formattedActiveTime} / {activeTracker.targetHours}h ({activeTracker.progressPercentage}%)</span>
+                </div>
+              )}
               
               <Popover>
                 <PopoverTrigger asChild>
