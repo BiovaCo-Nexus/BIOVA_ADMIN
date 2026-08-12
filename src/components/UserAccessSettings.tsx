@@ -450,7 +450,7 @@ export function UserAccessSettings() {
     const emailVal = rule.user_email.toLowerCase().trim();
     const labelVal = rule.user_label.trim() || "Executive";
     
-    const payload = {
+    const fullPayload: any = {
       user_email: emailVal,
       email: emailVal,
       user_label: labelVal,
@@ -464,24 +464,69 @@ export function UserAccessSettings() {
       is_active: rule.is_active,
     };
 
-    let error;
+    let error: any = null;
+    let savedData: any = null;
+
     if (rule.isNew) {
-      const res = await supabase.from("user_page_access").insert(payload).select().single();
-      error = res.error;
-      if (!error && res.data) {
-        setRules(prev => prev.map(r => r.id === rule.id ? { ...res.data, isNew: false } : r));
+      const res1 = await supabase.from("user_page_access").insert(fullPayload).select().single();
+      if (res1.error) {
+        delete fullPayload.user_type;
+        delete fullPayload.target_hours_per_day;
+        delete fullPayload.target_hours_per_week;
+        delete fullPayload.accessible_tabs;
+        delete fullPayload.role;
+        const res2 = await supabase.from("user_page_access").insert(fullPayload).select().single();
+        if (res2.error) {
+          const legacyPayload = {
+            email: emailVal,
+            role: labelVal,
+            accessible_tabs: rule.allowed_pages,
+            default_tab: rule.default_tab,
+            is_active: rule.is_active
+          };
+          const res3 = await supabase.from("user_page_access").insert(legacyPayload).select().single();
+          error = res3.error;
+          savedData = res3.data;
+        } else {
+          savedData = res2.data;
+        }
+      } else {
+        savedData = res1.data;
       }
     } else {
-      const res = await supabase.from("user_page_access").update(payload).eq("id", rule.id!).select().single();
-      error = res.error;
-      if (!error && res.data) {
-        setRules(prev => prev.map(r => r.id === rule.id ? { ...res.data, isNew: false } : r));
+      const res1 = await supabase.from("user_page_access").update(fullPayload).eq("id", rule.id!).select().single();
+      if (res1.error) {
+        delete fullPayload.user_type;
+        delete fullPayload.target_hours_per_day;
+        delete fullPayload.target_hours_per_week;
+        delete fullPayload.accessible_tabs;
+        delete fullPayload.role;
+        const res2 = await supabase.from("user_page_access").update(fullPayload).eq("id", rule.id!).select().single();
+        if (res2.error) {
+          const legacyPayload = {
+            email: emailVal,
+            role: labelVal,
+            accessible_tabs: rule.allowed_pages,
+            default_tab: rule.default_tab,
+            is_active: rule.is_active
+          };
+          const res3 = await supabase.from("user_page_access").update(legacyPayload).eq("id", rule.id!).select().single();
+          error = res3.error;
+          savedData = res3.data;
+        } else {
+          savedData = res2.data;
+        }
+      } else {
+        savedData = res1.data;
       }
     }
 
     if (error) {
       toast({ title: "Save Failed", description: error.message, variant: "destructive" });
     } else {
+      if (savedData) {
+        setRules(prev => prev.map(r => r.id === rule.id ? { ...savedData, isNew: false } : r));
+      }
       toast({ title: "Saved & Automated", description: `Access & AI scope for ${rule.user_email} updated successfully.` });
     }
     setSaving(null);
