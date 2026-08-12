@@ -29,6 +29,19 @@ CREATE TABLE IF NOT EXISTS public.user_page_access (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- Idempotent column migrations for existing table instances
+ALTER TABLE public.user_page_access ADD COLUMN IF NOT EXISTS user_email TEXT;
+ALTER TABLE public.user_page_access ADD COLUMN IF NOT EXISTS user_label TEXT;
+ALTER TABLE public.user_page_access ADD COLUMN IF NOT EXISTS user_type TEXT DEFAULT 'Team Member';
+ALTER TABLE public.user_page_access ADD COLUMN IF NOT EXISTS target_hours_per_day NUMERIC DEFAULT 8.0;
+ALTER TABLE public.user_page_access ADD COLUMN IF NOT EXISTS target_hours_per_week NUMERIC DEFAULT 40.0;
+ALTER TABLE public.user_page_access ADD COLUMN IF NOT EXISTS logged_active_seconds NUMERIC DEFAULT 0;
+ALTER TABLE public.user_page_access ADD COLUMN IF NOT EXISTS weekly_logged_seconds NUMERIC DEFAULT 0;
+ALTER TABLE public.user_page_access ADD COLUMN IF NOT EXISTS first_login_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.user_page_access ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.user_page_access ADD COLUMN IF NOT EXISTS allowed_pages TEXT[] DEFAULT '{}';
+ALTER TABLE public.user_page_access ADD COLUMN IF NOT EXISTS default_tab TEXT;
+
 CREATE TABLE IF NOT EXISTS public.system_api_keys (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     key_name TEXT NOT NULL,
