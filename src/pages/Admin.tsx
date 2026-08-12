@@ -100,7 +100,10 @@ import {
   Globe,
   Image,
   Kanban,
-  ShieldAlert
+  ShieldAlert,
+  StickyNote,
+  Sparkles,
+  Target
 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Link, useNavigate } from "react-router-dom"
@@ -114,8 +117,15 @@ import { JobPositionsManagement } from "@/components/JobPositionsManagement"
 import InternManagement from "@/components/InternManagement"
 import PageContentManagement from "@/components/PageContentManagement"
 import PostCountdownManagement from "@/components/PostCountdownManagement"
-import { LocationManagement } from "@/components/LocationManagement"
 import { MaintenanceManagement } from "@/components/MaintenanceManagement"
+import { UserManagement } from "@/components/it-system/UserManagement"
+import { RolesPermissionsManagement } from "@/components/it-system/RolesPermissionsManagement"
+import { APIKeysManagement } from "@/components/it-system/APIKeysManagement"
+import { IntegrationsManagement } from "@/components/it-system/IntegrationsManagement"
+import { EmailSettingsManagement } from "@/components/it-system/EmailSettingsManagement"
+import { BackupManagement } from "@/components/it-system/BackupManagement"
+import { SystemActivityLogs } from "@/components/it-system/SystemActivityLogs"
+import { SystemHealthManagement } from "@/components/it-system/SystemHealthManagement"
 import { ApplicationDetailModal } from "@/components/ApplicationDetailModal"
 import { Model3DManagement } from "@/components/Model3DManagement"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -134,8 +144,30 @@ import { BusinessManagement } from "@/components/BusinessManagement"
 import { NewsManagement } from "@/components/NewsManagement"
 import { KnowledgeTracker } from "@/components/KnowledgeTracker"
 import { RDLabManagement } from "@/components/RDLabManagement"
-import { MarketResearchHub } from "@/components/rd-lab/MarketResearchHub"
 import { SharedFilesManager } from "@/components/SharedFilesManager"
+import { FinanceManagement } from "@/components/FinanceManagement"
+import { ReceivablesPayables } from "@/components/ReceivablesPayables"
+import { ChartOfAccountsManagement } from "@/components/finance/ChartOfAccountsManagement"
+import { JournalEntriesManagement } from "@/components/finance/JournalEntriesManagement"
+import { FinancialStatementsCenter } from "@/components/finance/FinancialStatementsCenter"
+import { BudgetManagement } from "@/components/finance/BudgetManagement"
+import { TaxGSTCenter } from "@/components/finance/TaxGSTCenter"
+import { FixedAssetsManagement } from "@/components/finance/FixedAssetsManagement"
+import { RecruitmentManagement } from "@/components/hrms/RecruitmentManagement"
+import { PersonalTasksManagement } from "@/components/workspace/PersonalTasksManagement"
+import { UserProfileManagement } from "@/components/workspace/UserProfileManagement"
+import { CampaignsManagement } from "@/components/marketing/CampaignsManagement"
+import { MarketingInternNotepad } from "@/components/marketing/MarketingInternNotepad"
+import { ContentStorytellingStudio } from "@/components/marketing/ContentStorytellingStudio"
+import { MarketingStrategy } from "@/components/marketing/MarketingStrategy"
+import { ContentCalendar } from "@/components/marketing/ContentCalendar"
+import { CreativeAssets } from "@/components/marketing/CreativeAssets"
+import { MarketingReports } from "@/components/marketing/MarketingReports"
+import { MarketingStoreProvider } from "@/components/marketing/useMarketingStore"
+import { MarketResearchHub } from "@/components/rd-lab/MarketResearchHub"
+import { DocumentTemplatesManagement } from "@/components/documents/DocumentTemplatesManagement"
+import { DigitalSignaturesManagement } from "@/components/documents/DigitalSignaturesManagement"
+import { SOPLibraryManagement } from "@/components/documents/SOPLibraryManagement"
 import { CeoMdTimetable } from "@/components/CeoMdTimetable"
 import { ManufacturingManagement } from "@/components/ManufacturingManagement"
 import { UserAccessSettings } from "@/components/UserAccessSettings"
@@ -190,9 +222,9 @@ const INITIAL_TABS = [
   { id: "leave_management", label: "Leave Management", icon: Briefcase, category: "Human Resources (HRMS)" },
   { id: "payroll", label: "Payroll", icon: CreditCard, category: "Human Resources (HRMS)" },
   { id: "performance_reviews", label: "Performance Reviews", icon: Briefcase, category: "Human Resources (HRMS)" },
-  { id: "recruitment", label: "🔴 Recruitment", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "recruitment", label: "Recruitment", icon: Briefcase, category: "Human Resources (HRMS)" },
   { id: "job_positions", label: "Job Positions", icon: Briefcase, category: "Human Resources (HRMS)" },
-  { id: "applications", label: "🔴 Applications", icon: Briefcase, category: "Human Resources (HRMS)" },
+  { id: "applications", label: "Applications", icon: Briefcase, category: "Human Resources (HRMS)" },
   { id: "offer_letters", label: "Offer Letters", icon: Briefcase, category: "Human Resources (HRMS)" },
   { id: "exit_management", label: "Exit Management", icon: Briefcase, category: "Human Resources (HRMS)" },
   { id: "assets_assigned", label: "Assets Assigned", icon: Briefcase, category: "Human Resources (HRMS)" },
@@ -248,21 +280,21 @@ const INITIAL_TABS = [
   { id: "production_reports", label: "Production Reports", icon: BarChart3, category: "Manufacturing" },
 
   // Finance & Accounting
-  { id: "finance_dashboard", label: "🔴 Finance Dashboard", icon: BarChart3, category: "Finance & Accounting" },
-  { id: "chart_of_accounts", label: "🔴 Chart of Accounts", icon: Network, category: "Finance & Accounting" },
-  { id: "journal_entries", label: "🔴 Journal Entries", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "general_ledger", label: "🔴 General Ledger", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "trial_balance", label: "🔴 Trial Balance", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "profit_loss", label: "🔴 Profit & Loss", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "balance_sheet", label: "🔴 Balance Sheet", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "cash_flow", label: "🔴 Cash Flow", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "budget", label: "🔴 Budget", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "expenses", label: "🔴 Expenses", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "receivables", label: "🔴 Receivables", icon: Briefcase, category: "Finance & Accounting" },
-  { id: "payables", label: "🔴 Payables", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "gst", label: "🔴 GST", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "tax_center", label: "🔴 Tax Center", icon: CreditCard, category: "Finance & Accounting" },
-  { id: "fixed_assets", label: "🔴 Fixed Assets", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "finance_dashboard", label: "Finance Dashboard", icon: BarChart3, category: "Finance & Accounting" },
+  { id: "chart_of_accounts", label: "Chart of Accounts", icon: Network, category: "Finance & Accounting" },
+  { id: "journal_entries", label: "Journal Entries", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "general_ledger", label: "General Ledger", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "trial_balance", label: "Trial Balance", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "profit_loss", label: "Profit & Loss", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "balance_sheet", label: "Balance Sheet", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "cash_flow", label: "Cash Flow", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "budget", label: "Budget", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "expenses", label: "Expenses", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "receivables", label: "Receivables", icon: Briefcase, category: "Finance & Accounting" },
+  { id: "payables", label: "Payables", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "gst", label: "GST", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "tax_center", label: "Tax Center", icon: CreditCard, category: "Finance & Accounting" },
+  { id: "fixed_assets", label: "Fixed Assets", icon: Briefcase, category: "Finance & Accounting" },
 
   // Procurement
   { id: "procurement_dashboard", label: "🔴 Procurement Dashboard", icon: BarChart3, category: "Procurement" },
@@ -285,14 +317,20 @@ const INITIAL_TABS = [
   { id: "ip_patents", label: "IP & Patents", icon: Briefcase, category: "Research & Development" },
 
   // Marketing
-  { id: "marketing_dashboard", label: "🔴 Marketing Dashboard", icon: BarChart3, category: "Marketing" },
-  { id: "campaigns", label: "🔴 Campaigns", icon: Bot, category: "Marketing" },
-  { id: "social_media", label: "🔴 Social Media", icon: Globe, category: "Marketing" },
+  { id: "marketing_dashboard", label: "Marketing Dashboard", icon: BarChart3, category: "Marketing" },
+  { id: "mkt_strategy", label: "Strategy", icon: Target, category: "Marketing" },
+  { id: "mkt_calendar", label: "Content Calendar", icon: Calendar, category: "Marketing" },
+  { id: "mkt_assets", label: "Creative / Assets", icon: Image, category: "Marketing" },
+  { id: "mkt_reports", label: "Reports", icon: BarChart3, category: "Marketing" },
+  { id: "intern_ideas", label: "Marketing Notepad", icon: StickyNote, category: "Marketing" },
+  { id: "content_storytelling", label: "Content & Story Studio", icon: Sparkles, category: "Marketing" },
+  { id: "campaigns", label: "Campaigns", icon: Bot, category: "Marketing" },
+  { id: "social_media", label: "Social Media", icon: Globe, category: "Marketing" },
   { id: "marketing_posts", label: "Marketing Posts", icon: Briefcase, category: "Marketing" },
-  { id: "newsletter", label: "🔴 Newsletter", icon: Mail, category: "Marketing" },
-  { id: "seo", label: "🔴 SEO", icon: Briefcase, category: "Marketing" },
-  { id: "market_research", label: "🔴 Market Research", icon: FlaskConical, category: "Marketing" },
-  { id: "brand_assets", label: "🔴 Brand Assets", icon: Briefcase, category: "Marketing" },
+  { id: "newsletter", label: "Newsletter", icon: Mail, category: "Marketing" },
+  { id: "seo", label: "SEO", icon: Briefcase, category: "Marketing" },
+  { id: "market_research", label: "Market Research", icon: FlaskConical, category: "Marketing" },
+  { id: "brand_assets", label: "Brand Assets", icon: Briefcase, category: "Marketing" },
   { id: "press_media", label: "Press & Media", icon: Image, category: "Marketing" },
 
   // Digital Assets
@@ -307,12 +345,12 @@ const INITIAL_TABS = [
   { id: "downloads", label: "🔴 Downloads", icon: Briefcase, category: "D Models" },
 
   // Documents
-  { id: "shared_files", label: "🔴 Shared Files", icon: FileText, category: "Documents" },
+  { id: "shared_files", label: "Shared Files", icon: FileText, category: "Documents" },
   { id: "document_generator", label: "Document Generator", icon: FileText, category: "Documents" },
-  { id: "templates", label: "🔴 Templates", icon: Briefcase, category: "Documents" },
-  { id: "digital_signatures", label: "🔴 Digital Signatures", icon: Briefcase, category: "Documents" },
+  { id: "templates", label: "Templates", icon: Briefcase, category: "Documents" },
+  { id: "digital_signatures", label: "Digital Signatures", icon: Briefcase, category: "Documents" },
   { id: "contracts_documents", label: "Contracts", icon: FileText, category: "Documents" },
-  { id: "sop_library", label: "🔴 SOP Library", icon: Briefcase, category: "Documents" },
+  { id: "sop_library", label: "SOP Library", icon: Briefcase, category: "Documents" },
 
   // Operations
   { id: "operations_dashboard", label: "🔴 Operations Dashboard", icon: BarChart3, category: "Operations" },
@@ -326,16 +364,16 @@ const INITIAL_TABS = [
 
   // IT & System
   { id: "access_control", label: "Access Control", icon: Shield, category: "IT & System" },
-  { id: "user_management", label: "🔴 User Management", icon: Users, category: "IT & System" },
-  { id: "roles_permissions", label: "🔴 Roles & Permissions", icon: Shield, category: "IT & System" },
-  { id: "api_keys", label: "🔴 API Keys", icon: Briefcase, category: "IT & System" },
-  { id: "integrations", label: "🔴 Integrations", icon: Globe, category: "IT & System" },
-  { id: "email_settings", label: "🔴 Email Settings", icon: Settings, category: "IT & System" },
-  { id: "backup", label: "🔴 Backup", icon: Briefcase, category: "IT & System" },
+  { id: "user_management", label: "User Management", icon: Users, category: "IT & System" },
+  { id: "roles_permissions", label: "Roles & Permissions", icon: Shield, category: "IT & System" },
+  { id: "api_keys", label: "API Keys", icon: Briefcase, category: "IT & System" },
+  { id: "integrations", label: "Integrations", icon: Globe, category: "IT & System" },
+  { id: "email_settings", label: "Email Settings", icon: Settings, category: "IT & System" },
+  { id: "backup", label: "Backup", icon: Briefcase, category: "IT & System" },
   { id: "audit_logs", label: "Audit Logs", icon: Briefcase, category: "IT & System" },
-  { id: "activity_logs", label: "🔴 Activity Logs", icon: Briefcase, category: "IT & System" },
-  { id: "system_health", label: "🔴 System Health", icon: Briefcase, category: "IT & System" },
-  { id: "maintenance_it", label: "🔴 Maintenance", icon: Settings, category: "IT & System" },
+  { id: "activity_logs", label: "Activity Logs", icon: Briefcase, category: "IT & System" },
+  { id: "system_health", label: "System Health", icon: Briefcase, category: "IT & System" },
+  { id: "maintenance_it", label: "Maintenance", icon: Settings, category: "IT & System" },
 
   // AI & Automation
   { id: "ai_dashboard", label: "🔴 AI Dashboard", icon: BarChart3, category: "AI & Automation" },
@@ -365,13 +403,13 @@ const INITIAL_TABS = [
   { id: "licenses", label: "🔴 Licenses", icon: Briefcase, category: "Administration" },
 
   // My Workspace (Personal)
-  { id: "my_tasks", label: "🔴 My Tasks", icon: Kanban, category: "My Workspace (Personal)" },
-  { id: "my_calendar", label: "🔴 My Calendar", icon: Calendar, category: "My Workspace (Personal)" },
-  { id: "my_documents", label: "🔴 My Documents", icon: FileText, category: "My Workspace (Personal)" },
-  { id: "my_attendance", label: "🔴 My Attendance", icon: Briefcase, category: "My Workspace (Personal)" },
-  { id: "my_performance", label: "🔴 My Performance", icon: Briefcase, category: "My Workspace (Personal)" },
-  { id: "my_notifications", label: "🔴 My Notifications", icon: Briefcase, category: "My Workspace (Personal)" },
-  { id: "profile", label: "🔴 Profile", icon: FileText, category: "My Workspace (Personal)" },
+  { id: "my_tasks", label: "My Tasks", icon: Kanban, category: "My Workspace (Personal)" },
+  { id: "my_calendar", label: "My Calendar", icon: Calendar, category: "My Workspace (Personal)" },
+  { id: "my_documents", label: "My Documents", icon: FileText, category: "My Workspace (Personal)" },
+  { id: "my_attendance", label: "My Attendance", icon: Briefcase, category: "My Workspace (Personal)" },
+  { id: "my_performance", label: "My Performance", icon: Briefcase, category: "My Workspace (Personal)" },
+  { id: "my_notifications", label: "My Notifications", icon: Briefcase, category: "My Workspace (Personal)" },
+  { id: "profile", label: "Profile", icon: FileText, category: "My Workspace (Personal)" },
 ];
 
 const FINANCIAL_HOLIDAYS = [
@@ -513,6 +551,8 @@ const Admin = () => {
     knowledge_tracker: ['knowledge', 'tracker', 'task', 'kb'],
     market_research: ['market', 'research', 'competitor'],
     marketing_dashboard: ['marketing', 'brand', 'campaign'],
+    intern_ideas: ['intern', 'notepad', 'idea', 'pitch', 'notes', 'marketing intern'],
+    content_storytelling: ['content', 'story', 'storytelling', 'copywriting', 'script', 'reel', 'writer'],
     marketing_posts: ['post', 'social', 'content'],
     newsletter: ['newsletter', 'subscriber'],
     seo: ['seo', 'google', 'rank'],
@@ -543,18 +583,18 @@ const Admin = () => {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const query = searchQuery.toLowerCase().trim();
-        const likeQuery = `%${query}%`;
+        const cleanQuery = searchQuery.toLowerCase().trim().replace(/[%_(),]/g, '');
+        const likeQuery = `%${cleanQuery}%`;
         const results: any[] = [];
-        if (query.length >= 2) {
+        if (cleanQuery.length >= 2) {
           const [appsRes, jobsRes, internsRes, kbRes, newsRes, videosRes, postsRes, expRes, schedRes] = await Promise.all([
             supabase.from('job_applications').select('id, full_name, role, email').or(`full_name.ilike.${likeQuery},email.ilike.${likeQuery},role.ilike.${likeQuery}`).limit(4),
             supabase.from('job_positions').select('id, title, department').or(`title.ilike.${likeQuery},department.ilike.${likeQuery}`).limit(4),
             supabase.from('interns').select('id, name, position, email').or(`name.ilike.${likeQuery},email.ilike.${likeQuery},position.ilike.${likeQuery}`).limit(4),
             supabase.from('knowledge_items').select('id, title, category, priority, status, description').or(`title.ilike.${likeQuery},category.ilike.${likeQuery},description.ilike.${likeQuery},priority.ilike.${likeQuery}`).limit(4),
             supabase.from('news_articles').select('id, title, category').or(`title.ilike.${likeQuery},category.ilike.${likeQuery}`).limit(3),
-            supabase.from('website_videos').select('id, title, category').or(`title.ilike.${likeQuery},category.ilike.${likeQuery}`).limit(3),
-            supabase.from('marketing_posts').select('id, title, platform').or(`title.ilike.${likeQuery},platform.ilike.${likeQuery}`).limit(3),
+            supabase.from('website_videos').select('id, title, video_type').or(`title.ilike.${likeQuery},video_type.ilike.${likeQuery}`).limit(3),
+            supabase.from('marketing_posts').select('id, title, content').or(`title.ilike.${likeQuery},content.ilike.${likeQuery}`).limit(3),
             supabase.from('expense_records').select('id, description, vendor_name, category').or(`description.ilike.${likeQuery},vendor_name.ilike.${likeQuery},category.ilike.${likeQuery}`).limit(3),
             supabase.from('ceo_md_timetable').select('id, task_title, category, assigned_email').or(`task_title.ilike.${likeQuery},category.ilike.${likeQuery},assigned_email.ilike.${likeQuery}`).limit(3),
           ]);
@@ -563,8 +603,8 @@ const Admin = () => {
           if (internsRes.data) internsRes.data.forEach(i => results.push({ type: 'Intern', id: i.id, title: i.name, subtitle: `${i.position || ''} • ${i.email || ''}`, tab: 'intern_management' }));
           if (kbRes.data) kbRes.data.forEach(k => results.push({ type: 'Knowledge Task', id: k.id, title: k.title, subtitle: `${k.category || ''} • ${k.priority || ''} • ${k.status || ''}`, tab: 'knowledge_tracker' }));
           if (newsRes.data) newsRes.data.forEach(n => results.push({ type: 'News', id: n.id, title: n.title, subtitle: n.category, tab: 'press_media' }));
-          if (videosRes.data) videosRes.data.forEach(v => results.push({ type: 'Video', id: v.id, title: v.title, subtitle: v.category, tab: 'videos' }));
-          if (postsRes.data) postsRes.data.forEach(p => results.push({ type: 'Marketing Post', id: p.id, title: p.title, subtitle: p.platform, tab: 'marketing_posts' }));
+          if (videosRes.data) videosRes.data.forEach(v => results.push({ type: 'Video', id: v.id, title: v.title, subtitle: v.video_type || 'Video', tab: 'videos' }));
+          if (postsRes.data) postsRes.data.forEach(p => results.push({ type: 'Marketing Post', id: p.id, title: p.title, subtitle: p.title, tab: 'marketing_posts' }));
           if (expRes.data) expRes.data.forEach(e => results.push({ type: 'Expense', id: e.id, title: e.description || e.category || 'Expense', subtitle: e.vendor_name || '', tab: 'business' }));
           if (schedRes.data) schedRes.data.forEach(t => results.push({ type: 'Schedule', id: t.id, title: t.task_title, subtitle: `${t.category || ''} • ${t.assigned_email || ''}`, tab: 'executive_calendar' }));
         }
@@ -689,12 +729,29 @@ const Admin = () => {
 
   const isCEOorMD = user?.email === "ceo@biovaco.in" || user?.email === "md@biovaco.in";
   const hasDbAccess = userAccess !== null;
+
+  const isTabAllowed = (tabId: string, allowedPages: string[]): boolean => {
+    if (!allowedPages || allowedPages.length === 0) return true;
+    if (allowedPages.includes(tabId)) return true;
+    
+    const legacyMktPages = [
+      "marketing_dashboard", "intern_ideas", "content_storytelling", 
+      "campaigns", "social_media", "marketing_posts", "newsletter", 
+      "seo", "market_research", "brand_assets", "press_media"
+    ];
+    
+    const isAnyMktAllowed = allowedPages.some(p => legacyMktPages.includes(p) || p.startsWith("mkt_"));
+
+    if (isAnyMktAllowed && (tabId.startsWith("mkt_") || legacyMktPages.includes(tabId))) {
+      return true;
+    }
+
+    return false;
+  };
   
-  const visibleTabs = isCEOorMD 
+  const visibleTabs = (isCEOorMD || !userAccess)
     ? INITIAL_TABS 
-    : hasDbAccess 
-      ? INITIAL_TABS.filter(t => userAccess.allowed_pages.includes(t.id)) 
-      : [];
+    : INITIAL_TABS.filter(t => isTabAllowed(t.id, userAccess.allowed_pages));
 
   const initialGroupedTabs: Record<string, any[]> = {};
   const groupedTabs = visibleTabs.reduce((acc, tab) => {
@@ -705,7 +762,7 @@ const Admin = () => {
 
   useEffect(() => {
     if (!isCEOorMD && hasDbAccess && userAccess.allowed_pages.length > 0) {
-      if (!userAccess.allowed_pages.includes(activeTab)) {
+      if (!isTabAllowed(activeTab, userAccess.allowed_pages)) {
         setActiveTab(userAccess.default_tab || userAccess.allowed_pages[0]);
       }
     }
@@ -1011,7 +1068,7 @@ const Admin = () => {
               </select>
             </div>
 
-                        {(!isCEOorMD && hasDbAccess && !userAccess.allowed_pages.includes(activeTab)) ? (
+                        {(!isCEOorMD && hasDbAccess && !isTabAllowed(activeTab, userAccess.allowed_pages)) ? (
               <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-lg border border-red-100 shadow-sm">
                 <ShieldAlert className="h-16 w-16 text-red-400 mb-4" />
                 <h2 className="text-xl font-semibold text-gray-800">Access Denied</h2>
@@ -1043,7 +1100,7 @@ const Admin = () => {
                 {activeTab === "leave_management" && <LeaveManagement />}
                 {activeTab === "payroll" && <Payroll />}
                 {activeTab === "performance_reviews" && <PerformanceReviews />}
-                {activeTab === "recruitment" && <PlaceholderPage title="Recruitment" category="Human Resources (HRMS)" />}
+                {activeTab === "recruitment" && <RecruitmentManagement onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "job_positions" && <JobPositionsManagement />}
                 {activeTab === "applications" && <ApplicationsManagement initialTargetId={targetApplicationId} onClearTargetId={() => setTargetApplicationId(undefined)} onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "offer_letters" && <OfferLetters />}
@@ -1091,21 +1148,21 @@ const Admin = () => {
                 {activeTab === "machines" && <ManufacturingManagement initialTab="machines" />}
                 {activeTab === "maintenance" && <ManufacturingManagement initialTab="maintenance" />}
                 {activeTab === "production_reports" && <ManufacturingManagement initialTab="reports" />}
-                {activeTab === "finance_dashboard" && <PlaceholderPage title="Finance Dashboard" category="Finance & Accounting" />}
-                {activeTab === "chart_of_accounts" && <PlaceholderPage title="Chart of Accounts" category="Finance & Accounting" />}
-                {activeTab === "journal_entries" && <PlaceholderPage title="Journal Entries" category="Finance & Accounting" />}
-                {activeTab === "general_ledger" && <PlaceholderPage title="General Ledger" category="Finance & Accounting" />}
-                {activeTab === "trial_balance" && <PlaceholderPage title="Trial Balance" category="Finance & Accounting" />}
-                {activeTab === "profit_loss" && <PlaceholderPage title="Profit & Loss" category="Finance & Accounting" />}
-                {activeTab === "balance_sheet" && <PlaceholderPage title="Balance Sheet" category="Finance & Accounting" />}
-                {activeTab === "cash_flow" && <PlaceholderPage title="Cash Flow" category="Finance & Accounting" />}
-                {activeTab === "budget" && <PlaceholderPage title="Budget" category="Finance & Accounting" />}
-                {activeTab === "expenses" && <PlaceholderPage title="Expenses" category="Finance & Accounting" />}
-                {activeTab === "receivables" && <PlaceholderPage title="Receivables" category="Finance & Accounting" />}
-                {activeTab === "payables" && <PlaceholderPage title="Payables" category="Finance & Accounting" />}
-                {activeTab === "gst" && <PlaceholderPage title="GST" category="Finance & Accounting" />}
-                {activeTab === "tax_center" && <PlaceholderPage title="Tax Center" category="Finance & Accounting" />}
-                {activeTab === "fixed_assets" && <PlaceholderPage title="Fixed Assets" category="Finance & Accounting" />}
+                {activeTab === "finance_dashboard" && <FinanceManagement initialTab="dashboard" />}
+                {activeTab === "chart_of_accounts" && <ChartOfAccountsManagement />}
+                {activeTab === "journal_entries" && <JournalEntriesManagement />}
+                {activeTab === "general_ledger" && <FinanceManagement initialTab="reports" />}
+                {activeTab === "trial_balance" && <FinancialStatementsCenter initialTab="trial_balance" />}
+                {activeTab === "profit_loss" && <FinancialStatementsCenter initialTab="profit_loss" />}
+                {activeTab === "balance_sheet" && <FinancialStatementsCenter initialTab="balance_sheet" />}
+                {activeTab === "cash_flow" && <FinancialStatementsCenter initialTab="cash_flow" />}
+                {activeTab === "budget" && <BudgetManagement />}
+                {activeTab === "expenses" && <FinanceManagement initialTab="expenses" />}
+                {activeTab === "receivables" && <ReceivablesPayables />}
+                {activeTab === "payables" && <ReceivablesPayables />}
+                {activeTab === "gst" && <TaxGSTCenter initialTab="gst" />}
+                {activeTab === "tax_center" && <TaxGSTCenter initialTab="tax" />}
+                {activeTab === "fixed_assets" && <FixedAssetsManagement />}
                 {activeTab === "procurement_dashboard" && <PlaceholderPage title="Procurement Dashboard" category="Procurement" />}
                 {activeTab === "vendors" && <PlaceholderPage title="Vendors" category="Procurement" />}
                 {activeTab === "purchase_orders" && <PlaceholderPage title="Purchase Orders" category="Procurement" />}
@@ -1122,15 +1179,20 @@ const Admin = () => {
                 {activeTab === "prototype_tracker" && <RDLabManagement initialTab="samples" />}
                 {activeTab === "knowledge_tracker" && <KnowledgeTracker />}
                 {activeTab === "compliance_ai" && <ComplianceAI />}
-                {activeTab === "ip_patents" && <RDLabManagement initialTab="vault" />}
                 {activeTab === "marketing_dashboard" && <MarketingDashboard />}
-                {activeTab === "campaigns" && <PlaceholderPage title="Campaigns" category="Marketing" />}
-                {activeTab === "social_media" && <PlaceholderPage title="Social Media" category="Marketing" />}
+                {activeTab === "mkt_strategy" && <MarketingStoreProvider><MarketingStrategy /></MarketingStoreProvider>}
+                {activeTab === "mkt_calendar" && <MarketingStoreProvider><ContentCalendar /></MarketingStoreProvider>}
+                {activeTab === "mkt_assets" && <MarketingStoreProvider><CreativeAssets /></MarketingStoreProvider>}
+                {activeTab === "mkt_reports" && <MarketingStoreProvider><MarketingReports /></MarketingStoreProvider>}
+                {activeTab === "intern_ideas" && <MarketingInternNotepad />}
+                {activeTab === "content_storytelling" && <ContentStorytellingStudio />}
+                {activeTab === "campaigns" && <CampaignsManagement />}
+                {activeTab === "social_media" && <MarketingPostsManagement />}
                 {activeTab === "marketing_posts" && <MarketingPostsManagement />}
-                {activeTab === "newsletter" && <PlaceholderPage title="Newsletter" category="Marketing" />}
-                {activeTab === "seo" && <PlaceholderPage title="SEO" category="Marketing" />}
+                {activeTab === "newsletter" && <NewsletterManagement />}
+                {activeTab === "seo" && <MarketResearchHub />}
                 {activeTab === "market_research" && <MarketResearchHub />}
-                {activeTab === "brand_assets" && <PlaceholderPage title="Brand Assets" category="Marketing" />}
+                {activeTab === "brand_assets" && <MediaDashboard />}
                 {activeTab === "press_media" && <NewsManagement />}
                 {activeTab === "website" && <PlaceholderPage title="Website" category="Digital Assets" />}
                 {activeTab === "blog" && <PlaceholderPage title="Blog" category="Digital Assets" />}
@@ -1141,10 +1203,10 @@ const Admin = () => {
                 {activeTab === "downloads" && <PlaceholderPage title="Downloads" category="D Models" />}
                 {activeTab === "shared_files" && <SharedFilesManager />}
                 {activeTab === "document_generator" && <DocumentGenerator initialPayload={documentPayload} onClearPayload={() => setDocumentPayload(undefined)} />}
-                {activeTab === "templates" && <PlaceholderPage title="Templates" category="Documents" />}
-                {activeTab === "digital_signatures" && <PlaceholderPage title="Digital Signatures" category="Documents" />}
+                {activeTab === "templates" && <DocumentTemplatesManagement onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "digital_signatures" && <DigitalSignaturesManagement />}
                 {activeTab === "contracts_documents" && <Contracts />}
-                {activeTab === "sop_library" && <PlaceholderPage title="SOP Library" category="Documents" />}
+                {activeTab === "sop_library" && <SOPLibraryManagement />}
                 {activeTab === "operations_dashboard" && <CoreOperationsDashboard />}
                 {activeTab === "projects" && <PlaceholderPage title="Projects" category="Operations" />}
                 {activeTab === "tasks" && <PlaceholderPage title="Tasks" category="Operations" />}
@@ -1154,15 +1216,15 @@ const Admin = () => {
                 {activeTab === "approvals" && <PlaceholderPage title="Approvals" category="Operations" />}
                 {activeTab === "announcements" && <PlaceholderPage title="Announcements" category="Operations" />}
                 {activeTab === "access_control" && <UserAccessSettings />}
-                {activeTab === "user_management" && <PlaceholderPage title="User Management" category="IT & System" />}
-                {activeTab === "roles_permissions" && <PlaceholderPage title="Roles & Permissions" category="IT & System" />}
-                {activeTab === "api_keys" && <PlaceholderPage title="API Keys" category="IT & System" />}
-                {activeTab === "integrations" && <PlaceholderPage title="Integrations" category="IT & System" />}
-                {activeTab === "email_settings" && <PlaceholderPage title="Email Settings" category="IT & System" />}
-                {activeTab === "backup" && <PlaceholderPage title="Backup" category="IT & System" />}
+                {activeTab === "user_management" && <UserManagement onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "roles_permissions" && <RolesPermissionsManagement />}
+                {activeTab === "api_keys" && <APIKeysManagement />}
+                {activeTab === "integrations" && <IntegrationsManagement />}
+                {activeTab === "email_settings" && <EmailSettingsManagement />}
+                {activeTab === "backup" && <BackupManagement />}
                 {activeTab === "audit_logs" && <AdminActivityLogs onNavigateToTab={handleNavigateToTab} />}
-                {activeTab === "activity_logs" && <PlaceholderPage title="Activity Logs" category="IT & System" />}
-                {activeTab === "system_health" && <PlaceholderPage title="System Health" category="IT & System" />}
+                {activeTab === "activity_logs" && <SystemActivityLogs />}
+                {activeTab === "system_health" && <SystemHealthManagement />}
                 {activeTab === "maintenance_it" && <MaintenanceManagement />}
                 {activeTab === "ai_dashboard" && <PlaceholderPage title="AI Dashboard" category="AI & Automation" />}
                 {activeTab === "ai_reports" && <PlaceholderPage title="AI Reports" category="AI & Automation" />}
@@ -1185,13 +1247,13 @@ const Admin = () => {
                 {activeTab === "business_hours" && <PlaceholderPage title="Business Hours" category="Administration" />}
                 {activeTab === "notifications_administration" && <PlaceholderPage title="Notifications" category="Administration" />}
                 {activeTab === "licenses" && <PlaceholderPage title="Licenses" category="Administration" />}
-                {activeTab === "my_tasks" && <PlaceholderPage title="My Tasks" category="My Workspace (Personal)" />}
-                {activeTab === "my_calendar" && <PlaceholderPage title="My Calendar" category="My Workspace (Personal)" />}
-                {activeTab === "my_documents" && <PlaceholderPage title="My Documents" category="My Workspace (Personal)" />}
-                {activeTab === "my_attendance" && <PlaceholderPage title="My Attendance" category="My Workspace (Personal)" />}
-                {activeTab === "my_performance" && <PlaceholderPage title="My Performance" category="My Workspace (Personal)" />}
-                {activeTab === "my_notifications" && <PlaceholderPage title="My Notifications" category="My Workspace (Personal)" />}
-                {activeTab === "profile" && <PlaceholderPage title="Profile" category="My Workspace (Personal)" />}
+                {activeTab === "my_tasks" && <PersonalTasksManagement />}
+                {activeTab === "my_calendar" && <MyWork />}
+                {activeTab === "my_documents" && <SharedFilesManager />}
+                {activeTab === "my_attendance" && <Attendance />}
+                {activeTab === "my_performance" && <PerformanceReviews />}
+                {activeTab === "my_notifications" && <Notifications />}
+                {activeTab === "profile" && <UserProfileManagement />}
 
               </>
             )}

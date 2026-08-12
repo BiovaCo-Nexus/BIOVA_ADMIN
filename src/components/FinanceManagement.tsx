@@ -132,8 +132,14 @@ const PAID_BY_ROLES = ["Founder", "Director", "Employee", "Consultant", "Investo
 const STATUSES = ["Pending", "Approved", "Rejected", "Reimbursed"];
 const PAYMENT_MODES = ["UPI", "Bank Transfer", "Credit Card", "Debit Card", "Cash", "Wallet"];
 
-export function FinanceManagement() {
- const [activeTab, setActiveTab] = useState("dashboard");
+export function FinanceManagement({ initialTab }: { initialTab?: string } = {}) {
+ const [activeTab, setActiveTab] = useState(initialTab || "dashboard");
+
+ useEffect(() => {
+   if (initialTab) {
+     setActiveTab(initialTab);
+   }
+ }, [initialTab]);
  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
  const [capital, setCapital] = useState<CapitalContribution[]>([]);
  const [incomes, setIncomes] = useState<IncomeRecord[]>([]);

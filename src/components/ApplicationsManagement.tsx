@@ -1,15 +1,18 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Mail, Eye, Clock, Calendar, CheckCircle, XCircle, Download, FileText } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Mail, Eye, Clock, Calendar, CheckCircle, XCircle, Download, FileText, Phone, Layers, X, Search, Copy, Sparkles } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { ContactRemarkModal } from "@/components/ContactRemarkModal"
 import { ApplicationDetailModal } from "@/components/ApplicationDetailModal"
+import { BulkEmailModal } from "@/components/BulkEmailModal"
 import { logAdminActivity } from "@/utils/adminLogger"
 
 interface JobApplication {
@@ -55,6 +58,9 @@ export function ApplicationsManagement({ initialTargetId, onClearTargetId, onNav
  const [selectedApplicant, setSelectedApplicant] = useState<{ name: string; email: string; id: string } | null>(null)
  const [showDetailModal, setShowDetailModal] = useState(false)
  const [selectedApplication, setSelectedApplication] = useState<JobApplication | null>(null)
+ const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
+ const [bulkInputText, setBulkInputText] = useState("")
+ const [isBulkEmailModalOpen, setIsBulkEmailModalOpen] = useState(false)
  
  const { toast } = useToast()
 
@@ -83,6 +89,80 @@ export function ApplicationsManagement({ initialTargetId, onClearTargetId, onNav
  pendingTargetRef.current = undefined // Done, clear the ref
  }
  }, [applications])
+
+ const syncApplicantsToNewsletter = async (apps: JobApplication[], showToast = false) => {
+   try {
+     const validEmails = Array.from(
+       new Set(
+         apps
+           .map((a) => a.email?.trim().toLowerCase())
+           .filter((e): e is string => Boolean(e && e.length > 3 && e.includes("@")))
+       )
+     )
+
+     if (validEmails.length === 0) {
+       if (showToast) {
+         toast({
+           title: "No Valid Emails",
+           description: "No applicant email addresses found to sync.",
+         })
+       }
+       return
+     }
+
+     // Fetch existing newsletter subscriptions to avoid duplicate insertion
+     const { data: existingSubs } = await supabase
+       .from("newsletter_subscriptions")
+       .select("email")
+
+     const existingSet = new Set(
+       (existingSubs || []).map((s) => s.email.trim().toLowerCase())
+     )
+
+     const newEmails = validEmails.filter((e) => !existingSet.has(e))
+
+     if (newEmails.length > 0) {
+       const recordsToInsert = newEmails.map((email) => ({
+         email,
+         confirmed: true,
+         subscribed_at: new Date().toISOString(),
+       }))
+
+       const { error } = await supabase
+         .from("newsletter_subscriptions")
+         .upsert(recordsToInsert, { onConflict: "email", ignoreDuplicates: true })
+
+       if (error) throw error
+
+       logAdminActivity(
+         "NEWSLETTER_AUTO_SYNC",
+         `Registered ${newEmails.length} applicant emails in Newsletter Subscriptions`,
+         `Total synced applicants: ${validEmails.length}`
+       )
+
+       if (showToast) {
+         toast({
+           title: "Newsletter Synced!",
+           description: `Registered ${newEmails.length} new applicant email(s) into Newsletter database.`,
+         })
+       }
+     } else if (showToast) {
+       toast({
+         title: "All Emails Synced",
+         description: `All ${validEmails.length} applicant emails are already registered in Newsletter Subscriptions.`,
+       })
+     }
+   } catch (err: any) {
+     console.error("Error syncing applicant emails to newsletter:", err)
+     if (showToast) {
+       toast({
+         title: "Sync Failed",
+         description: err.message || "Failed to sync emails to Newsletter database.",
+         variant: "destructive",
+       })
+     }
+   }
+ }
 
  const fetchApplications = async () => {
  setLoading(true)
@@ -262,6 +342,7 @@ export function ApplicationsManagement({ initialTargetId, onClearTargetId, onNav
  })
 
  setApplications(scoredApps)
+ syncApplicantsToNewsletter(scoredApps)
  } catch (error) {
  console.error("Error fetching applications:", error)
  } finally {
@@ -479,35 +560,107 @@ export function ApplicationsManagement({ initialTargetId, onClearTargetId, onNav
  }
  }
 
- const downloadApplicationsCSV = (rows: JobApplication[]) => {
- if (!rows.length) return
+  const downloadApplicationsCSV = (rows: JobApplication[]) => {
+    if (!rows.length) {
+      toast({
+        title: "No Data to Export",
+        description: "Please select or filter applications to download CSV.",
+        variant: "destructive",
+      })
+      return
+    }
 
- const headers = ["Name", "Email", "Phone", "Role", "Experience (Yrs)", "Status", "Applied At"]
- const csvContent = [
- headers.join(","),
- ...rows.map((app) =>
- [
- `"${app.full_name.replace(/"/g, '""')}"`,
- `"${app.email}"`,
- `"${app.phone}"`,
- `"${app.role}"`,
- app.experience_years,
- `"${app.status}"`,
- `"${new Date(app.created_at).toLocaleDateString()}"`,
- ].join(",")
- ),
- ].join("\n")
+    const headers = [
+      "Mobile Number",
+      "Name",
+      "Application ID",
+      "Role",
+      "Email",
+      "Status",
+      "Experience",
+      "Applied At",
+    ]
 
- const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
- const url = URL.createObjectURL(blob)
- const a = document.createElement("a")
- a.href = url
- a.download = `applications_${new Date().toISOString().slice(0, 10)}.csv`
- document.body.appendChild(a)
- a.click()
- document.body.removeChild(a)
- URL.revokeObjectURL(url)
- }
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((app) => {
+        const phone = app.phone ? `"${app.phone.replace(/"/g, '""')}"` : '""'
+        const name = app.full_name ? `"${app.full_name.replace(/"/g, '""')}"` : '""'
+        const appId = (app.application_id || app.id || "").replace(/"/g, '""')
+        const roleLabel = getJobRoleLabel(app.role || "").replace(/"/g, '""')
+        const email = app.email ? `"${app.email.replace(/"/g, '""')}"` : '""'
+        const status = `"${(app.status || "").replace(/_/g, " ").toUpperCase()}"`
+        const exp = `"${app.experience_years || 0} Years"`
+        const appliedAt = app.created_at ? `"${new Date(app.created_at).toLocaleString()}"` : '""'
+
+        return [
+          phone,
+          name,
+          `"${appId}"`,
+          `"${roleLabel}"`,
+          email,
+          status,
+          exp,
+          appliedAt,
+        ].join(",")
+      }),
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `applications_export_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    toast({
+      title: "CSV Downloaded",
+      description: `Exported ${rows.length} applicant record(s) with Mobile, Name, App ID, Role, Email, Status, Experience & Applied At.`,
+    })
+  }
+
+  const copySelectedApplicantsInfo = (idsToCopy?: string[]) => {
+    const targetApps = idsToCopy && idsToCopy.length > 0
+      ? applications.filter((a) => idsToCopy.includes(a.id))
+      : filteredApplications
+
+    if (!targetApps.length) {
+      toast({
+        title: "No Applicants Selected",
+        description: "Please tick/select applicants to copy their details.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const textLines = targetApps.map((app, idx) => {
+      const appId = app.application_id || app.id.slice(0, 8)
+      const phoneStr = app.phone ? ` | Phone: ${app.phone}` : ""
+      const emailStr = app.email ? ` | Email: ${app.email}` : ""
+      return `${idx + 1}. Name: ${app.full_name} | App ID: ${appId}${phoneStr}${emailStr}`
+    })
+
+    const textToCopy = textLines.join("\n")
+
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => {
+        toast({
+          title: "Copied to Clipboard!",
+          description: `Copied details for ${targetApps.length} applicant(s) (Name & Application ID).`,
+        })
+      })
+      .catch((err) => {
+        console.error("Clipboard write error:", err)
+        toast({
+          title: "Copy Failed",
+          description: "Could not copy data to clipboard.",
+          variant: "destructive",
+        })
+      })
+  }
 
  const getStatusColor = (status: string) => {
  switch (status) {
@@ -557,30 +710,76 @@ export function ApplicationsManagement({ initialTargetId, onClearTargetId, onNav
  return roles[roleId] || roleId
  }
 
- const filteredApplications = applications.filter((app) => {
- const matchesSearch =
- app.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
- app.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
- app.role.toLowerCase().includes(searchTerm.toLowerCase())
- const matchesStatus = statusFilter === "all" || app.status === statusFilter
- return matchesSearch && matchesStatus
- })
+  const searchTokens = useMemo(() => {
+    if (!searchTerm.trim()) return []
+    return searchTerm
+      .split(/[\n,;]+/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+  }, [searchTerm])
 
- if (loading) {
- return <div className="text-center py-8">Loading applications...</div>
- }
+  const filteredApplications = useMemo(() => {
+    return applications.filter((app) => {
+      const matchesStatus = statusFilter === "all" || app.status === statusFilter
+      if (!matchesStatus) return false
 
- return (
- <div className="space-y-6">
- <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
- <h1 className="text-2xl font-bold text-gray-900">Applications</h1>
- <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
- <Input
- placeholder="Search applications..."
- value={searchTerm}
- onChange={(e) => setSearchTerm(e.target.value)}
- className="w-full sm:w-auto"
- />
+      if (searchTokens.length === 0) return true
+
+      return searchTokens.some((token) => {
+        const cleanToken = token.toLowerCase()
+        const tokenDigits = cleanToken.replace(/\D/g, "")
+        const phoneDigits = (app.phone || "").replace(/\D/g, "")
+
+        const matchesName = (app.full_name || "").toLowerCase().includes(cleanToken)
+        const matchesEmail = (app.email || "").toLowerCase().includes(cleanToken)
+        const matchesRole =
+          (app.role || "").toLowerCase().includes(cleanToken) ||
+          getJobRoleLabel(app.role || "").toLowerCase().includes(cleanToken)
+        const matchesAppId =
+          (app.application_id || "").toLowerCase().includes(cleanToken) ||
+          (app.id || "").toLowerCase().includes(cleanToken)
+
+        const matchesPhoneDirect = (app.phone || "").toLowerCase().includes(cleanToken)
+        const matchesPhoneDigits = tokenDigits.length >= 2 && phoneDigits.includes(tokenDigits)
+
+        return (
+          matchesName ||
+          matchesEmail ||
+          matchesRole ||
+          matchesAppId ||
+          matchesPhoneDirect ||
+          matchesPhoneDigits
+        )
+      })
+    })
+  }, [applications, searchTokens, statusFilter])
+
+  if (loading) {
+    return <div className="text-center py-8">Loading applications...</div>
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-gray-900">Applications</h1>
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
+          <Input
+            placeholder="Search by name, email, mobile, or comma separated numbers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full sm:w-auto min-w-[260px]"
+          />
+          <Button
+            variant="outline"
+            className="shrink-0 border-[#4B49AC]/40 text-[#4B49AC] hover:bg-[#4B49AC]/10 font-medium"
+            onClick={() => {
+              setBulkInputText(searchTokens.join("\n"))
+              setIsBulkModalOpen(true)
+            }}
+          >
+            <Layers className="h-4 w-4 mr-2" />
+            Bulk Search
+          </Button>
  <div className="flex gap-2">
  <select
  value={statusFilter}
@@ -594,75 +793,166 @@ export function ApplicationsManagement({ initialTargetId, onClearTargetId, onNav
  <option value="accepted">Accepted</option>
  <option value="rejected">Rejected</option>
  </select>
- <Button
- variant="outline"
- className="shrink-0"
- onClick={() => {
- const rowsToExport = selectedIds.length
- ? applications.filter((a) => selectedIds.includes(a.id))
- : filteredApplications
- downloadApplicationsCSV(rowsToExport)
- }}
- >
- <Download className="h-4 w-4 sm:mr-2" />
- <span className="hidden sm:inline">Export CSV</span>
- </Button>
- </div>
- {selectedIds.length > 0 && (
- <Button
- variant="destructive"
- className="w-full sm:w-auto"
- onClick={async () => {
- if (!confirm(`Delete ${selectedIds.length} selected application(s)?`)) return
- await bulkDeleteApplications(selectedIds)
- }}
- >
- Delete Selected
- </Button>
- )}
- </div>
- </div>
+  <Button
+    variant="outline"
+    className="shrink-0 border-[#4B49AC]/30 text-[#4B49AC] hover:bg-[#4B49AC]/10 font-medium"
+    onClick={() => copySelectedApplicantsInfo(selectedIds)}
+    title="Copy Name & Application ID to clipboard"
+  >
+    <Copy className="h-4 w-4 sm:mr-2" />
+    <span className="hidden sm:inline">Copy Info {selectedIds.length > 0 ? `(${selectedIds.length})` : ""}</span>
+  </Button>
+  <Button
+    variant="outline"
+    className="shrink-0"
+    onClick={() => {
+      const rowsToExport = selectedIds.length
+        ? applications.filter((a) => selectedIds.includes(a.id))
+        : filteredApplications
+      downloadApplicationsCSV(rowsToExport)
+    }}
+  >
+    <Download className="h-4 w-4 sm:mr-2" />
+    <span className="hidden sm:inline">Export CSV</span>
+  </Button>
+  <Button
+    className="shrink-0 bg-[#4B49AC] hover:bg-[#4B49AC]/90 text-white font-medium border-0 shadow-sm"
+    onClick={() => setIsBulkEmailModalOpen(true)}
+    title="Send bulk email to applicants via Brevo"
+  >
+    <Mail className="h-4 w-4 sm:mr-2" />
+    <span className="hidden sm:inline">Bulk Mail {selectedIds.length > 0 ? `(${selectedIds.length})` : ""}</span>
+  </Button>
+  <Button
+    variant="outline"
+    className="shrink-0 border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-medium"
+    onClick={() => syncApplicantsToNewsletter(applications, true)}
+    title="Register applicant emails to Marketing Newsletter database for future outreach"
+  >
+    <Sparkles className="h-4 w-4 sm:mr-2 text-emerald-600" />
+    <span className="hidden sm:inline">Sync Newsletter</span>
+  </Button>
+  </div>
+  {selectedIds.length > 0 && (
+    <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+      <Button
+        variant="outline"
+        className="w-full sm:w-auto border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-semibold"
+        onClick={() => {
+          const rowsToExport = applications.filter((a) => selectedIds.includes(a.id))
+          downloadApplicationsCSV(rowsToExport)
+        }}
+      >
+        <Download className="h-4 w-4 mr-2" />
+        Download CSV ({selectedIds.length})
+      </Button>
+      <Button
+        className="w-full sm:w-auto bg-[#4B49AC] hover:bg-[#4B49AC]/90 text-white font-semibold"
+        onClick={() => setIsBulkEmailModalOpen(true)}
+      >
+        <Mail className="h-4 w-4 mr-2" />
+        Email Ticked ({selectedIds.length})
+      </Button>
+      <Button
+        variant="outline"
+        className="w-full sm:w-auto border-[#4B49AC] text-[#4B49AC] hover:bg-[#4B49AC]/10 font-semibold"
+        onClick={() => copySelectedApplicantsInfo(selectedIds)}
+      >
+        <Copy className="h-4 w-4 mr-2" />
+        Copy Ticked ({selectedIds.length})
+      </Button>
+      <Button
+        variant="destructive"
+        className="w-full sm:w-auto"
+        onClick={async () => {
+          if (!confirm(`Delete ${selectedIds.length} selected application(s)?`)) return
+          await bulkDeleteApplications(selectedIds)
+        }}
+      >
+        Delete Selected
+      </Button>
+    </div>
+  )}
+      </div>
+      </div>
 
- <div className="hidden xl:block overflow-hidden rounded-md border border-gray-200 bg-white">
- <Table>
- <TableHeader>
- <TableRow className="bg-muted/20">
- <TableHead className="w-12">
- <input
- type="checkbox"
- checked={selectedIds.length > 0 && filteredApplications.every((a) => selectedIds.includes(a.id))}
- onChange={(e) => {
- if (e.target.checked) {
- setSelectedIds(filteredApplications.map((a) => a.id))
- } else {
- setSelectedIds([])
- }
- }}
- />
- </TableHead>
- <TableHead className="text-foreground font-bold">Name</TableHead>
- <TableHead className="text-foreground font-bold">Email</TableHead>
- <TableHead className="text-foreground font-bold">Role</TableHead>
- <TableHead className="text-foreground font-bold">AI Fit</TableHead>
- <TableHead className="text-foreground font-bold">Status</TableHead>
- <TableHead className="text-foreground font-bold">Actions</TableHead>
- </TableRow>
- </TableHeader>
- <TableBody>
- {filteredApplications.map((app) => (
- <TableRow key={app.id}>
- <TableCell>
- <input
- type="checkbox"
- checked={selectedIds.includes(app.id)}
- onChange={(e) => {
- if (e.target.checked) setSelectedIds((s) => Array.from(new Set([...s, app.id])))
- else setSelectedIds((s) => s.filter((id) => id !== app.id))
- }}
- />
+      {searchTokens.length > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 p-3.5 bg-purple-50/90 border border-purple-200 rounded-lg text-sm text-purple-900 shadow-sm">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Badge className="bg-[#4B49AC] text-white font-medium">Bulk Search Active</Badge>
+            <span>
+              Searching <strong>{searchTokens.length} terms</strong> (e.g. {searchTokens.slice(0, 3).join(", ")}{searchTokens.length > 3 ? "..." : ""}).
+            </span>
+            <span className="font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
+              Found {filteredApplications.length} matching applicant{filteredApplications.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-purple-700 hover:text-purple-900 hover:bg-purple-100 h-7 text-xs font-semibold"
+            onClick={() => setSearchTerm("")}
+          >
+            <X className="h-3.5 w-3.5 mr-1" />
+            Clear Search
+          </Button>
+        </div>
+      )}
+
+      <div className="hidden xl:block overflow-hidden rounded-md border border-gray-200 bg-white">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/20">
+              <TableHead className="w-12">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.length > 0 && filteredApplications.every((a) => selectedIds.includes(a.id))}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedIds(filteredApplications.map((a) => a.id))
+                    } else {
+                      setSelectedIds([])
+                    }
+                  }}
+                />
+              </TableHead>
+              <TableHead className="text-foreground font-bold">App ID</TableHead>
+              <TableHead className="text-foreground font-bold">Applicant</TableHead>
+              <TableHead className="text-foreground font-bold">Contact Info</TableHead>
+              <TableHead className="text-foreground font-bold">Role</TableHead>
+              <TableHead className="text-foreground font-bold">AI Fit</TableHead>
+              <TableHead className="text-foreground font-bold">Status</TableHead>
+              <TableHead className="text-foreground font-bold">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredApplications.map((app) => (
+              <TableRow key={app.id}>
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(app.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedIds((s) => Array.from(new Set([...s, app.id])))
+                      else setSelectedIds((s) => s.filter((id) => id !== app.id))
+                    }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="font-mono text-xs font-semibold text-[#4B49AC] bg-purple-50/80 border-purple-200">
+                    {app.application_id || app.id.slice(0, 8)}
+                  </Badge>
+                </TableCell>
+                <TableCell className="font-medium text-foreground">{app.full_name}</TableCell>
+ <TableCell className="text-gray-600">
+  <div className="font-medium text-gray-900">{app.email}</div>
+  {app.phone && (
+    <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5 font-mono">
+      <Phone className="h-3 w-3 text-gray-400" />
+      {app.phone}
+    </div>
+  )}
  </TableCell>
- <TableCell className="font-medium text-foreground">{app.full_name}</TableCell>
- <TableCell className="text-gray-600">{app.email}</TableCell>
  <TableCell>
  <Badge className="bg-[#4B49AC]/10 text-[#4B49AC] hover:bg-[#4B49AC]/20 border-0 font-medium">
  {getJobRoleLabel(app.role)}
@@ -793,10 +1083,16 @@ export function ApplicationsManagement({ initialTargetId, onClearTargetId, onNav
  else setSelectedIds((s) => s.filter((id) => id !== app.id))
  }}
  />
- <div>
- <h3 className="font-bold text-foreground leading-none">{app.full_name}</h3>
- <p className="text-sm text-gray-500 mt-1 break-all">{app.email}</p>
- </div>
+  <div>
+    <h3 className="font-bold text-foreground leading-none">{app.full_name}</h3>
+    <p className="text-sm text-gray-500 mt-1 break-all">{app.email}</p>
+    {app.phone && (
+      <p className="text-xs text-gray-500 mt-1 flex items-center gap-1 font-mono">
+        <Phone className="h-3 w-3 text-gray-400" />
+        {app.phone}
+      </p>
+    )}
+  </div>
  </div>
  <Badge className="bg-[#4B49AC]/10 text-[#4B49AC] hover:bg-[#4B49AC]/20 border-0 font-medium shrink-0">
  {getJobRoleLabel(app.role)}
@@ -893,6 +1189,76 @@ export function ApplicationsManagement({ initialTargetId, onClearTargetId, onNav
  onClose={() => setShowDetailModal(false)}
  application={selectedApplication}
  />
+
+ {/* Brevo Bulk Email System Modal */}
+ <BulkEmailModal
+   open={isBulkEmailModalOpen}
+   onClose={() => setIsBulkEmailModalOpen(false)}
+   selectedApplicants={
+     selectedIds.length > 0
+       ? applications.filter((a) => selectedIds.includes(a.id))
+       : filteredApplications
+   }
+ />
+
+ {/* Bulk Search Modal */}
+ <Dialog open={isBulkModalOpen} onOpenChange={setIsBulkModalOpen}>
+   <DialogContent className="sm:max-w-lg">
+     <DialogHeader>
+       <DialogTitle className="flex items-center gap-2 text-[#4B49AC]">
+         <Layers className="h-5 w-5" />
+         Bulk Applicant Search
+       </DialogTitle>
+       <DialogDescription>
+         Paste multiple mobile numbers, application IDs, or emails separated by commas, spaces, or line breaks.
+       </DialogDescription>
+     </DialogHeader>
+
+     <div className="space-y-3 py-2">
+       <Textarea
+         placeholder={"Enter list here e.g.:\n2323, 45667\n9876543210\n9123456789\nAPP-2026-001"}
+         value={bulkInputText}
+         onChange={(e) => setBulkInputText(e.target.value)}
+         rows={6}
+         className="font-mono text-sm"
+       />
+       <div className="flex items-center justify-between text-xs text-gray-500">
+         <span>
+           Detected:{" "}
+           <strong className="text-foreground font-semibold">
+             {bulkInputText.split(/[\n,;]+/).map((t) => t.trim()).filter(Boolean).length}
+           </strong>{" "}
+           item(s)
+         </span>
+         {bulkInputText && (
+           <button
+             type="button"
+             onClick={() => setBulkInputText("")}
+             className="text-red-500 hover:underline"
+           >
+             Clear input
+           </button>
+         )}
+       </div>
+     </div>
+
+     <DialogFooter className="gap-2 sm:gap-0 flex-col-reverse sm:flex-row">
+       <Button variant="outline" onClick={() => setIsBulkModalOpen(false)}>
+         Cancel
+       </Button>
+       <Button
+         className="bg-[#4B49AC] hover:bg-[#4B49AC]/90 text-white"
+         onClick={() => {
+           setSearchTerm(bulkInputText)
+           setIsBulkModalOpen(false)
+         }}
+       >
+         <Search className="h-4 w-4 mr-2" />
+         Search All ({bulkInputText.split(/[\n,;]+/).map((t) => t.trim()).filter(Boolean).length})
+       </Button>
+     </DialogFooter>
+   </DialogContent>
+ </Dialog>
  </div>
  )
 }

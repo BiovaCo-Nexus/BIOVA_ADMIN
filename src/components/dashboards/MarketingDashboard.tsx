@@ -95,16 +95,22 @@ export function MarketingDashboard() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Marketing Intelligence</h1>
-          <p className="text-sm text-gray-500">Brand Strategy & Market Insights</p>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Megaphone className="h-6 w-6 text-[#4B49AC]" />
+            Marketing Dashboard
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Brand strategy performance, campaign reach, content engagement, and audience demographics.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <CalendarIcon className="h-4 w-4 text-gray-400" />
           <Select value={timeFilter} onValueChange={(v: any) => setTimeFilter(v)}>
-            <SelectTrigger className="w-[140px] h-8 text-xs bg-white">
+            <SelectTrigger className="w-[150px] h-9 text-sm bg-white">
               <SelectValue placeholder="Select timeframe" />
             </SelectTrigger>
             <SelectContent>

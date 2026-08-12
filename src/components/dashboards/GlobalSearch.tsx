@@ -22,9 +22,9 @@ export function GlobalSearch({ onNavigateToTab }: { onNavigateToTab?: (tabId: st
       try {
         // Search multiple tables in parallel
         const [internsRes, tasksRes, appsRes, rdRes] = await Promise.all([
-          supabase.from('interns').select('*').or(`name.ilike.${searchQuery},email.ilike.${searchQuery}`).limit(5),
+          supabase.from('interns').select('*').or(`name.ilike.${searchQuery},email.ilike.${searchQuery},contact.ilike.${searchQuery}`).limit(5),
           supabase.from('ceo_md_timetable').select('*').ilike('activity_name', searchQuery).limit(5),
-          supabase.from('job_applications').select('*').or(`name.ilike.${searchQuery},email.ilike.${searchQuery}`).limit(5),
+          supabase.from('job_applications').select('*').or(`full_name.ilike.${searchQuery},email.ilike.${searchQuery},phone.ilike.${searchQuery}`).limit(5),
           supabase.from('knowledge_items').select('*').ilike('title', searchQuery).limit(5)
         ])
 
@@ -34,7 +34,7 @@ export function GlobalSearch({ onNavigateToTab }: { onNavigateToTab?: (tabId: st
           combined.push(...internsRes.data.map(i => ({
             type: 'Intern',
             title: i.name,
-            subtitle: i.email,
+            subtitle: `${i.contact ? i.contact + ' • ' : ''}${i.email || ''}`,
             icon: <Users className="h-4 w-4 text-purple-500" />
           })))
         }
@@ -49,8 +49,8 @@ export function GlobalSearch({ onNavigateToTab }: { onNavigateToTab?: (tabId: st
         if (appsRes.data) {
           combined.push(...appsRes.data.map(a => ({
             type: 'Applicant',
-            title: a.name,
-            subtitle: a.position_applied,
+            title: a.full_name || a.name || 'Applicant',
+            subtitle: `${a.phone ? a.phone + ' • ' : ''}${a.email || a.role || ''}`,
             icon: <AlertCircle className="h-4 w-4 text-amber-500" />
           })))
         }
