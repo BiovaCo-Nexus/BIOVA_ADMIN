@@ -731,20 +731,13 @@ const Admin = () => {
   const hasDbAccess = userAccess !== null;
 
   const isTabAllowed = (tabId: string, allowedPages: string[]): boolean => {
-    if (!allowedPages || allowedPages.length === 0) return true;
+    if (!allowedPages || allowedPages.length === 0) return false;
     if (allowedPages.includes(tabId)) return true;
-    
-    const legacyMktPages = [
-      "marketing_dashboard", "intern_ideas", "content_storytelling", 
-      "campaigns", "social_media", "marketing_posts", "newsletter", 
-      "seo", "market_research", "brand_assets", "press_media"
-    ];
-    
-    const isAnyMktAllowed = allowedPages.some(p => legacyMktPages.includes(p) || p.startsWith("mkt_"));
 
-    if (isAnyMktAllowed && (tabId.startsWith("mkt_") || legacyMktPages.includes(tabId))) {
-      return true;
-    }
+    // Legacy 1-to-1 fallback aliases
+    if (tabId === "mkt_strategy" && (allowedPages.includes("campaigns") || allowedPages.includes("marketing_dashboard"))) return true;
+    if (tabId === "mkt_calendar" && (allowedPages.includes("content_storytelling") || allowedPages.includes("intern_ideas"))) return true;
+    if (tabId === "mkt_assets" && allowedPages.includes("brand_assets")) return true;
 
     return false;
   };
