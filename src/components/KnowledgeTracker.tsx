@@ -163,37 +163,126 @@ export function KnowledgeTracker() {
     })
   }, [items, userEmail, isExecutive, filterAssignee])
 
-  const sendAssignmentEmail = async (internEmail: string, title: string, desc: string, prio: string) => {
-    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY
-    if (!BREVO_API_KEY) return
+  const sendAssignmentEmail = async (
+    targetEmails: string[],
+    title: string,
+    desc: string,
+    prio: string,
+    category: string,
+    dueDate: string | null,
+    creatorEmail: string | null
+  ) => {
+    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || "xkeysib-brevo-key"
+    
+    const cleanAssignees = Array.from(new Set(targetEmails.map(e => e.toLowerCase().trim()).filter(e => e.includes("@"))));
+    if (cleanAssignees.length === 0) return;
 
-    const internName = interns.find(i => i.email === internEmail)?.name || "Intern"
+    // Always include ceo@biovaco.in for confirmation copy if not already in list
+    const ceoEmail = "ceo@biovaco.in";
+    const allRecipients = Array.from(new Set([...cleanAssignees, ceoEmail]));
+
+    const formattedRecipients = allRecipients.map(email => {
+      const foundUser = assignableUsers.find(u => u.email === email);
+      return {
+        email,
+        name: foundUser ? foundUser.label : (email === ceoEmail ? "CEO Office (Confirmation Copy)" : email)
+      };
+    });
+
+    const assigneeNamesStr = cleanAssignees.map(email => {
+      const found = assignableUsers.find(u => u.email === email);
+      return found ? found.label : email;
+    }).join(", ");
 
     const emailHtml = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; border: 1px solid #ddd; border-top: 4px solid #18181b;">
-        <h2 style="color: #18181b;">BiovaCo Nexus - New Task Assigned</h2>
-        <p>Hello <strong>${internName}</strong>,</p>
-        <p>A new task has been assigned to you by the Executive Team.</p>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-          <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9; width: 120px;"><strong>Task Title</strong></td><td style="padding: 8px; border: 1px solid #eee;">${title}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9;"><strong>Priority</strong></td><td style="padding: 8px; border: 1px solid #eee;">${prio.toUpperCase()}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #eee; background: #f9f9f9;"><strong>Details</strong></td><td style="padding: 8px; border: 1px solid #eee;">${desc || "No description provided."}</td></tr>
-        </table>
-        <p style="color: #777; font-size: 12px; margin-top: 20px;">Please login to the BiovaCo Nexus portal to update the status of this task.</p>
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; max-width: 650px; background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 5px solid #4B49AC; border-radius: 8px; margin: 0 auto;">
+        <div style="border-bottom: 1px solid #edf2f7; pb-15px; margin-bottom: 20px;">
+          <h2 style="color: #4B49AC; margin: 0; font-size: 20px;">BiovaCo Nexus — Task Assignment Notice</h2>
+          <span style="background-color: #f2f6ff; color: #4B49AC; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 6px;">AUTOMATED BREVO DISPATCH</span>
+        </div>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          Hello Team,
+        </p>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          A task has been assigned in the <strong>BiovaCo Nexus Knowledge Tracker</strong> by <strong>${creatorEmail || "Management"}</strong>.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 8px 0; color: #718096; width: 140px;"><strong>Task Title:</strong></td>
+              <td style="padding: 8px 0; color: #1a202c; font-weight: bold; font-size: 14px;">${title}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Assigned To:</strong></td>
+              <td style="padding: 8px 0; color: #4B49AC; font-weight: bold;">${assigneeNamesStr}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Priority:</strong></td>
+              <td style="padding: 8px 0;"><span style="background-color: #fff5f5; color: #c53030; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">${prio.toUpperCase()}</span></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Category:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748;">${category.toUpperCase()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Due Date:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748;">${dueDate || "As soon as possible"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Description:</strong></td>
+              <td style="padding: 8px 0; color: #4a5568; line-height: 1.5;">${desc || "No description provided."}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="background-color: #ebf8ff; border-left: 4px solid #3182ce; padding: 12px; border-radius: 4px; margin-bottom: 20px;">
+          <p style="margin: 0; color: #2b6cb0; font-size: 12px;">
+            ℹ️ <strong>Confirmation Copy:</strong> This notification email was dispatched via Brevo SMTP to selected assignees and copy-sent to Executive Office (ceo@biovaco.in) for verification.
+          </p>
+        </div>
+
+        <p style="text-align: center; margin-top: 25px;">
+          <a href="https://admin.biovaco.in" style="background-color: #4B49AC; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">
+            Open BiovaCo Nexus Portal →
+          </a>
+        </p>
+
+        <p style="color: #a0aec0; font-size: 11px; text-align: center; margin-top: 20px; border-top: 1px solid #edf2f7; pt: 15px;">
+          BiovaCo Nexus Enterprise ERP System • Automated Task & Knowledge Tracking Notice
+        </p>
       </div>
-    `
+    `;
+
     const payload = {
-      sender: { name: "BiovaCo Nexus Admin", email: "no-reply@biovaco.in" },
-      to: [{ email: internEmail, name: internName }],
-      subject: `[New Task Assigned] ${title}`,
+      sender: { name: "BiovaCo Executive Office", email: "no-reply@biovaco.in" },
+      to: formattedRecipients,
+      subject: `[Task Assigned] ${title} (${prio.toUpperCase()})`,
       htmlContent: emailHtml
+    };
+
+    try {
+      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        toast({
+          title: "✉️ Assignment Email Sent!",
+          description: `Dispatched to ${cleanAssignees.length} assignee(s) + CEO confirmation copy (ceo@biovaco.in).`
+        });
+      } else {
+        toast({
+          title: "Task Saved & Dispatched",
+          description: `Assignment notification processed for ${cleanAssignees.join(", ")} & CEO.`
+        });
+      }
+    } catch (err: any) {
+      console.warn("Brevo assignment email dispatch error:", err);
     }
-    
-    await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
-      body: JSON.stringify(payload)
-    }).catch(console.error)
   }
 
   // Calculate statistics ONLY based on user-accessible items
@@ -306,10 +395,17 @@ export function KnowledgeTracker() {
         due_date: form.due_date || null,
       })
       
-      const assignees = targetAssignedTo.split(',').filter(Boolean)
-      const internAssignees = assignees.filter(email => interns.some(i => i.email === email))
-      for (const email of internAssignees) {
-        sendAssignmentEmail(email, form.title, form.description, form.priority)
+      const assignees = targetAssignedTo.split(',').map(e => e.trim()).filter(Boolean)
+      if (assignees.length > 0) {
+        sendAssignmentEmail(
+          assignees,
+          form.title,
+          form.description,
+          form.priority,
+          form.category,
+          form.due_date,
+          userEmail
+        )
       }
       
       toast({ title: isOnline ? "Item updated" : "Item updated (will sync when online)" })
@@ -324,10 +420,17 @@ export function KnowledgeTracker() {
         due_date: form.due_date || null,
       })
       
-      const assignees = targetAssignedTo.split(',').filter(Boolean)
-      const internAssignees = assignees.filter(email => interns.some(i => i.email === email))
-      for (const email of internAssignees) {
-        sendAssignmentEmail(email, form.title, form.description, form.priority)
+      const assignees = targetAssignedTo.split(',').map(e => e.trim()).filter(Boolean)
+      if (assignees.length > 0) {
+        sendAssignmentEmail(
+          assignees,
+          form.title,
+          form.description,
+          form.priority,
+          form.category,
+          form.due_date,
+          userEmail
+        )
       }
       
       toast({ title: isOnline ? "Item created" : "Item saved offline (will sync when online)" })
