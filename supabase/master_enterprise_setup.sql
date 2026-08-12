@@ -65,6 +65,14 @@ CREATE TABLE IF NOT EXISTS public.system_integrations (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- Idempotent column migrations for system_integrations
+ALTER TABLE public.system_integrations ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.system_integrations ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'General';
+ALTER TABLE public.system_integrations ADD COLUMN IF NOT EXISTS api_key_masked TEXT;
+ALTER TABLE public.system_integrations ADD COLUMN IF NOT EXISTS last_ping_status TEXT DEFAULT '200 OK';
+ALTER TABLE public.system_integrations ADD COLUMN IF NOT EXISTS last_ping_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.system_integrations ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
 CREATE TABLE IF NOT EXISTS public.admin_activity_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     admin_email TEXT NOT NULL,
