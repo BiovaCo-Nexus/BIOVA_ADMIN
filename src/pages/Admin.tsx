@@ -688,26 +688,34 @@ const Admin = () => {
         return;
       }
 
-      // For other users, check database access rules
+      // For other users, check database access rules by user_email OR email
       const { data: accessRule, error } = await supabase
         .from("user_page_access")
-        .select("allowed_pages, default_tab, is_active")
-        .eq("user_email", email)
+        .select("*")
+        .or(`user_email.eq.${email},email.eq.${email}`)
         .maybeSingle();
 
-      if (error || !accessRule || !accessRule.is_active) {
+      if (error || !accessRule || accessRule.is_active === false) {
         toast({ title: "Access Denied", description: "You do not have permission to access the admin portal.", variant: "destructive" });
         await supabase.auth.signOut();
         navigate("/auth");
         return;
       }
 
+      const pages: string[] = (Array.isArray(accessRule.allowed_pages) && accessRule.allowed_pages.length > 0)
+        ? accessRule.allowed_pages
+        : (Array.isArray(accessRule.accessible_tabs) && accessRule.accessible_tabs.length > 0)
+          ? accessRule.accessible_tabs
+          : [];
+
       setUser(session.user);
-      setUserAccess({ allowed_pages: accessRule.allowed_pages || [], default_tab: accessRule.default_tab });
-      if (accessRule.default_tab) {
-        setActiveTab(accessRule.default_tab);
-      } else if (accessRule.allowed_pages?.length > 0) {
-        setActiveTab(accessRule.allowed_pages[0]);
+      setUserAccess({ allowed_pages: pages, default_tab: accessRule.default_tab });
+
+      const defaultTab = (accessRule.default_tab && pages.includes(accessRule.default_tab))
+        ? accessRule.default_tab
+        : (pages[0] || "my_work");
+      if (defaultTab) {
+        setActiveTab(defaultTab);
       }
       setIsCheckingAuth(false);
     }
@@ -736,14 +744,7 @@ const Admin = () => {
 
   const isTabAllowed = (tabId: string, allowedPages: string[]): boolean => {
     if (!allowedPages || allowedPages.length === 0) return false;
-    if (allowedPages.includes(tabId)) return true;
-
-    // Legacy 1-to-1 fallback aliases
-    if (tabId === "mkt_strategy" && (allowedPages.includes("campaigns") || allowedPages.includes("marketing_dashboard"))) return true;
-    if (tabId === "mkt_calendar" && (allowedPages.includes("content_storytelling") || allowedPages.includes("intern_ideas"))) return true;
-    if (tabId === "mkt_assets" && allowedPages.includes("brand_assets")) return true;
-
-    return false;
+    return allowedPages.includes(tabId);
   };
   
   const visibleTabs = (isCEOorMD || !userAccess)

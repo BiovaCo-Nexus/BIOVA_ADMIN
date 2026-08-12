@@ -313,6 +313,9 @@ export function UserAccessSettings() {
     } else {
       setRules((data || []).map((r: any) => ({
         ...r,
+        user_email: r.user_email || r.email || "",
+        user_label: r.user_label || r.role || "",
+        allowed_pages: Array.isArray(r.allowed_pages) && r.allowed_pages.length > 0 ? r.allowed_pages : (Array.isArray(r.accessible_tabs) ? r.accessible_tabs : []),
         user_type: r.user_type || "Team Member",
         target_hours_per_day: typeof r.target_hours_per_day === "number" ? r.target_hours_per_day : (r.user_type === "Intern" ? 4.0 : 8.0),
         target_hours_per_week: typeof r.target_hours_per_week === "number" ? r.target_hours_per_week : (r.user_type === "Intern" ? 20.0 : 40.0),
@@ -444,13 +447,19 @@ export function UserAccessSettings() {
     }
 
     setSaving(rule.id || null);
+    const emailVal = rule.user_email.toLowerCase().trim();
+    const labelVal = rule.user_label.trim() || "Executive";
+    
     const payload = {
-      user_email: rule.user_email.toLowerCase().trim(),
-      user_label: rule.user_label.trim(),
+      user_email: emailVal,
+      email: emailVal,
+      user_label: labelVal,
+      role: labelVal,
       user_type: rule.user_type || "Team Member",
       target_hours_per_day: Number(rule.target_hours_per_day || (rule.user_type === "Intern" ? 4.0 : 8.0)),
       target_hours_per_week: Number(rule.target_hours_per_week || (rule.user_type === "Intern" ? 20.0 : 40.0)),
       allowed_pages: rule.allowed_pages,
+      accessible_tabs: rule.allowed_pages,
       default_tab: rule.default_tab,
       is_active: rule.is_active,
     };
