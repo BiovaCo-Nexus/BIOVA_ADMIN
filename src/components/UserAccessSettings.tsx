@@ -450,70 +450,69 @@ export function UserAccessSettings() {
     const emailVal = rule.user_email.toLowerCase().trim();
     const labelVal = rule.user_label.trim() || "Executive";
     
-    // Core payload matching exact DB table columns
-    const payload: any = {
-      email: emailVal,
+    // 1. Primary Clean Payload (Matching active database schema without invalid columns)
+    const cleanPayload: any = {
       user_email: emailVal,
-      role: labelVal,
       user_label: labelVal,
       user_type: rule.user_type || "Team Member",
       target_hours_per_day: Number(rule.target_hours_per_day || (rule.user_type === "Intern" ? 4.0 : 8.0)),
       target_hours_per_week: Number(rule.target_hours_per_week || (rule.user_type === "Intern" ? 20.0 : 40.0)),
-      accessible_tabs: rule.allowed_pages,
       allowed_pages: rule.allowed_pages,
       default_tab: rule.default_tab,
       is_active: rule.is_active,
     };
 
-    // Check if an existing row matches this email (case-insensitive)
-    const { data: existingRows } = await supabase
-      .from("user_page_access")
-      .select("id")
-      .or(`email.ilike.${emailVal},user_email.ilike.${emailVal}`)
-      .limit(1);
+    // 2. Fallback Legacy Payload (Only basic columns)
+    const legacyPayload: any = {
+      email: emailVal,
+      role: labelVal,
+      allowed_pages: rule.allowed_pages,
+      default_tab: rule.default_tab,
+      is_active: rule.is_active,
+    };
 
     let error: any = null;
-    let savedData: any = null;
 
-    if (existingRows && existingRows.length > 0) {
-      // Update existing row
-      const targetId = existingRows[0].id;
-      let res = await supabase.from("user_page_access").update(payload).eq("id", targetId).select();
+    if (rule.isNew) {
+      let res = await supabase.from("user_page_access").insert(cleanPayload).select();
       if (res.error) {
-        // Fallback for minimal legacy columns
-        const legacyOnly = {
-          email: emailVal,
-          role: labelVal,
-          accessible_tabs: rule.allowed_pages,
-          default_tab: rule.default_tab,
-          is_active: rule.is_active,
-        };
-        res = await supabase.from("user_page_access").update(legacyOnly).eq("id", targetId).select();
+        console.warn("Primary insert failed, retrying legacy payload:", res.error.message);
+        res = await supabase.from("user_page_access").insert(legacyPayload).select();
       }
       error = res.error;
-      savedData = res.data?.[0];
     } else {
-      // Insert new row
-      let res = await supabase.from("user_page_access").insert(payload).select();
-      if (res.error) {
-        const legacyOnly = {
-          email: emailVal,
-          role: labelVal,
-          accessible_tabs: rule.allowed_pages,
-          default_tab: rule.default_tab,
-          is_active: rule.is_active,
-        };
-        res = await supabase.from("user_page_access").insert(legacyOnly).select();
+      // Check existing row by id or email
+      let targetId = rule.id && !rule.id.startsWith("new_") ? rule.id : null;
+      if (!targetId) {
+        const { data: found } = await supabase
+          .from("user_page_access")
+          .select("id")
+          .or(`user_email.eq.${emailVal},email.eq.${emailVal}`)
+          .limit(1);
+        targetId = found?.[0]?.id || null;
       }
-      error = res.error;
-      savedData = res.data?.[0];
+
+      if (targetId) {
+        let res = await supabase.from("user_page_access").update(cleanPayload).eq("id", targetId).select();
+        if (res.error) {
+          console.warn("Primary update failed, retrying legacy payload:", res.error.message);
+          res = await supabase.from("user_page_access").update(legacyPayload).eq("id", targetId).select();
+        }
+        error = res.error;
+      } else {
+        let res = await supabase.from("user_page_access").insert(cleanPayload).select();
+        if (res.error) {
+          res = await supabase.from("user_page_access").insert(legacyPayload).select();
+        }
+        error = res.error;
+      }
     }
 
     if (error) {
       console.error("Save access rule error:", error);
-      toast({ title: "Save Failed", description: error.message || "Failed to save access permissions.", variant: "destructive" });
+      toast({ title: "Save Failed", description: error.message || "Failed to save permissions.", variant: "destructive" });
     } else {
-      toast({ title: "Saved & Automated! ⚡", description: `Permissions for ${emailVal} updated successfully.` });
+      toast({ title: "Saved & Automated! ⚡", description: `Permissions & AI scope for ${emailVal} updated successfully.` });
       await fetchRules();
     }
     setSaving(null);
