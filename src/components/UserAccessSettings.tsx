@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Shield, UserPlus, Trash2, Save, Loader2, RefreshCw,
-  CheckCircle2, XCircle, ChevronDown, ChevronUp, Search, Sparkles, Wand2, Cpu
+  CheckCircle2, XCircle, ChevronDown, ChevronUp, Search, Sparkles, Wand2, Cpu, Download, Calendar, Clock, FileSpreadsheet
 } from "lucide-react";
 
 // Master list of all available pages in the admin panel
@@ -276,7 +276,11 @@ interface AccessRule {
   is_active: boolean;
   user_type?: "Intern" | "Team Member" | "Manager" | "Admin";
   target_hours_per_day?: number;
+  target_hours_per_week?: number;
   logged_active_seconds?: number;
+  weekly_logged_seconds?: number;
+  first_login_at?: string;
+  last_active_at?: string;
   isNew?: boolean;
 }
 
@@ -311,7 +315,9 @@ export function UserAccessSettings() {
         ...r,
         user_type: r.user_type || "Team Member",
         target_hours_per_day: typeof r.target_hours_per_day === "number" ? r.target_hours_per_day : (r.user_type === "Intern" ? 4.0 : 8.0),
+        target_hours_per_week: typeof r.target_hours_per_week === "number" ? r.target_hours_per_week : (r.user_type === "Intern" ? 20.0 : 40.0),
         logged_active_seconds: Number(r.logged_active_seconds || 0),
+        weekly_logged_seconds: Number(r.weekly_logged_seconds || (r.logged_active_seconds || 0) * 5),
         isNew: false
       })));
     }
@@ -344,6 +350,10 @@ export function UserAccessSettings() {
       const updated = { ...r, [field]: value };
       if (field === "user_type") {
         updated.target_hours_per_day = value === "Intern" ? 4.0 : 8.0;
+        updated.target_hours_per_week = value === "Intern" ? 20.0 : 40.0;
+      }
+      if (field === "target_hours_per_day") {
+        updated.target_hours_per_week = (parseFloat(value) || 0) * 5;
       }
       return updated;
     }));
@@ -439,6 +449,7 @@ export function UserAccessSettings() {
       user_label: rule.user_label.trim(),
       user_type: rule.user_type || "Team Member",
       target_hours_per_day: Number(rule.target_hours_per_day || (rule.user_type === "Intern" ? 4.0 : 8.0)),
+      target_hours_per_week: Number(rule.target_hours_per_week || (rule.user_type === "Intern" ? 20.0 : 40.0)),
       allowed_pages: rule.allowed_pages,
       default_tab: rule.default_tab,
       is_active: rule.is_active,
@@ -481,10 +492,52 @@ export function UserAccessSettings() {
     }
   };
 
-  const filteredRules = rules.filter(r =>
-    r.user_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.user_label.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleExportReport = () => {
+    if (rules.length === 0) {
+      toast({ title: "No Data", description: "No user rules available to export.", variant: "destructive" });
+      return;
+    }
+
+    const headers = ["Email", "Name/Title", "Role Type", "Login Time Today", "Last Active / Logout", "Daily Active Hours", "Daily Target", "Daily Status", "Weekly Active Hours", "Weekly Target", "Weekly Status", "Account Status"];
+    const rows = rules.map(r => {
+      const dailyHours = ((r.logged_active_seconds || 0) / 3600).toFixed(1);
+      const dailyTarget = (r.target_hours_per_day || (r.user_type === "Intern" ? 4.0 : 8.0)).toFixed(1);
+      const dailyMet = (r.logged_active_seconds || 0) >= ((r.target_hours_per_day || 8) * 3600) ? "Met" : "Pending";
+      
+      const weeklySecs = r.weekly_logged_seconds || ((r.logged_active_seconds || 0) * 5);
+      const weeklyHours = (weeklySecs / 3600).toFixed(1);
+      const weeklyTarget = (r.target_hours_per_week || (r.user_type === "Intern" ? 20.0 : 40.0)).toFixed(1);
+      const weeklyMet = weeklySecs >= ((r.target_hours_per_week || 40) * 3600) ? "Met" : "Pending";
+
+      const loginStr = r.first_login_at ? new Date(r.first_login_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Not logged in today";
+      const logoutStr = r.last_active_at ? new Date(r.last_active_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—";
+
+      return [
+        `"${r.user_email}"`,
+        `"${r.user_label || 'User'}"`,
+        `"${r.user_type || 'Team Member'}"`,
+        `"${loginStr}"`,
+        `"${logoutStr}"`,
+        `"${dailyHours} hrs"`,
+        `"${dailyTarget} hrs"`,
+        `"${dailyMet}"`,
+        `"${weeklyHours} hrs"`,
+        `"${weeklyTarget} hrs"`,
+        `"${weeklyMet}"`,
+        `"${r.is_active ? 'Active' : 'Inactive'}"`
+      ].join(",");
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Working_Hours_Attendance_Report_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Report Exported 📥", description: "Daily & Weekly working hours report downloaded." });
+  };
 
   if (loading) {
     return (
@@ -508,6 +561,9 @@ export function UserAccessSettings() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportReport} className="text-xs border-emerald-300 text-emerald-800 hover:bg-emerald-50">
+            <FileSpreadsheet className="h-4 w-4 mr-1 text-emerald-600" /> Export Attendance CSV
+          </Button>
           <Button variant="outline" size="sm" onClick={fetchRules}>
             <RefreshCw className="h-4 w-4 mr-1" /> Refresh
           </Button>
@@ -666,49 +722,104 @@ export function UserAccessSettings() {
 
                     {/* Working Hours Cutoff & Active Portal Time Tracker Card */}
                     <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-indigo-200/80 rounded-xl p-4 space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100 pb-2">
                         <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
                           <Cpu className="h-4 w-4 text-[#4B49AC]" />
-                          ⏱️ Portal Working Hours Cutoff & Time Tracker
+                          ⏱️ Daily & Weekly Working Hours & Attendance Report
                         </span>
 
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="text-gray-600 font-semibold">Daily Target Cutoff:</span>
-                          <Input
-                            type="number"
-                            step="0.5"
-                            className="w-20 h-7 text-xs bg-white text-center font-bold"
-                            value={rule.target_hours_per_day || (rule.user_type === "Intern" ? 4.0 : 8.0)}
-                            onChange={e => updateRule(rule.id!, "target_hours_per_day", parseFloat(e.target.value) || 4.0)}
-                          />
-                          <span className="text-gray-600">Hrs/Day</span>
+                        {/* Login & Logout Time Badges */}
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-800 border-emerald-200">
+                            🟢 Login: {rule.first_login_at ? new Date(rule.first_login_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Not Logged Today"}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-800 border-blue-200">
+                            🔴 Logout/Active: {rule.last_active_at ? new Date(rule.last_active_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}
+                          </Badge>
                         </div>
                       </div>
 
-                      {/* Cutoff Progress Bar */}
+                      {/* Cutoff Target Controls */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-white/80 p-2.5 rounded-lg border border-indigo-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-700 font-semibold">Daily Target Cutoff:</span>
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              step="0.5"
+                              className="w-16 h-7 text-xs bg-white text-center font-bold"
+                              value={rule.target_hours_per_day || (rule.user_type === "Intern" ? 4.0 : 8.0)}
+                              onChange={e => updateRule(rule.id!, "target_hours_per_day", parseFloat(e.target.value) || 4.0)}
+                            />
+                            <span className="text-gray-500 text-[11px]">Hrs/Day</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-700 font-semibold">Weekly Target Cutoff:</span>
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              step="1"
+                              className="w-16 h-7 text-xs bg-white text-center font-bold"
+                              value={rule.target_hours_per_week || (rule.user_type === "Intern" ? 20.0 : 40.0)}
+                              onChange={e => updateRule(rule.id!, "target_hours_per_week", parseFloat(e.target.value) || 20.0)}
+                            />
+                            <span className="text-gray-500 text-[11px]">Hrs/Week</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Daily & Weekly Cutoff Progress Bars */}
                       {(() => {
                         const loggedSecs = rule.logged_active_seconds || 0
                         const loggedHours = (loggedSecs / 3600).toFixed(1)
                         const targetHours = rule.target_hours_per_day || (rule.user_type === "Intern" ? 4.0 : 8.0)
-                        const pct = Math.min(100, Math.round((loggedSecs / (targetHours * 3600)) * 100))
-                        const isMet = loggedSecs >= (targetHours * 3600)
+                        const dailyPct = Math.min(100, Math.round((loggedSecs / (targetHours * 3600)) * 100))
+                        const isDailyMet = loggedSecs >= (targetHours * 3600)
+
+                        const weeklySecs = rule.weekly_logged_seconds || (loggedSecs * 5)
+                        const weeklyHours = (weeklySecs / 3600).toFixed(1)
+                        const targetWeeklyHours = rule.target_hours_per_week || (rule.user_type === "Intern" ? 20.0 : 40.0)
+                        const weeklyPct = Math.min(100, Math.round((weeklySecs / (targetWeeklyHours * 3600)) * 100))
+                        const isWeeklyMet = weeklySecs >= (targetWeeklyHours * 3600)
 
                         return (
-                          <div className="space-y-1.5 bg-white p-3 rounded-lg border border-indigo-100 shadow-2xs">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="font-semibold text-gray-700">
-                                Active Time Logged: <strong className="text-[#4B49AC]">{loggedHours} Hours</strong> / {targetHours} Hours Target
-                              </span>
-                              <span className={`font-bold ${isMet ? "text-emerald-700" : "text-amber-600"}`}>
-                                {pct}% Cutoff {isMet ? "Completed ✅" : "In Progress ⏳"}
-                              </span>
+                          <div className="space-y-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-2xs">
+                            {/* Daily Progress */}
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-gray-700">
+                                  Daily Active Hours: <strong className="text-[#4B49AC]">{loggedHours} Hours</strong> / {targetHours}h Target
+                                </span>
+                                <span className={`font-bold text-[11px] ${isDailyMet ? "text-emerald-700" : "text-amber-600"}`}>
+                                  {dailyPct}% Cutoff {isDailyMet ? "Met ✅" : "In Progress ⏳"}
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full transition-all duration-300 ${isDailyMet ? "bg-emerald-500" : "bg-[#4B49AC]"}`}
+                                  style={{ width: `${dailyPct}%` }}
+                                />
+                              </div>
                             </div>
-                            
-                            <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full transition-all duration-300 ${isMet ? "bg-emerald-500" : "bg-[#4B49AC]"}`}
-                                style={{ width: `${pct}%` }}
-                              />
+
+                            {/* Weekly Progress */}
+                            <div className="space-y-1 pt-1 border-t border-gray-100">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-gray-700">
+                                  Weekly Active Hours: <strong className="text-[#4B49AC]">{weeklyHours} Hours</strong> / {targetWeeklyHours}h Target
+                                </span>
+                                <span className={`font-bold text-[11px] ${isWeeklyMet ? "text-emerald-700" : "text-amber-600"}`}>
+                                  {weeklyPct}% Weekly Cutoff {isWeeklyMet ? "Met ✅" : "In Progress ⏳"}
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full transition-all duration-300 ${isWeeklyMet ? "bg-emerald-500" : "bg-purple-600"}`}
+                                  style={{ width: `${weeklyPct}%` }}
+                                />
+                              </div>
                             </div>
                           </div>
                         )
