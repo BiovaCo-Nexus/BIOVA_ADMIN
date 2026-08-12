@@ -688,31 +688,22 @@ const Admin = () => {
         return;
       }
 
-      // For other users, check database access rules by email or user_email
-      let accessRule: any = null;
-      const res1 = await supabase
+      // For non-CEO users, check database access rules using case-insensitive ilike query with limit(1)
+      const cleanEmail = email.trim().toLowerCase();
+
+      const { data: rulesData, error: rulesErr } = await supabase
         .from("user_page_access")
         .select("*")
-        .eq("email", email)
-        .maybeSingle();
+        .or(`email.ilike.${cleanEmail},user_email.ilike.${cleanEmail}`)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-      if (res1.data) {
-        accessRule = res1.data;
-      } else {
-        try {
-          const res2 = await supabase
-            .from("user_page_access")
-            .select("*")
-            .eq("user_email", email)
-            .maybeSingle();
-          accessRule = res2.data;
-        } catch {
-          accessRule = null;
-        }
-      }
+      const accessRule = rulesData?.[0];
 
-      if (!accessRule || accessRule.is_active === false) {
-        toast({ title: "Access Denied", description: "You do not have permission to access the admin portal.", variant: "destructive" });
+      if (rulesErr || !accessRule) {
+        console.warn("No active access rule found for:", cleanEmail, rulesErr);
+        toast({ title: "Access Denied", description: `No active permission rule found for ${cleanEmail}. Contact Admin.`, variant: "destructive" });
         await supabase.auth.signOut();
         navigate("/auth");
         return;

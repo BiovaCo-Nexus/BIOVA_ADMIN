@@ -450,26 +450,49 @@ export function UserAccessSettings() {
     const emailVal = rule.user_email.toLowerCase().trim();
     const labelVal = rule.user_label.trim() || "Executive";
     
-    // Core payload matching exact DB table columns (email, role, accessible_tabs)
+    // Core payload matching exact DB table columns
     const payload: any = {
       email: emailVal,
-      role: labelVal,
-      accessible_tabs: rule.allowed_pages,
       user_email: emailVal,
+      role: labelVal,
       user_label: labelVal,
+      accessible_tabs: rule.allowed_pages,
       allowed_pages: rule.allowed_pages,
       default_tab: rule.default_tab,
       is_active: rule.is_active,
     };
 
+    // Check if an existing row matches this email (case-insensitive)
+    const { data: existingRows } = await supabase
+      .from("user_page_access")
+      .select("id")
+      .or(`email.ilike.${emailVal},user_email.ilike.${emailVal}`)
+      .limit(1);
+
     let error: any = null;
     let savedData: any = null;
 
-    if (rule.isNew) {
-      // 1. Try payload on new insert
+    if (existingRows && existingRows.length > 0) {
+      // Update existing row
+      const targetId = existingRows[0].id;
+      let res = await supabase.from("user_page_access").update(payload).eq("id", targetId).select();
+      if (res.error) {
+        // Fallback for minimal legacy columns
+        const legacyOnly = {
+          email: emailVal,
+          role: labelVal,
+          accessible_tabs: rule.allowed_pages,
+          default_tab: rule.default_tab,
+          is_active: rule.is_active,
+        };
+        res = await supabase.from("user_page_access").update(legacyOnly).eq("id", targetId).select();
+      }
+      error = res.error;
+      savedData = res.data?.[0];
+    } else {
+      // Insert new row
       let res = await supabase.from("user_page_access").insert(payload).select();
       if (res.error) {
-        // Fallback for legacy DB schema (only email, role, accessible_tabs)
         const legacyOnly = {
           email: emailVal,
           role: labelVal,
@@ -477,35 +500,10 @@ export function UserAccessSettings() {
           default_tab: rule.default_tab,
           is_active: rule.is_active,
         };
-        const resLegacy = await supabase.from("user_page_access").insert(legacyOnly).select();
-        error = resLegacy.error;
-        savedData = resLegacy.data?.[0];
-      } else {
-        savedData = res.data?.[0];
+        res = await supabase.from("user_page_access").insert(legacyOnly).select();
       }
-    } else {
-      // 2. Existing rule update by email or id
-      let res = await supabase.from("user_page_access").update(payload).eq("email", emailVal).select();
-      if (res.error || !res.data || res.data.length === 0) {
-        if (rule.id && !rule.id.startsWith("new_")) {
-          res = await supabase.from("user_page_access").update(payload).eq("id", rule.id!).select();
-        }
-      }
-
-      if (res.error || !res.data || res.data.length === 0) {
-        const legacyOnly = {
-          email: emailVal,
-          role: labelVal,
-          accessible_tabs: rule.allowed_pages,
-          default_tab: rule.default_tab,
-          is_active: rule.is_active,
-        };
-        const resLegacy = await supabase.from("user_page_access").update(legacyOnly).eq("email", emailVal).select();
-        error = resLegacy.error;
-        savedData = resLegacy.data?.[0];
-      } else {
-        savedData = res.data?.[0];
-      }
+      error = res.error;
+      savedData = res.data?.[0];
     }
 
     if (error) {
@@ -513,9 +511,6 @@ export function UserAccessSettings() {
       toast({ title: "Save Failed", description: error.message || "Failed to save access permissions.", variant: "destructive" });
     } else {
       toast({ title: "Saved & Automated! ⚡", description: `Permissions for ${emailVal} updated successfully.` });
-      if (savedData) {
-        setRules(prev => prev.map(r => r.id === rule.id ? { ...savedData, isNew: false } : r));
-      }
       await fetchRules();
     }
     setSaving(null);
