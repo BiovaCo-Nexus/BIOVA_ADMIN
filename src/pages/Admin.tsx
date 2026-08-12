@@ -688,24 +688,40 @@ const Admin = () => {
         return;
       }
 
-      // For other users, check database access rules by user_email OR email
-      const { data: accessRule, error } = await supabase
+      // For other users, check database access rules by email or user_email
+      let accessRule: any = null;
+      const res1 = await supabase
         .from("user_page_access")
         .select("*")
-        .or(`user_email.eq.${email},email.eq.${email}`)
+        .eq("email", email)
         .maybeSingle();
 
-      if (error || !accessRule || accessRule.is_active === false) {
+      if (res1.data) {
+        accessRule = res1.data;
+      } else {
+        try {
+          const res2 = await supabase
+            .from("user_page_access")
+            .select("*")
+            .eq("user_email", email)
+            .maybeSingle();
+          accessRule = res2.data;
+        } catch {
+          accessRule = null;
+        }
+      }
+
+      if (!accessRule || accessRule.is_active === false) {
         toast({ title: "Access Denied", description: "You do not have permission to access the admin portal.", variant: "destructive" });
         await supabase.auth.signOut();
         navigate("/auth");
         return;
       }
 
-      const pages: string[] = (Array.isArray(accessRule.allowed_pages) && accessRule.allowed_pages.length > 0)
-        ? accessRule.allowed_pages
-        : (Array.isArray(accessRule.accessible_tabs) && accessRule.accessible_tabs.length > 0)
-          ? accessRule.accessible_tabs
+      const pages: string[] = (Array.isArray(accessRule.accessible_tabs) && accessRule.accessible_tabs.length > 0)
+        ? accessRule.accessible_tabs
+        : (Array.isArray(accessRule.allowed_pages) && accessRule.allowed_pages.length > 0)
+          ? accessRule.allowed_pages
           : [];
 
       setUser(session.user);
