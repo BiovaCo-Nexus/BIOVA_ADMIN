@@ -351,6 +351,96 @@ VALUES
     ('nakul.m@biovaco.in', 'Dr. Nakul Mundhada', 'Chief Executive Officer / Founder', 'Executive Board & R&D Strategy', '+91 98765 43210', 'Leading BiovaCo Nexus electroculture agricultural research, enterprise ERP engineering, and corporate operations.', 'Amravati / Head Office')
 ON CONFLICT (email) DO NOTHING;
 
+-- --------------------------------------------------------------------
+-- 7. MARKETING & MEDIA SUITE DDL (mkt_campaigns, mkt_content_items, mkt_creative_assets, website_videos, 3d_models)
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.mkt_campaigns (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    goal TEXT,
+    target_audience TEXT,
+    content_pillars TEXT[],
+    platforms TEXT[],
+    key_messages TEXT,
+    kpis TEXT[],
+    start_date DATE,
+    end_date DATE,
+    budget NUMERIC DEFAULT 0,
+    priority TEXT DEFAULT 'Medium',
+    status TEXT DEFAULT 'Active',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.mkt_campaigns ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow All Access mkt_campaigns" ON public.mkt_campaigns;
+CREATE POLICY "Allow All Access mkt_campaigns" ON public.mkt_campaigns FOR ALL USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.mkt_content_items (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    date DATE,
+    platform TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    campaign_id TEXT,
+    content_pillar TEXT,
+    content_idea TEXT,
+    caption TEXT,
+    cta TEXT,
+    assigned_person TEXT,
+    status TEXT DEFAULT 'Draft',
+    creative_asset_id TEXT,
+    approval_status TEXT DEFAULT 'Pending',
+    publishing_date DATE,
+    reach NUMERIC DEFAULT 0,
+    impressions NUMERIC DEFAULT 0,
+    engagement NUMERIC DEFAULT 0,
+    clicks NUMERIC DEFAULT 0,
+    conversions NUMERIC DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.mkt_content_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow All Access mkt_content_items" ON public.mkt_content_items;
+CREATE POLICY "Allow All Access mkt_content_items" ON public.mkt_content_items FOR ALL USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.mkt_creative_assets (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    preview_url TEXT,
+    asset_type TEXT NOT NULL,
+    campaign_id TEXT,
+    product TEXT,
+    file_url TEXT,
+    status TEXT DEFAULT 'Ready',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.mkt_creative_assets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow All Access mkt_creative_assets" ON public.mkt_creative_assets;
+CREATE POLICY "Allow All Access mkt_creative_assets" ON public.mkt_creative_assets FOR ALL USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.website_videos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    video_url TEXT,
+    video_type TEXT DEFAULT 'Demo',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.website_videos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow All Access website_videos" ON public.website_videos;
+CREATE POLICY "Allow All Access website_videos" ON public.website_videos FOR ALL USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.3d_models (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    model_url TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public."3d_models" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow All Access 3d_models" ON public."3d_models";
+CREATE POLICY "Allow All Access 3d_models" ON public."3d_models" FOR ALL USING (true) WITH CHECK (true);
+
+
 INSERT INTO public.marketing_campaigns (name, channel, budget, leads_generated, status, target_audience, start_date)
 VALUES
     ('Electroculture Bio-Kit Monsoon Farmer Outreach', 'Meta & YouTube Ads', 150000.00, 340, 'Active', 'Maharashtra & Gujarat Cotton/Spices Farmers', CURRENT_DATE - 15),

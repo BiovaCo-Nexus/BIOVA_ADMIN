@@ -65,11 +65,15 @@ export function MarketingStoreProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     try {
       // Fetch Campaigns
-      const { data: dbCampaigns } = await supabase.from("mkt_campaigns").select("*").order("created_at", { ascending: false })
+      const { data: dbCampaigns, error: errC } = await supabase.from("mkt_campaigns").select("*").order("created_at", { ascending: false })
       // Fetch Content Items
-      const { data: dbContent } = await supabase.from("mkt_content_items").select("*").order("created_at", { ascending: false })
+      const { data: dbContent, error: errI } = await supabase.from("mkt_content_items").select("*").order("created_at", { ascending: false })
       // Fetch Assets
-      const { data: dbAssets } = await supabase.from("mkt_creative_assets").select("*").order("created_at", { ascending: false })
+      const { data: dbAssets, error: errA } = await supabase.from("mkt_creative_assets").select("*").order("created_at", { ascending: false })
+
+      if (errC || errI || errA) {
+        console.warn("Marketing tables not found or 404 in Supabase DB, using local store.")
+      }
 
       setData(prev => {
         const campaigns: MktCampaign[] = dbCampaigns && dbCampaigns.length > 0 ? dbCampaigns.map((c: any) => ({
