@@ -441,8 +441,108 @@ DROP POLICY IF EXISTS "Allow All Access 3d_models" ON public."3d_models";
 CREATE POLICY "Allow All Access 3d_models" ON public."3d_models" FOR ALL USING (true) WITH CHECK (true);
 
 
+-- --------------------------------------------------------------------
+-- 8. DIGITAL ASSETS MODULE TABLES (website_pages, blog_articles, landing_pages, digital_assets, image_assets)
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.website_pages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    status TEXT DEFAULT 'Published',
+    meta_title TEXT,
+    meta_description TEXT,
+    monthly_views INT DEFAULT 1200,
+    conversion_rate TEXT DEFAULT '4.5%',
+    page_speed_score INT DEFAULT 98,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.website_pages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow All Access website_pages" ON public.website_pages;
+CREATE POLICY "Allow All Access website_pages" ON public.website_pages FOR ALL USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.blog_articles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    category TEXT DEFAULT 'Electroculture Science',
+    excerpt TEXT,
+    content TEXT,
+    author TEXT DEFAULT 'BiovaCo R&D Team',
+    read_time TEXT DEFAULT '5 min read',
+    cover_image TEXT,
+    views_count INT DEFAULT 450,
+    likes_count INT DEFAULT 35,
+    status TEXT DEFAULT 'Published',
+    published_at DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.blog_articles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow All Access blog_articles" ON public.blog_articles;
+CREATE POLICY "Allow All Access blog_articles" ON public.blog_articles FOR ALL USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.landing_pages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    campaign_name TEXT,
+    target_crop TEXT,
+    offer_headline TEXT,
+    conversion_rate TEXT DEFAULT '12.5%',
+    total_leads INT DEFAULT 0,
+    total_visitors INT DEFAULT 0,
+    status TEXT DEFAULT 'Active',
+    utm_link TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.landing_pages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow All Access landing_pages" ON public.landing_pages;
+CREATE POLICY "Allow All Access landing_pages" ON public.landing_pages FOR ALL USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.digital_assets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    file_type TEXT DEFAULT 'Image',
+    file_url TEXT NOT NULL,
+    file_size_formatted TEXT DEFAULT '3.5 MB',
+    category TEXT DEFAULT 'General Asset',
+    download_count INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.digital_assets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow All Access digital_assets" ON public.digital_assets;
+CREATE POLICY "Allow All Access digital_assets" ON public.digital_assets FOR ALL USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.image_assets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    category TEXT DEFAULT 'Product Hardware',
+    dimensions TEXT DEFAULT '3840 x 2160',
+    file_size TEXT DEFAULT '4.5 MB',
+    image_url TEXT NOT NULL,
+    tags TEXT[] DEFAULT ARRAY['Electroculture'],
+    download_count INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.image_assets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow All Access image_assets" ON public.image_assets;
+CREATE POLICY "Allow All Access image_assets" ON public.image_assets FOR ALL USING (true) WITH CHECK (true);
+
+-- Upgrade website_videos columns
+ALTER TABLE public.website_videos ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.website_videos ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'Field Demos';
+ALTER TABLE public.website_videos ADD COLUMN IF NOT EXISTS duration TEXT DEFAULT '4:00';
+ALTER TABLE public.website_videos ADD COLUMN IF NOT EXISTS resolution TEXT DEFAULT '1080p Full HD';
+ALTER TABLE public.website_videos ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+ALTER TABLE public.website_videos ADD COLUMN IF NOT EXISTS views_count INT DEFAULT 150;
+ALTER TABLE public.website_videos ADD COLUMN IF NOT EXISTS download_count INT DEFAULT 12;
+
 INSERT INTO public.marketing_campaigns (name, channel, budget, leads_generated, status, target_audience, start_date)
 VALUES
     ('Electroculture Bio-Kit Monsoon Farmer Outreach', 'Meta & YouTube Ads', 150000.00, 340, 'Active', 'Maharashtra & Gujarat Cotton/Spices Farmers', CURRENT_DATE - 15),
     ('Enterprise AgTech B2B Distributor Campaign', 'LinkedIn & Direct Email', 80000.00, 45, 'Active', 'Agri-fertilizer Dealers & Wholesalers', CURRENT_DATE - 10)
 ON CONFLICT DO NOTHING;
+

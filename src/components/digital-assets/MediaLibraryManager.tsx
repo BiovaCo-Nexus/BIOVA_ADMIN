@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -19,13 +19,10 @@ import {
   Download,
   Plus,
   Trash2,
-  Edit3,
   Search,
   Copy,
   Eye,
   Sparkles,
-  ExternalLink,
-  Layers,
   FolderOpen,
   Check,
   Loader2,
@@ -43,58 +40,51 @@ export interface DigitalAssetItem {
   file_size_formatted: string
   category: string
   download_count: number
-  uploaded_at: string
+  created_at?: string
 }
 
-const DEFAULT_ASSETS: DigitalAssetItem[] = [
+const DEFAULT_SEED_ASSETS: Omit<DigitalAssetItem, "id">[] = [
   {
-    id: "ast_1",
     title: "BiovaCo Electroculture Commercial Brochure 2026",
     file_name: "BiovaCo_Electroculture_Brochure_2026.pdf",
     file_type: "PDF Document",
     file_url: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=1200&q=80",
     file_size_formatted: "4.2 MB",
     category: "Marketing Collateral",
-    download_count: 840,
-    uploaded_at: "2026-08-01"
+    download_count: 840
   },
   {
-    id: "ast_2",
     title: "Electroculture Copper Antenna Rod High-Res Product Shot",
     file_name: "Electroculture_Antenna_Copper_Rod_HD.png",
     file_type: "Image",
     file_url: "https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=1200&q=80",
     file_size_formatted: "8.5 MB",
     category: "Product Photography",
-    download_count: 1420,
-    uploaded_at: "2026-07-28"
+    download_count: 1420
   },
   {
-    id: "ast_3",
     title: "Commercial Farm Yield Comparison Video Demo",
     file_name: "Commercial_Wheat_Yield_Expansion_4K.mp4",
     file_type: "Video",
     file_url: "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1200&q=80",
     file_size_formatted: "42.0 MB",
     category: "Video Vault",
-    download_count: 2100,
-    uploaded_at: "2026-07-20"
+    download_count: 2100
   },
   {
-    id: "ast_4",
     title: "BiovaCo Official High-Res Vector Brand Logo Package",
     file_name: "BiovaCo_Logo_Vector_Package_HD.png",
     file_type: "Brand Logo",
     file_url: "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?auto=format&fit=crop&w=1200&q=80",
     file_size_formatted: "2.1 MB",
     category: "Brand Assets",
-    download_count: 950,
-    uploaded_at: "2026-07-15"
+    download_count: 950
   }
 ]
 
 export function MediaLibraryManager() {
-  const [assets, setAssets] = useState<DigitalAssetItem[]>(DEFAULT_ASSETS)
+  const [assets, setAssets] = useState<DigitalAssetItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedType, setSelectedType] = useState<string>("all")
   const [previewAsset, setPreviewAsset] = useState<DigitalAssetItem | null>(null)
@@ -119,6 +109,47 @@ export function MediaLibraryManager() {
 
   const { toast } = useToast()
 
+  // Real DB Fetching from Supabase
+  const fetchAssets = useCallback(async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from("digital_assets")
+      .select("*")
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.warn("digital_assets fetch error:", error.message)
+      setAssets(DEFAULT_SEED_ASSETS.map((d, i) => ({ ...d, id: `def_${i}` })) as DigitalAssetItem[])
+    } else if (!data || data.length === 0) {
+      const seeded: DigitalAssetItem[] = []
+      for (const item of DEFAULT_SEED_ASSETS) {
+        const { data: inserted } = await supabase
+          .from("digital_assets")
+          .insert(item)
+          .select()
+          .single()
+        if (inserted) seeded.push(inserted)
+      }
+      setAssets(seeded.length > 0 ? seeded : DEFAULT_SEED_ASSETS.map((d, i) => ({ ...d, id: `def_${i}` })) as DigitalAssetItem[])
+    } else {
+      setAssets(data as DigitalAssetItem[])
+    }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    fetchAssets()
+
+    const channel = supabase
+      .channel("digital_assets_realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "digital_assets" }, fetchAssets)
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchAssets])
+
   const types = useMemo(() => {
     return ["all", "Image", "Video", "PDF Document", "Brand Logo"]
   }, [])
@@ -127,7 +158,7 @@ export function MediaLibraryManager() {
     return assets.filter(a => {
       const matchSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           a.file_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          a.category.toLowerCase().includes(searchQuery.toLowerCase())
+                          (a.category && a.category.toLowerCase().includes(searchQuery.toLowerCase()))
       const matchType = selectedType === "all" || a.file_type === selectedType
       return matchSearch && matchType
     })
@@ -150,12 +181,15 @@ export function MediaLibraryManager() {
       document.body.removeChild(link)
       window.URL.revokeObjectURL(downloadUrl)
 
-      // Increment count
-      setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, download_count: a.download_count + 1 } : a))
+      // Update count in state and Supabase
+      const nextCount = (asset.download_count || 0) + 1
+      setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, download_count: nextCount } : a))
+      if (!asset.id.startsWith("def_")) {
+        await supabase.from("digital_assets").update({ download_count: nextCount }).eq("id", asset.id)
+      }
 
       toast({ title: "Download Complete! 📥", description: `${asset.file_name} downloaded successfully.` })
-    } catch (err) {
-      // Fallback direct window open
+    } catch {
       window.open(asset.file_url, "_blank")
       toast({ title: "Opening Media Asset", description: `Opened ${asset.title} in new window.` })
     }
@@ -166,27 +200,46 @@ export function MediaLibraryManager() {
     toast({ title: "Asset URL Copied!", description: "Direct CDN link copied to clipboard." })
   }
 
-  const handleSaveAsset = () => {
+  const handleSaveAsset = async () => {
     if (!form.title || !form.file_url) {
       toast({ title: "Validation Error", description: "Title and File URL are required.", variant: "destructive" })
       return
     }
 
-    const newAsset: DigitalAssetItem = {
-      id: `ast_${Date.now()}`,
-      ...form,
-      download_count: 0,
-      uploaded_at: new Date().toISOString().slice(0, 10)
+    const payload = {
+      title: form.title.trim(),
+      file_name: form.file_name.trim(),
+      file_type: form.file_type,
+      file_url: form.file_url.trim(),
+      category: form.category.trim(),
+      file_size_formatted: form.file_size_formatted,
+      download_count: 0
     }
 
-    setAssets(prev => [newAsset, ...prev])
+    const { data, error } = await supabase
+      .from("digital_assets")
+      .insert(payload)
+      .select()
+      .single()
+
+    if (error) {
+      const localObj = { ...payload, id: `local_${Date.now()}` }
+      setAssets(prev => [localObj as any, ...prev])
+      toast({ title: "Asset Added", description: `"${payload.title}" created.` })
+    } else if (data) {
+      setAssets(prev => [data, ...prev])
+      toast({ title: "Asset Uploaded to DAM! 🚀", description: `"${data.title}" saved in database.` })
+    }
+
     setIsUploadOpen(false)
-    toast({ title: "Asset Uploaded to Library! 🚀", description: `"${form.title}" is now available in DAM.` })
   }
 
-  const handleDeleteAsset = (id: string, title: string) => {
+  const handleDeleteAsset = async (id: string, title: string) => {
     setAssets(prev => prev.filter(a => a.id !== id))
-    toast({ title: "Asset Deleted", description: `"${title}" removed from DAM.` })
+    if (!id.startsWith("def_") && !id.startsWith("local_")) {
+      await supabase.from("digital_assets").delete().eq("id", id)
+    }
+    toast({ title: "Asset Deleted", description: `"${title}" removed.` })
   }
 
   const getTypeIcon = (type: string) => {
@@ -198,62 +251,83 @@ export function MediaLibraryManager() {
     }
   }
 
-  const totalDownloads = useMemo(() => assets.reduce((acc, a) => acc + a.download_count, 0), [assets])
+  const totalDownloads = useMemo(() => assets.reduce((acc, a) => acc + (a.download_count || 0), 0), [assets])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-[#4B49AC]" />
+        <p className="text-sm font-medium text-gray-500">Loading Digital Media Library...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
-                <FolderOpen className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
-                Enterprise DAM (Digital Asset Manager)
-              </span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-3">
-              <ImageIcon className="h-7 w-7 text-[#7DA0FA]" />
-              Digital Assets & Media Library
-            </h2>
-            <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-xl">
-              Centralized DAM repository for high-resolution product photography, marketing brochures, pitch decks, brand logos, and 4K commercial videos.
-            </p>
-          </div>
-
-          <Button
-            onClick={() => setIsUploadOpen(true)}
-            className="bg-[#4B49AC] hover:bg-[#3b3a8c] text-white font-semibold shadow-md text-xs h-10 flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Upload New Media Asset
-          </Button>
+      {/* Portal Standard Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <FolderOpen className="h-6 w-6 text-[#4B49AC]" />
+            Digital Assets & Media Library (DAM)
+          </h1>
+          <p className="text-sm text-gray-500">Centralized repository for product photography, brochures, pitch decks, brand logos, and 4K videos.</p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-800/80">
-          <div className="bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-xl p-3">
-            <span className="text-[11px] font-medium text-slate-400 block">Total Media Assets</span>
-            <span className="text-xl font-bold text-white mt-0.5 block">{assets.length} Files</span>
-          </div>
+        <Button
+          onClick={() => setIsUploadOpen(true)}
+          className="bg-[#4B49AC] hover:bg-[#3b3a8c] text-white font-semibold text-xs h-9 flex items-center gap-1.5 shadow-2xs"
+        >
+          <Plus className="h-4 w-4" />
+          Upload New Media Asset
+        </Button>
+      </div>
 
-          <div className="bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-xl p-3">
-            <span className="text-[11px] font-medium text-slate-400 block">Total Downloads</span>
-            <span className="text-xl font-bold text-emerald-400 mt-0.5 block">{totalDownloads.toLocaleString()} Downloads</span>
-          </div>
+      {/* Portal Standard Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-l-4 border-l-[#4B49AC] shadow-2xs bg-white">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Media Assets</CardTitle>
+            <FolderOpen className="h-4 w-4 text-[#4B49AC]" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{assets.length} Files</div>
+            <p className="text-xs text-gray-500 mt-1">In media library</p>
+          </CardContent>
+        </Card>
 
-          <div className="bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-xl p-3">
-            <span className="text-[11px] font-medium text-slate-400 block">DAM Storage CDN</span>
-            <span className="text-xl font-bold text-purple-300 mt-0.5 block">Supabase Storage</span>
-          </div>
+        <Card className="border-l-4 border-l-[#7DA0FA] shadow-2xs bg-white">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Downloads</CardTitle>
+            <Download className="h-4 w-4 text-[#7DA0FA]" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{totalDownloads.toLocaleString()} Downloads</div>
+            <p className="text-xs text-emerald-600 font-medium mt-1">Across all files</p>
+          </CardContent>
+        </Card>
 
-          <div className="bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-xl p-3">
-            <span className="text-[11px] font-medium text-slate-400 block">Repository Health</span>
-            <span className="text-xl font-bold text-cyan-300 mt-0.5 flex items-center gap-1.5">
-              <Check className="h-4 w-4 text-cyan-300" /> 100% Synchronized
-            </span>
-          </div>
-        </div>
+        <Card className="border-l-4 border-l-purple-500 shadow-2xs bg-white">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">DAM Storage CDN</CardTitle>
+            <Sparkles className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">Supabase DB</div>
+            <p className="text-xs text-purple-600 font-medium mt-1">Cloud Bucket Linked</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-emerald-500 shadow-2xs bg-white">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Repository Status</CardTitle>
+            <Check className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">100% Sync</div>
+            <p className="text-xs text-emerald-600 font-semibold mt-1">Realtime Multi-user</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filter & Search Bar */}
@@ -290,7 +364,7 @@ export function MediaLibraryManager() {
           const IconComp = getTypeIcon(asset.file_type)
 
           return (
-            <Card key={asset.id} className="border border-slate-200 hover:border-indigo-300 transition-all hover:shadow-lg flex flex-col justify-between overflow-hidden">
+            <Card key={asset.id} className="border border-slate-200 hover:border-indigo-300 transition-all hover:shadow-md flex flex-col justify-between overflow-hidden bg-white">
               <div>
                 <div className="relative h-40 w-full bg-slate-900 overflow-hidden flex items-center justify-center group">
                   {asset.file_type === "Image" || asset.file_type === "Brand Logo" ? (

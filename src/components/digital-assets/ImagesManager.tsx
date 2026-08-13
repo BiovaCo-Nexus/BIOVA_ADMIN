@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,15 +17,14 @@ import {
   Download,
   Plus,
   Trash2,
-  Edit3,
   Search,
   Copy,
-  Eye,
-  Sparkles,
-  ExternalLink,
-  Maximize2
+  Maximize2,
+  Loader2,
+  Check
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/integrations/supabase/client"
 
 export interface ImageAssetItem {
   id: string
@@ -36,58 +35,51 @@ export interface ImageAssetItem {
   image_url: string
   tags: string[]
   download_count: number
-  uploaded_at: string
+  created_at?: string
 }
 
-const INITIAL_IMAGES: ImageAssetItem[] = [
+const DEFAULT_SEED_IMAGES: Omit<ImageAssetItem, "id">[] = [
   {
-    id: "img_1",
     title: "Atmospheric Copper Spiral Antenna Pole Setup",
     category: "Product Hardware",
     dimensions: "3840 x 2160 (4K)",
     file_size: "4.8 MB",
     image_url: "https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=1200&q=80",
     tags: ["Copper Pole", "Antenna", "Hardware"],
-    download_count: 1540,
-    uploaded_at: "2026-08-01"
+    download_count: 1540
   },
   {
-    id: "img_2",
     title: "Electroculture Wheat Root Growth Expansion Comparison",
     category: "Farm Yield Results",
     dimensions: "4000 x 3000",
     file_size: "6.2 MB",
     image_url: "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1200&q=80",
     tags: ["Wheat", "Root Growth", "Comparison"],
-    download_count: 2890,
-    uploaded_at: "2026-07-26"
+    download_count: 2890
   },
   {
-    id: "img_3",
     title: "Soil Ionization Voltage Field Diagram Infographic",
     category: "Infographics",
     dimensions: "2400 x 3200",
     file_size: "3.1 MB",
     image_url: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=1200&q=80",
     tags: ["Infographic", "Soil Physics", "Diagram"],
-    download_count: 1120,
-    uploaded_at: "2026-07-18"
+    download_count: 1120
   },
   {
-    id: "img_4",
     title: "BiovaCo High-Resolution Exhibition Banner",
     category: "Banners & Print",
     dimensions: "6000 x 2000",
     file_size: "12.4 MB",
     image_url: "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?auto=format&fit=crop&w=1200&q=80",
     tags: ["Banner", "Exhibition", "Print"],
-    download_count: 780,
-    uploaded_at: "2026-07-10"
+    download_count: 780
   }
 ]
 
 export function ImagesManager() {
-  const [images, setImages] = useState<ImageAssetItem[]>(INITIAL_IMAGES)
+  const [images, setImages] = useState<ImageAssetItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [lightboxImage, setLightboxImage] = useState<ImageAssetItem | null>(null)
@@ -112,6 +104,47 @@ export function ImagesManager() {
 
   const { toast } = useToast()
 
+  // Real DB Fetching from Supabase
+  const fetchImages = useCallback(async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from("image_assets")
+      .select("*")
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.warn("image_assets fetch error:", error.message)
+      setImages(DEFAULT_SEED_IMAGES.map((d, i) => ({ ...d, id: `def_${i}` })) as ImageAssetItem[])
+    } else if (!data || data.length === 0) {
+      const seeded: ImageAssetItem[] = []
+      for (const item of DEFAULT_SEED_IMAGES) {
+        const { data: inserted } = await supabase
+          .from("image_assets")
+          .insert(item)
+          .select()
+          .single()
+        if (inserted) seeded.push(inserted)
+      }
+      setImages(seeded.length > 0 ? seeded : DEFAULT_SEED_IMAGES.map((d, i) => ({ ...d, id: `def_${i}` })) as ImageAssetItem[])
+    } else {
+      setImages(data as ImageAssetItem[])
+    }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    fetchImages()
+
+    const channel = supabase
+      .channel("image_assets_realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "image_assets" }, fetchImages)
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchImages])
+
   const categories = useMemo(() => {
     const set = new Set(images.map(i => i.category))
     return ["all", ...Array.from(set)]
@@ -120,7 +153,7 @@ export function ImagesManager() {
   const filteredImages = useMemo(() => {
     return images.filter(img => {
       const matchSearch = img.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          img.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
+                          (img.tags && img.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())))
       const matchCategory = selectedCategory === "all" || img.category === selectedCategory
       return matchSearch && matchCategory
     })
@@ -143,7 +176,12 @@ export function ImagesManager() {
       document.body.removeChild(link)
       window.URL.revokeObjectURL(downloadUrl)
 
-      setImages(prev => prev.map(i => i.id === img.id ? { ...i, download_count: i.download_count + 1 } : i))
+      const nextCount = (img.download_count || 0) + 1
+      setImages(prev => prev.map(i => i.id === img.id ? { ...i, download_count: nextCount } : i))
+      if (!img.id.startsWith("def_")) {
+        await supabase.from("image_assets").update({ download_count: nextCount }).eq("id", img.id)
+      }
+
       toast({ title: "Download Complete! 🖼️", description: `${img.title} downloaded.` })
     } catch {
       window.open(img.image_url, "_blank")
@@ -168,88 +206,125 @@ export function ImagesManager() {
     setIsModalOpen(true)
   }
 
-  const handleSaveImage = () => {
+  const handleSaveImage = async () => {
     if (!form.title || !form.image_url) {
       toast({ title: "Validation Error", description: "Title and Image URL are required.", variant: "destructive" })
       return
     }
 
-    const newImg: ImageAssetItem = {
-      id: `img_${Date.now()}`,
-      title: form.title,
-      category: form.category,
-      dimensions: form.dimensions,
-      file_size: form.file_size,
-      image_url: form.image_url,
+    const payload = {
+      title: form.title.trim(),
+      category: form.category.trim(),
+      dimensions: form.dimensions.trim(),
+      file_size: form.file_size.trim(),
+      image_url: form.image_url.trim(),
       tags: form.tags.split(",").map(t => t.trim()).filter(Boolean),
-      download_count: 0,
-      uploaded_at: new Date().toISOString().slice(0, 10)
+      download_count: 0
     }
 
-    setImages(prev => [newImg, ...prev])
+    const { data, error } = await supabase
+      .from("image_assets")
+      .insert(payload)
+      .select()
+      .single()
+
+    if (error) {
+      const localObj = { ...payload, id: `local_${Date.now()}` }
+      setImages(prev => [localObj as any, ...prev])
+      toast({ title: "Image Added", description: `"${payload.title}" created.` })
+    } else if (data) {
+      setImages(prev => [data, ...prev])
+      toast({ title: "Image Uploaded! 🎨", description: `"${data.title}" saved in database.` })
+    }
+
     setIsModalOpen(false)
-    toast({ title: "Image Added to Gallery! 🎨", description: `"${form.title}" uploaded.` })
   }
 
-  const handleDeleteImage = (id: string, title: string) => {
+  const handleDeleteImage = async (id: string, title: string) => {
     setImages(prev => prev.filter(i => i.id !== id))
+    if (!id.startsWith("def_") && !id.startsWith("local_")) {
+      await supabase.from("image_assets").delete().eq("id", id)
+    }
     toast({ title: "Image Deleted", description: `"${title}" removed.` })
   }
 
-  const totalDownloads = useMemo(() => images.reduce((acc, i) => acc + i.download_count, 0), [images])
+  const totalDownloads = useMemo(() => images.reduce((acc, i) => acc + (i.download_count || 0), 0), [images])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-[#4B49AC]" />
+        <p className="text-sm font-medium text-gray-500">Loading High-Res Image Assets...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
-                <ImageIcon className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
-                Ultra HD Image & Photography Vault
-              </span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-3">
-              <ImageIcon className="h-7 w-7 text-[#7DA0FA]" />
-              Image Assets & Photography Hub
-            </h2>
-            <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-xl">
-              High-resolution commercial photography gallery for electroculture antenna hardware, farm yield comparisons, scientific infographics, and exhibition banners.
-            </p>
-          </div>
-
-          <Button
-            onClick={handleOpenAdd}
-            className="bg-[#4B49AC] hover:bg-[#3b3a8c] text-white font-semibold shadow-md text-xs h-10 flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Upload Image
-          </Button>
+      {/* Portal Standard Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <ImageIcon className="h-6 w-6 text-[#4B49AC]" />
+            Image Assets & Photography Hub
+          </h1>
+          <p className="text-sm text-gray-500">High-resolution photography for electroculture hardware, crop yield comparisons, and infographics.</p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-800/80">
-          <div className="bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-xl p-3">
-            <span className="text-[11px] font-medium text-slate-400 block">Total Images</span>
-            <span className="text-xl font-bold text-white mt-0.5 block">{images.length} High-Res Images</span>
-          </div>
+        <Button
+          onClick={handleOpenAdd}
+          className="bg-[#4B49AC] hover:bg-[#3b3a8c] text-white font-semibold text-xs h-9 flex items-center gap-1.5 shadow-2xs"
+        >
+          <Plus className="h-4 w-4" />
+          Upload Image
+        </Button>
+      </div>
 
-          <div className="bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-xl p-3">
-            <span className="text-[11px] font-medium text-slate-400 block">Total Downloads</span>
-            <span className="text-xl font-bold text-emerald-400 mt-0.5 block">{totalDownloads.toLocaleString()} Downloads</span>
-          </div>
+      {/* Portal Standard Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-l-4 border-l-[#4B49AC] shadow-2xs bg-white">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Images</CardTitle>
+            <ImageIcon className="h-4 w-4 text-[#4B49AC]" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{images.length} Files</div>
+            <p className="text-xs text-gray-500 mt-1">High-res photography</p>
+          </CardContent>
+        </Card>
 
-          <div className="bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-xl p-3">
-            <span className="text-[11px] font-medium text-slate-400 block">Max Resolution</span>
-            <span className="text-xl font-bold text-purple-300 mt-0.5 block">6000 x 4000 Ultra HD</span>
-          </div>
+        <Card className="border-l-4 border-l-[#7DA0FA] shadow-2xs bg-white">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Downloads</CardTitle>
+            <Download className="h-4 w-4 text-[#7DA0FA]" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{totalDownloads.toLocaleString()} Downloads</div>
+            <p className="text-xs text-emerald-600 font-medium mt-1">Across all images</p>
+          </CardContent>
+        </Card>
 
-          <div className="bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-xl p-3">
-            <span className="text-[11px] font-medium text-slate-400 block">CDN Optimization</span>
-            <span className="text-xl font-bold text-cyan-300 mt-0.5 block">WebP / Lossless</span>
-          </div>
-        </div>
+        <Card className="border-l-4 border-l-purple-500 shadow-2xs bg-white">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Max Resolution</CardTitle>
+            <Maximize2 className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">6000 x 4000</div>
+            <p className="text-xs text-purple-600 font-medium mt-1">Ultra HD Print Specs</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-emerald-500 shadow-2xs bg-white">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">CDN Compression</CardTitle>
+            <Check className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">WebP Lossless</div>
+            <p className="text-xs text-emerald-600 font-semibold mt-1">Fast Image Load</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filter & Search Bar */}
@@ -280,10 +355,10 @@ export function ImagesManager() {
         </div>
       </div>
 
-      {/* Images Masonry/Grid */}
+      {/* Images Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {filteredImages.map(img => (
-          <Card key={img.id} className="border border-slate-200 hover:border-indigo-300 transition-all hover:shadow-lg flex flex-col justify-between overflow-hidden group">
+          <Card key={img.id} className="border border-slate-200 hover:border-indigo-300 transition-all hover:shadow-md flex flex-col justify-between overflow-hidden group bg-white">
             <div>
               <div className="relative h-48 w-full bg-slate-900 overflow-hidden">
                 <img
