@@ -429,7 +429,7 @@ ALTER TABLE public.website_videos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow All Access website_videos" ON public.website_videos;
 CREATE POLICY "Allow All Access website_videos" ON public.website_videos FOR ALL USING (true) WITH CHECK (true);
 
-CREATE TABLE IF NOT EXISTS public.3d_models (
+CREATE TABLE IF NOT EXISTS public."3d_models" (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     model_url TEXT,
