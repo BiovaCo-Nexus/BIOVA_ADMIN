@@ -163,6 +163,12 @@ import { ContentStorytellingStudio } from "@/components/marketing/ContentStoryte
 import { MarketingStrategy } from "@/components/marketing/MarketingStrategy"
 import { ContentCalendar } from "@/components/marketing/ContentCalendar"
 import { CreativeAssets } from "@/components/marketing/CreativeAssets"
+import { WebsiteCMSManager } from "@/components/digital-assets/WebsiteCMSManager"
+import { BlogCMSManager } from "@/components/digital-assets/BlogCMSManager"
+import { LandingPagesManager } from "@/components/digital-assets/LandingPagesManager"
+import { MediaLibraryManager } from "@/components/digital-assets/MediaLibraryManager"
+import { VideosManager } from "@/components/digital-assets/VideosManager"
+import { ImagesManager } from "@/components/digital-assets/ImagesManager"
 import { MarketingReports } from "@/components/marketing/MarketingReports"
 import { MarketingStoreProvider } from "@/components/marketing/useMarketingStore"
 import { MarketResearchHub } from "@/components/rd-lab/MarketResearchHub"
@@ -1231,14 +1237,14 @@ const Admin = () => {
                 {activeTab === "newsletter" && <NewsletterManagement />}
                 {activeTab === "seo" && <MarketResearchHub />}
                 {activeTab === "market_research" && <MarketResearchHub />}
-                {activeTab === "brand_assets" && <MediaDashboard />}
+                {activeTab === "brand_assets" && <MediaLibraryManager />}
                 {activeTab === "press_media" && <NewsManagement />}
-                {activeTab === "website" && <PlaceholderPage title="Website" category="Digital Assets" />}
-                {activeTab === "blog" && <PlaceholderPage title="Blog" category="Digital Assets" />}
-                {activeTab === "landing_pages" && <PlaceholderPage title="Landing Pages" category="Digital Assets" />}
-                {activeTab === "media_library" && <MediaDashboard />}
-                {activeTab === "videos" && <PlaceholderPage title="Videos" category="Digital Assets" />}
-                {activeTab === "images" && <PlaceholderPage title="Images" category="Digital Assets" />}
+                {activeTab === "website" && <WebsiteCMSManager />}
+                {activeTab === "blog" && <BlogCMSManager />}
+                {activeTab === "landing_pages" && <LandingPagesManager />}
+                {activeTab === "media_library" && <MediaLibraryManager />}
+                {activeTab === "videos" && <VideosManager />}
+                {activeTab === "images" && <ImagesManager />}
                 {activeTab === "downloads" && <PlaceholderPage title="Downloads" category="D Models" />}
                 {activeTab === "shared_files" && <SharedFilesManager />}
                 {activeTab === "document_generator" && <DocumentGenerator initialPayload={documentPayload} onClearPayload={() => setDocumentPayload(undefined)} />}
