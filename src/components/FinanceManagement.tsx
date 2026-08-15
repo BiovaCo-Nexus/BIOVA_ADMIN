@@ -32,7 +32,9 @@ import {
  BarChart3,
  Calculator,
  Receipt,
- MapPin
+ MapPin,
+ CreditCard,
+ Users
 } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, CartesianGrid, Legend } from "recharts";
 import jsPDF from "jspdf";

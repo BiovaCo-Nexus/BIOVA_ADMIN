@@ -1040,14 +1040,14 @@ export function Payroll() {
                             {record.user_name.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-bold text-gray-900 flex items-center gap-1.5">
+                            <div className="font-bold text-gray-900 flex items-center gap-1.5">
                               {record.user_name}
                               {record.is_intern && (
                                 <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[9px] px-1 py-0 font-semibold">
                                   Intern
                                 </Badge>
                               )}
-                            </p>
+                            </div>
                             <p className="text-[11px] text-gray-500 font-mono">{record.user_email}</p>
                           </div>
                         </div>
