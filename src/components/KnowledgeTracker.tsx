@@ -22,7 +22,7 @@ import {
 } from "lucide-react"
 
 type Priority = "critical" | "high" | "medium" | "low"
-type Status = "pending" | "in_progress" | "validated" | "rejected"
+type Status = "pending" | "in_progress" | "pending_review" | "validated" | "rejected"
 type Category = "system" | "market" | "competitor" | "regulation" | "technology" | "customer"
 
 const CATEGORIES: { value: Category; label: string; icon: any; color: string }[] = [
@@ -40,10 +40,11 @@ const PRIORITIES: { value: Priority; label: string; color: string }[] = [
   { value: "low", label: "Low", color: "bg-gray-100 text-gray-700 border-gray-300" },
 ]
 const STATUSES: { value: Status; label: string; icon: any; color: string }[] = [
-  { value: "pending", label: "Pending", icon: Circle, color: "bg-slate-100 text-slate-700" },
-  { value: "in_progress", label: "In Progress", icon: Clock, color: "bg-[#4B49AC] text-white border-0" },
-  { value: "validated", label: "Validated", icon: CheckCircle2, color: "bg-primary/10 text-primary border-0" },
-  { value: "rejected", label: "Rejected", icon: XCircle, color: "bg-red-100 text-red-700" },
+  { value: "pending", label: "Pending", icon: Circle, color: "bg-slate-100 text-slate-700 border-slate-300" },
+  { value: "in_progress", label: "In Progress", icon: Clock, color: "bg-blue-50 text-blue-700 border-blue-300" },
+  { value: "pending_review", label: "Under Review", icon: AlertTriangle, color: "bg-amber-50 text-amber-800 border-amber-300" },
+  { value: "validated", label: "Validated (Approved)", icon: CheckCircle2, color: "bg-emerald-50 text-emerald-800 border-emerald-300" },
+  { value: "rejected", label: "Changes Needed", icon: XCircle, color: "bg-red-50 text-red-700 border-red-300" },
 ]
 
 const emptyForm = () => ({
@@ -251,6 +252,14 @@ export function KnowledgeTracker() {
   const [isClaimSubmitting, setIsClaimSubmitting] = useState(false)
   const [payoutsFilterStatus, setPayoutsFilterStatus] = useState<string>('all')
 
+  // ─── 2-Step Work QA & CEO Validation State ─────────────────────────────────
+  const [submitReviewModalItem, setSubmitReviewModalItem] = useState<KnowledgeItem | null>(null)
+  const [submitReviewProofNotes, setSubmitReviewProofNotes] = useState<string>("")
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  const [ceoReviewModalItem, setCeoReviewModalItem] = useState<KnowledgeItem | null>(null)
+  const [ceoReviewFeedback, setCeoReviewFeedback] = useState<string>("")
+  const [isCeoValidating, setIsCeoValidating] = useState(false)
+
   // ─── Bulk Todo State ─────────────────────────────────────────────────────────
   const [bulkStep, setBulkStep] = useState<0|1|2|3>(0)   // 0=closed, 1=select users, 2=upload tasks, 3=preview
   const [bulkSelectedEmails, setBulkSelectedEmails] = useState<string[]>([])
@@ -259,7 +268,7 @@ export function KnowledgeTracker() {
   const [isBulkSubmitting, setIsBulkSubmitting] = useState(false)
   const [bulkDefaultPriority, setBulkDefaultPriority] = useState<Priority>('medium')
   const [bulkDefaultDueDate, setBulkDefaultDueDate] = useState('')
-  
+
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [interns, setInterns] = useState<{name: string, email: string}[]>([])
   const [accessUsers, setAccessUsers] = useState<{ label: string; email: string; type: string }[]>([])
@@ -975,17 +984,17 @@ export function KnowledgeTracker() {
     deduplicate();
   }, [items, isLoading]);
 
-  const sendTaskValidatedEmail = async (
+  // ─── 2-STEP QA & CEO VALIDATION EMAIL DISPATCHERS ─────────────────────────
+  const sendTaskSubmittedForReviewEmail = async (
     item: KnowledgeItem,
-    completedByEmail: string | null,
-    validationNotes?: string
+    submittedByEmail: string | null,
+    proofNotes?: string
   ) => {
     const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || "xkeysib-brevo-key"
-    
-    // Find member label/name
-    const memberObj = assignableUsers.find(u => u.email.toLowerCase() === (completedByEmail || '').toLowerCase())
-    const memberName = memberObj ? memberObj.label : (completedByEmail?.split('@')[0] || 'Team Member')
-    const completedAtStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+    const memberObj = assignableUsers.find(u => u.email.toLowerCase() === (submittedByEmail || '').toLowerCase())
+    const memberName = memberObj ? memberObj.label : (submittedByEmail?.split('@')[0] || 'Team Member')
+    const submittedAtStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+    const potentialReward = calculateTaskPoints(item)
 
     const recipients = [
       { email: "ceo@biovaco.in", name: "CEO Office (BiovaCo)" },
@@ -993,11 +1002,11 @@ export function KnowledgeTracker() {
     ]
 
     const emailHtml = `
-      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; max-width: 650px; background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 5px solid #10b981; border-radius: 8px; margin: 0 auto;">
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; max-width: 650px; background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 5px solid #f59e0b; border-radius: 8px; margin: 0 auto;">
         <div style="border-bottom: 1px solid #edf2f7; padding-bottom: 15px; margin-bottom: 20px;">
-          <h2 style="color: #065f46; margin: 0; font-size: 20px;">✅ Task Completed &amp; Validated</h2>
-          <span style="background-color: #ecfdf5; color: #047857; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 6px; border: 1px solid #a7f3d0;">
-            WORK COMPLETION ALERT FOR EXECUTIVE OFFICE
+          <h2 style="color: #b45309; margin: 0; font-size: 20px;">📋 Task Submitted for CEO Review &amp; Validation</h2>
+          <span style="background-color: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 6px; border: 1px solid #fde68a;">
+            ACTION REQUIRED: CEO APPROVAL PENDING
           </span>
         </div>
 
@@ -1006,7 +1015,7 @@ export function KnowledgeTracker() {
         </p>
 
         <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
-          <strong>${memberName}</strong> (<code>${completedByEmail || 'N/A'}</code>) has marked the following task as <strong>Validated / Completed</strong> in the <strong>Knowledge Tracker</strong>:
+          <strong>${memberName}</strong> (<code>${submittedByEmail || 'N/A'}</code>) has completed their work and submitted the following task for <strong>CEO Review &amp; Validation</strong>:
         </p>
 
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
@@ -1016,24 +1025,16 @@ export function KnowledgeTracker() {
               <td style="padding: 8px 0; color: #1a202c; font-weight: bold; font-size: 15px;">${item.title}</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #718096;"><strong>Completed By:</strong></td>
-              <td style="padding: 8px 0; color: #047857; font-weight: bold;">${memberName} &lt;${completedByEmail || 'N/A'}&gt;</td>
+              <td style="padding: 8px 0; color: #718096;"><strong>Submitted By:</strong></td>
+              <td style="padding: 8px 0; color: #4B49AC; font-weight: bold;">${memberName} &lt;${submittedByEmail || 'N/A'}&gt;</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #718096;"><strong>Completed Time:</strong></td>
-              <td style="padding: 8px 0; color: #2d3748; font-weight: 500;">${completedAtStr} IST</td>
+              <td style="padding: 8px 0; color: #718096;"><strong>Submission Time:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748; font-weight: 500;">${submittedAtStr} IST</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #718096;"><strong>Priority:</strong></td>
-              <td style="padding: 8px 0;"><span style="background-color: #fff5f5; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">${(item.priority || 'MEDIUM').toUpperCase()}</span></td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #718096;"><strong>Category:</strong></td>
-              <td style="padding: 8px 0; color: #2d3748; font-weight: 600;">${(item.category || 'SYSTEM').toUpperCase()}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #718096;"><strong>Assigned To:</strong></td>
-              <td style="padding: 8px 0; color: #4B49AC;">${item.assigned_to || memberName}</td>
+              <td style="padding: 8px 0; color: #718096;"><strong>Priority &amp; Value:</strong></td>
+              <td style="padding: 8px 0; color: #047857; font-weight: bold;">${(item.priority || 'medium').toUpperCase()} (Eligible: ₹${potentialReward.inrValue} / ${potentialReward.totalPoints} Pts)</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #718096;"><strong>Due Date:</strong></td>
@@ -1041,51 +1042,254 @@ export function KnowledgeTracker() {
             </tr>
             ${item.description ? `
             <tr>
-              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Description:</strong></td>
+              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Task Details:</strong></td>
               <td style="padding: 8px 0; color: #4a5568; line-height: 1.5;">${item.description}</td>
             </tr>` : ''}
-            ${(validationNotes || item.validation_notes) ? `
+            ${(proofNotes || item.validation_notes) ? `
             <tr>
-              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Validation Notes:</strong></td>
-              <td style="padding: 8px 0; color: #065f46; background: #ecfdf5; padding: 8px; border-radius: 6px; font-weight: 500;">${validationNotes || item.validation_notes}</td>
+              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Member Work Proof:</strong></td>
+              <td style="padding: 8px 0; color: #1e3a8a; background: #eff6ff; padding: 10px; border-radius: 6px; font-weight: 500;">${proofNotes || item.validation_notes}</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <p style="text-align: center; margin-top: 25px;">
+          <a href="https://admin.biovaco.in" style="background-color: #4B49AC; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">
+            Open Knowledge Tracker to Review &amp; Validate →
+          </a>
+        </p>
+
+        <p style="color: #a0aec0; font-size: 11px; text-align: center; margin-top: 20px; border-top: 1px solid #edf2f7; padding-top: 15px;">
+          BiovaCo Nexus ERP System • 2-Step Work QA Workflow Notice
+        </p>
+      </div>
+    `;
+
+    try {
+      await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
+        body: JSON.stringify({
+          sender: { name: "BiovaCo Knowledge Review", email: "no-reply@biovaco.in" },
+          to: recipients,
+          subject: `[Task Review Required] ${memberName} submitted "${item.title}" for CEO Validation`,
+          htmlContent: emailHtml
+        })
+      });
+    } catch (err) {
+      console.warn("Brevo review email error:", err);
+    }
+  }
+
+  const sendTaskApprovedByCEOEmail = async (
+    item: KnowledgeItem,
+    reward: ReturnType<typeof calculateTaskPoints>,
+    adminNotes?: string
+  ) => {
+    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || "xkeysib-brevo-key"
+    const targetEmails = (item.assigned_to || item.created_by || '').split(',').map(e => e.trim()).filter(Boolean)
+    if (targetEmails.length === 0) return
+
+    const recipients = [
+      ...targetEmails.map(email => ({ email, name: email.split('@')[0] })),
+      { email: "ceo@biovaco.in", name: "CEO Office (Copy)" }
+    ]
+
+    const validatedAtStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+
+    const emailHtml = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; max-width: 650px; background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 5px solid #10b981; border-radius: 8px; margin: 0 auto;">
+        <div style="border-bottom: 1px solid #edf2f7; padding-bottom: 15px; margin-bottom: 20px;">
+          <h2 style="color: #065f46; margin: 0; font-size: 20px;">🎉 Task Approved &amp; Validated by CEO!</h2>
+          <span style="background-color: #ecfdf5; color: #047857; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 6px; border: 1px solid #a7f3d0;">
+            ₹${reward.inrValue} (${reward.totalPoints} POINTS) CREDITED TO YOUR WALLET
+          </span>
+        </div>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          Congratulations! Your submitted work for <strong>"${item.title}"</strong> has been reviewed and officially <strong>APPROVED &amp; VALIDATED</strong> by CEO Office.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 8px 0; color: #718096; width: 140px;"><strong>Points Credited:</strong></td>
+              <td style="padding: 8px 0; color: #047857; font-weight: 800; font-size: 18px;">+₹${reward.inrValue} (${reward.totalPoints} Pts)</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Reward Breakdown:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748; font-weight: 500;">${reward.breakdown}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Approved Time:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748;">${validatedAtStr} IST</td>
+            </tr>
+            ${adminNotes ? `
+            <tr>
+              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>CEO Remarks:</strong></td>
+              <td style="padding: 8px 0; color: #065f46; font-weight: 600;">${adminNotes}</td>
             </tr>` : ''}
           </table>
         </div>
 
         <p style="text-align: center; margin-top: 25px;">
           <a href="https://admin.biovaco.in" style="background-color: #10b981; color: #ffffff; text-decoration: none; padding: 11px 22px; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">
-            Open Knowledge Tracker Portal →
+            Open Your Rewards Wallet →
           </a>
         </p>
 
         <p style="color: #a0aec0; font-size: 11px; text-align: center; margin-top: 20px; border-top: 1px solid #edf2f7; padding-top: 15px;">
-          BiovaCo Nexus Enterprise ERP • Automated Task Completion Notice
+          BiovaCo Nexus ERP System • Official Performance Validation
         </p>
       </div>
     `;
 
-    const payload = {
-      sender: { name: "BiovaCo Task Validation", email: "no-reply@biovaco.in" },
-      to: recipients,
-      subject: `[Task Validated] ${memberName} completed: "${item.title}"`,
-      htmlContent: emailHtml
-    };
-
     try {
-      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+      await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          sender: { name: "BiovaCo CEO Office", email: "no-reply@biovaco.in" },
+          to: recipients,
+          subject: `🎉 [Task Validated] CEO approved "${item.title}" — ₹${reward.inrValue} Credited!`,
+          htmlContent: emailHtml
+        })
       });
-      if (res.ok) {
-        toast({
-          title: "✉️ CEO Notified!",
-          description: `Completion notice sent to ceo@biovaco.in for "${item.title}".`
-        });
-      }
     } catch (err) {
-      console.warn("Brevo completion notification error:", err);
+      console.warn("Brevo approval email error:", err);
     }
+  }
+
+  const sendTaskReworkRequestedEmail = async (
+    item: KnowledgeItem,
+    feedbackNotes: string
+  ) => {
+    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || "xkeysib-brevo-key"
+    const targetEmails = (item.assigned_to || item.created_by || '').split(',').map(e => e.trim()).filter(Boolean)
+    if (targetEmails.length === 0) return
+
+    const recipients = [
+      ...targetEmails.map(email => ({ email, name: email.split('@')[0] })),
+      { email: "ceo@biovaco.in", name: "CEO Office (Copy)" }
+    ]
+
+    const emailHtml = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; max-width: 650px; background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 5px solid #ef4444; border-radius: 8px; margin: 0 auto;">
+        <div style="border-bottom: 1px solid #edf2f7; padding-bottom: 15px; margin-bottom: 20px;">
+          <h2 style="color: #991b1b; margin: 0; font-size: 20px;">⚠️ Changes Requested on Task</h2>
+          <span style="background-color: #fef2f2; color: #991b1b; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 6px; border: 1px solid #fecaca;">
+            ACTION REQUIRED: REWORK / IMPROVEMENTS NEEDED
+          </span>
+        </div>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          CEO Office has reviewed your submission for <strong>"${item.title}"</strong> and requested some changes before it can be validated:
+        </p>
+
+        <div style="background-color: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <p style="color: #742a2a; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 6px;">CEO Review Feedback:</p>
+          <p style="color: #2d3748; font-size: 14px; line-height: 1.6; font-weight: 500;">${feedbackNotes}</p>
+        </div>
+
+        <p style="color: #4a5568; font-size: 13px;">
+          Please make the necessary changes and re-submit the task for CEO review to claim your reward points.
+        </p>
+
+        <p style="text-align: center; margin-top: 25px;">
+          <a href="https://admin.biovaco.in" style="background-color: #4B49AC; color: #ffffff; text-decoration: none; padding: 11px 22px; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">
+            Open Task on Knowledge Tracker →
+          </a>
+        </p>
+      </div>
+    `;
+
+    try {
+      await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
+        body: JSON.stringify({
+          sender: { name: "BiovaCo CEO Office", email: "no-reply@biovaco.in" },
+          to: recipients,
+          subject: `⚠️ [Changes Requested] CEO feedback on "${item.title}"`,
+          htmlContent: emailHtml
+        })
+      });
+    } catch (err) {
+      console.warn("Brevo rework email error:", err);
+    }
+  }
+
+  // ─── 2-STEP QA ACTION HANDLERS ─────────────────────────────────────────────
+  const handleMemberSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!submitReviewModalItem) return
+    setIsSubmittingReview(true)
+
+    const updatedNotes = submitReviewProofNotes.trim() || submitReviewModalItem.validation_notes || ""
+    await updateItem(submitReviewModalItem.id, {
+      status: "pending_review",
+      validation_notes: updatedNotes
+    })
+
+    // Send email to CEO
+    await sendTaskSubmittedForReviewEmail(submitReviewModalItem, userEmail, updatedNotes)
+
+    setIsSubmittingReview(false)
+    setSubmitReviewModalItem(null)
+    setSubmitReviewProofNotes("")
+
+    toast({
+      title: "🚀 Submitted for CEO Review!",
+      description: "ceo@biovaco.in notified. Points will be credited once CEO approves & validates."
+    })
+  }
+
+  const handleCeoApproveAndValidate = async (item: KnowledgeItem, adminRemarks?: string) => {
+    setIsCeoValidating(true)
+    const updatedNotes = adminRemarks
+      ? `${item.validation_notes ? item.validation_notes + ' | ' : ''}CEO Approval: ${adminRemarks}`
+      : item.validation_notes
+
+    await updateItem(item.id, {
+      status: "validated",
+      validation_notes: updatedNotes
+    })
+
+    const reward = calculateTaskPoints({ ...item, status: "validated" })
+    await sendTaskApprovedByCEOEmail(item, reward, adminRemarks)
+
+    setIsCeoValidating(false)
+    setCeoReviewModalItem(null)
+    setCeoReviewFeedback("")
+
+    toast({
+      title: `🎉 Task Validated & +₹${reward.totalPoints} Credited!`,
+      description: `Approved by CEO Office. Reward updated on member's wallet.`
+    })
+  }
+
+  const handleCeoRequestRework = async (item: KnowledgeItem, feedback: string) => {
+    if (!feedback.trim()) {
+      toast({ title: "Please enter feedback for the member", variant: "destructive" }); return
+    }
+    setIsCeoValidating(true)
+    const updatedNotes = `${item.validation_notes ? item.validation_notes + ' | ' : ''}Changes Requested: ${feedback}`
+
+    await updateItem(item.id, {
+      status: "in_progress",
+      validation_notes: updatedNotes
+    })
+
+    await sendTaskReworkRequestedEmail(item, feedback)
+
+    setIsCeoValidating(false)
+    setCeoReviewModalItem(null)
+    setCeoReviewFeedback("")
+
+    toast({
+      title: "⚠️ Rework Requested",
+      description: "Task returned to In Progress and feedback sent to member."
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1101,6 +1305,7 @@ export function KnowledgeTracker() {
     if (editId) {
       const existingItem = items.find(i => i.id === editId)
       const isNewlyValidated = form.status === "validated" && existingItem?.status !== "validated"
+      const isNewlySubmittedReview = form.status === "pending_review" && existingItem?.status !== "pending_review"
 
       await updateItem(editId, {
         ...form,
@@ -1112,7 +1317,7 @@ export function KnowledgeTracker() {
       })
       
       const assignees = targetAssignedTo.split(',').map(e => e.trim()).filter(Boolean)
-      if (assignees.length > 0 && !isNewlyValidated) {
+      if (assignees.length > 0 && !isNewlyValidated && !isNewlySubmittedReview) {
         sendAssignmentEmail(
           assignees,
           form.title,
@@ -1124,10 +1329,19 @@ export function KnowledgeTracker() {
         )
       }
 
-      if (isNewlyValidated && existingItem) {
-        sendTaskValidatedEmail(
+      if (isNewlySubmittedReview && existingItem) {
+        sendTaskSubmittedForReviewEmail(
           { ...existingItem, ...form, assigned_to: targetAssignedTo },
           userEmail,
+          form.validation_notes
+        )
+      }
+
+      if (isNewlyValidated && existingItem) {
+        const reward = calculateTaskPoints({ ...existingItem, ...form, status: "validated" })
+        sendTaskApprovedByCEOEmail(
+          { ...existingItem, ...form, assigned_to: targetAssignedTo },
+          reward,
           form.validation_notes
         )
       }
@@ -1157,8 +1371,11 @@ export function KnowledgeTracker() {
         )
       }
 
-      if (form.status === "validated") {
-        sendTaskValidatedEmail(createdItem, userEmail, form.validation_notes)
+      if (form.status === "pending_review") {
+        sendTaskSubmittedForReviewEmail(createdItem, userEmail, form.validation_notes)
+      } else if (form.status === "validated") {
+        const reward = calculateTaskPoints(createdItem)
+        sendTaskApprovedByCEOEmail(createdItem, reward, form.validation_notes)
       }
       
       toast({ title: isOnline ? "Item created" : "Item saved offline (will sync when online)" })
@@ -1175,15 +1392,30 @@ export function KnowledgeTracker() {
 
   const handleStatusChange = async (id: string, status: Status) => {
     const item = items.find(i => i.id === id)
+    if (!item) return
+
+    // If regular member tries to set validated, route them to Submit Review modal
+    if (!isExecutive && status === "validated") {
+      setSubmitReviewModalItem(item)
+      setSubmitReviewProofNotes(item.validation_notes || "")
+      return
+    }
+
+    if (status === "pending_review") {
+      setSubmitReviewModalItem(item)
+      setSubmitReviewProofNotes(item.validation_notes || "")
+      return
+    }
+
     await updateItem(id, { status })
 
-    if (status === "validated" && item) {
+    if (status === "validated" && isExecutive) {
       const reward = calculateTaskPoints({ ...item, status: "validated" })
+      sendTaskApprovedByCEOEmail(item, reward)
       toast({
-        title: `🎉 +₹${reward.totalPoints} Credited! (${reward.totalPoints} Points)`,
-        description: `Task Validated! ${reward.breakdown} • 1 Point = ₹1 INR`,
+        title: `🎉 Task Validated & +₹${reward.totalPoints} Credited!`,
+        description: `Task approved by CEO. Points credited to member wallet.`
       })
-      sendTaskValidatedEmail({ ...item, status: "validated" }, userEmail)
     } else {
       toast({ title: `Status → ${status.replace("_", " ")}` })
     }
@@ -2675,6 +2907,158 @@ export function KnowledgeTracker() {
               </div>
             </div>
           </div>
+      {/* ═══════════════ MEMBER: SUBMIT WORK FOR CEO REVIEW MODAL ═══════════════ */}
+      {submitReviewModalItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800">
+                  <Send className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">Submit Work for CEO Validation</h3>
+                  <p className="text-xs text-gray-500">Provide proof/links of your completed work</p>
+                </div>
+              </div>
+              <button onClick={() => setSubmitReviewModalItem(null)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleMemberSubmitReview} className="p-6 space-y-4">
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-1">
+                <p className="text-xs font-semibold text-gray-500 uppercase">Task Title</p>
+                <p className="text-sm font-bold text-gray-900">{submitReviewModalItem.title}</p>
+                <div className="flex items-center gap-2 pt-1 text-xs text-emerald-700 font-semibold">
+                  <Coins className="h-3.5 w-3.5 text-emerald-600" />
+                  Potential Reward: +₹{calculateTaskPoints(submitReviewModalItem).inrValue} ({calculateTaskPoints(submitReviewModalItem).totalPoints} Pts) upon CEO approval
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-700 uppercase">
+                  Work Proof / Deliverable Summary / Links *
+                </label>
+                <Textarea
+                  required
+                  value={submitReviewProofNotes}
+                  onChange={e => setSubmitReviewProofNotes(e.target.value)}
+                  placeholder="Explain what you accomplished, link to document / spreadsheet / code / designs, output proof..."
+                  rows={4}
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 flex items-center gap-2">
+                <Info className="h-4 w-4 text-blue-600 shrink-0" />
+                <span>
+                  Submitting will notify <strong>ceo@biovaco.in</strong> via email. Points will be automatically credited to your wallet once CEO reviews and validates your work.
+                </span>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setSubmitReviewModalItem(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmittingReview}
+                  className="bg-[#4B49AC] hover:bg-[#3e3d93] text-white font-bold px-6"
+                >
+                  {isSubmittingReview ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...</>
+                  ) : (
+                    <><Send className="h-4 w-4 mr-2" /> Submit for CEO Review</>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════ CEO: REVIEW & VALIDATE TASK MODAL ═══════════════ */}
+      {ceoReviewModalItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">CEO Work Review &amp; Validation</h3>
+                  <p className="text-xs text-gray-500">Review member's completed work and credit points</p>
+                </div>
+              </div>
+              <button onClick={() => setCeoReviewModalItem(null)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase">Task</p>
+                    <p className="text-sm font-bold text-gray-900">{ceoReviewModalItem.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Assigned to: <strong className="text-slate-800">{ceoReviewModalItem.assigned_to || 'Member'}</strong></p>
+                  </div>
+                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-bold text-xs">
+                    ₹{calculateTaskPoints(ceoReviewModalItem).inrValue} ({calculateTaskPoints(ceoReviewModalItem).totalPoints} Pts)
+                  </Badge>
+                </div>
+
+                {ceoReviewModalItem.validation_notes && (
+                  <div className="pt-2 border-t border-slate-200">
+                    <p className="text-[11px] font-bold text-blue-900 uppercase">Member's Submitted Proof / Notes:</p>
+                    <p className="text-xs text-slate-800 mt-1 bg-white p-2.5 rounded-lg border border-slate-200 whitespace-pre-wrap">
+                      {ceoReviewModalItem.validation_notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-700 uppercase">
+                  CEO Remarks / Review Feedback (Optional for approval, required for rework)
+                </label>
+                <Textarea
+                  value={ceoReviewFeedback}
+                  onChange={e => setCeoReviewFeedback(e.target.value)}
+                  placeholder="Enter positive feedback or rework instructions..."
+                  rows={3}
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isCeoValidating}
+                  onClick={() => handleCeoRequestRework(ceoReviewModalItem, ceoReviewFeedback)}
+                  className="text-red-600 border-red-200 hover:bg-red-50 text-xs"
+                >
+                  <XCircle className="h-3.5 w-3.5 mr-1" /> Request Changes / Rework
+                </Button>
+
+                <Button
+                  type="button"
+                  disabled={isCeoValidating}
+                  onClick={() => handleCeoApproveAndValidate(ceoReviewModalItem, ceoReviewFeedback)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 shadow-sm"
+                >
+                  {isCeoValidating ? (
+                    <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Processing...</>
+                  ) : (
+                    <><Check className="h-3.5 w-3.5 mr-1.5" /> Approve &amp; Credit ₹{calculateTaskPoints(ceoReviewModalItem).inrValue}</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       <Card>
@@ -2779,6 +3163,50 @@ export function KnowledgeTracker() {
                         <Badge variant="outline" className={`${cat.color} text-[11px] px-1.5 py-0 border`}><CatIcon className="h-3 w-3 mr-1" />{cat.label}</Badge>
                         <Badge variant="outline" className={`${pri.color} text-[11px] px-1.5 py-0 border`}>{pri.label}</Badge>
                         <Badge variant="outline" className={`${sta.color} text-[11px] px-1.5 py-0`}>{sta.label}</Badge>
+
+                        {/* Status specific badges & action shortcuts */}
+                        {item.status === 'pending_review' && (
+                          <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-bold text-[10px] px-2 py-0.5 animate-pulse">
+                            ⏳ Under CEO Review (Points pending validation)
+                          </Badge>
+                        )}
+                        {item.status === 'rejected' && (
+                          <Badge className="bg-red-100 text-red-800 border-red-300 font-bold text-[10px] px-2 py-0.5">
+                            ⚠️ Changes Requested by CEO
+                          </Badge>
+                        )}
+
+                        {/* Executive direct review action */}
+                        {isExecutive && item.status === 'pending_review' && (
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCeoReviewModalItem(item);
+                              setCeoReviewFeedback("");
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold h-6 px-2.5 shadow-2xs"
+                          >
+                            <CheckCircle2 className="h-3 w-3 mr-1" /> Review &amp; Validate
+                          </Button>
+                        )}
+
+                        {/* Member submit for review button */}
+                        {!isExecutive && (item.status === 'pending' || item.status === 'in_progress' || item.status === 'rejected') && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSubmitReviewModalItem(item);
+                              setSubmitReviewProofNotes(item.validation_notes || "");
+                            }}
+                            className="border-[#4B49AC] text-[#4B49AC] hover:bg-[#4B49AC]/10 text-[11px] font-bold h-6 px-2"
+                          >
+                            <Send className="h-3 w-3 mr-1" /> Submit for Review
+                          </Button>
+                        )}
+
                         {item.assigned_to && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {item.assigned_to.split(',').filter(Boolean).map(email => (
@@ -2818,24 +3246,71 @@ export function KnowledgeTracker() {
                       </div>
 
                       {item.description && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Description</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{item.description}</p></div>}
-                      {item.validation_notes && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Validation Notes</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{item.validation_notes}</p></div>}
+                      {item.validation_notes && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Work Proof / Notes</p><p className="text-sm text-gray-700 whitespace-pre-wrap bg-slate-50 p-2.5 rounded-lg border">{item.validation_notes}</p></div>}
                       {item.source && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Source</p><p className="text-sm text-gray-700">{item.source}</p></div>}
                       <div className="flex gap-4 text-[11px] text-gray-400 pt-1 border-t border-gray-100">
                         <span>Created: {new Date(item.created_at).toLocaleDateString()}</span>
                         <span>Updated: {new Date(item.updated_at).toLocaleDateString()}</span>
                       </div>
-                      <div className="flex gap-2 pt-1">
-                        {STATUSES.map(s => (
-                          <Button 
-                            key={s.value} 
-                            variant={item.status === s.value ? "default" : "outline"} 
-                            size="sm"
-                            className={`text-xs h-7 ${item.status === s.value ? "bg-primary text-primary-foreground" : ""}`}
-                            onClick={() => handleStatusChange(item.id, s.value)}
-                          >
-                            <s.icon className="h-3 w-3 mr-1" /> {s.label}
-                          </Button>
-                        ))}
+                      
+                      {/* Action buttons in expanded view */}
+                      <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                        {isExecutive ? (
+                          <>
+                            {STATUSES.map(s => (
+                              <Button 
+                                key={s.value} 
+                                variant={item.status === s.value ? "default" : "outline"} 
+                                size="sm"
+                                className={`text-xs h-7 ${item.status === s.value ? "bg-primary text-primary-foreground" : ""}`}
+                                onClick={() => handleStatusChange(item.id, s.value)}
+                              >
+                                <s.icon className="h-3 w-3 mr-1" /> {s.label}
+                              </Button>
+                            ))}
+                            {item.status !== 'validated' && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setCeoReviewModalItem(item);
+                                  setCeoReviewFeedback("");
+                                }}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7 font-bold ml-auto"
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> CEO: Approve &amp; Credit ₹{itemReward.inrValue}
+                              </Button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant={item.status === 'pending' ? "default" : "outline"}
+                              size="sm"
+                              className="text-xs h-7"
+                              onClick={() => handleStatusChange(item.id, 'pending')}
+                            >
+                              Pending
+                            </Button>
+                            <Button
+                              variant={item.status === 'in_progress' ? "default" : "outline"}
+                              size="sm"
+                              className="text-xs h-7"
+                              onClick={() => handleStatusChange(item.id, 'in_progress')}
+                            >
+                              In Progress
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSubmitReviewModalItem(item);
+                                setSubmitReviewProofNotes(item.validation_notes || "");
+                              }}
+                              className="bg-[#4B49AC] hover:bg-[#3e3d93] text-white text-xs h-7 font-bold"
+                            >
+                              <Send className="h-3 w-3 mr-1" /> Submit Work for CEO Review
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
