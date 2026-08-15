@@ -92,40 +92,68 @@ export interface CapitalContribution {
  capital_type?: string;
  payment_mode?: string;
  transaction_reference?: string;
- authorized_capital_allocation?: number;
- paid_up_capital_allocation?: number;
- created_at: string;
+  authorized_capital_allocation?: number;
+  paid_up_capital_allocation?: number;
+  created_at: string;
+}
+
+export interface PayrollRecord {
+  id: string;
+  user_email: string;
+  user_name: string;
+  employee_id?: string;
+  intern_id?: string;
+  role_department: string;
+  is_intern: boolean;
+  month: string;
+  year: number;
+  basic_salary: number;
+  reward_points: number;
+  reward_bonus: number;
+  allowances: number;
+  deductions: number;
+  net_salary: number;
+  status: 'draft' | 'pending' | 'approved' | 'paid' | 'on_hold';
+  payment_method: string;
+  payment_details: string;
+  transaction_id?: string;
+  paid_date?: string;
+  admin_notes?: string;
+  created_at: string;
 }
 
 const EXPENSE_CATEGORIES = [
- "Raw Materials",
- "Packaging",
- "Shipping",
- "Marketing",
- "Office Supplies",
- "Travel & Transport",
- "Software & Subscriptions",
- "Meals & Entertainment",
- "Legal & Professional Fees",
- "Rent & Utilities",
- "Company Registration",
- "Hardware & Equipment",
- "Miscellaneous Expenses"
+  "Salaries & Stipends",
+  "Employee & Intern Compensation",
+  "Performance Reward Bonuses",
+  "Raw Materials",
+  "Packaging",
+  "Shipping",
+  "Marketing",
+  "Office Supplies",
+  "Travel & Transport",
+  "Software & Subscriptions",
+  "Meals & Entertainment",
+  "Legal & Professional Fees",
+  "Rent & Utilities",
+  "Company Registration",
+  "Hardware & Equipment",
+  "Miscellaneous Expenses"
 ];
 
 const INCOME_SOURCES = [
- "Product Sales",
- "Service Revenue",
- "Consulting Fees",
- "Subscription",
- "Interest Income",
- "Other Income"
+  "Product Sales",
+  "Service Revenue",
+  "Consulting Fees",
+  "Subscription",
+  "Interest Income",
+  "Other Income"
 ];
 
 const REGISTRATION_SUBCATEGORIES = [
- "DSC", "DIN", "Name Reservation", "MCA Fees", "Government Fees",
- "Stamp Duty", "Legal Fees", "CA/CS Fees", "Trademark Fees",
- "Startup India Fees", "Domain & Hosting", "Miscellaneous Registration Expenses"
+  "DSC", "DIN", "Name Reservation", "MCA Fees", "Government Fees",
+  "Stamp Duty", "Legal Fees", "CA/CS Fees", "Trademark Fees",
+  "Startup India Fees", "Domain & Hosting", "Miscellaneous Registration Expenses"
 ];
 
 const PAID_BY_ROLES = ["Founder", "Director", "Employee", "Consultant", "Investor Representative", "Other"];
@@ -133,20 +161,21 @@ const STATUSES = ["Pending", "Approved", "Rejected", "Reimbursed"];
 const PAYMENT_MODES = ["UPI", "Bank Transfer", "Credit Card", "Debit Card", "Cash", "Wallet"];
 
 export function FinanceManagement({ initialTab }: { initialTab?: string } = {}) {
- const [activeTab, setActiveTab] = useState(initialTab || "dashboard");
+  const [activeTab, setActiveTab] = useState(initialTab || "dashboard");
 
- useEffect(() => {
-   if (initialTab) {
-     setActiveTab(initialTab);
-   }
- }, [initialTab]);
- const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
- const [capital, setCapital] = useState<CapitalContribution[]>([]);
- const [incomes, setIncomes] = useState<IncomeRecord[]>([]);
- const [loading, setLoading] = useState(true);
- const { toast } = useToast();
- 
- const [isUploadingFile, setIsUploadingFile] = useState(false);
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [capital, setCapital] = useState<CapitalContribution[]>([]);
+  const [incomes, setIncomes] = useState<IncomeRecord[]>([]);
+  const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
  const file = e.target.files?.[0];
@@ -295,29 +324,33 @@ export function FinanceManagement({ initialTab }: { initialTab?: string } = {}) 
  fetchData();
  }, []);
 
- const fetchData = async () => {
- setLoading(true);
- try {
- const [expenseRes, capitalRes, incomeRes] = await Promise.all([
- supabase.from('expense_records').select('*').order('date', { ascending: false }),
- supabase.from('capital_contributions').select('*').order('date', { ascending: false }),
- supabase.from('income_records').select('*').order('date', { ascending: false })
- ]);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [expenseRes, capitalRes, incomeRes, payrollRes] = await Promise.all([
+        supabase.from('expense_records').select('*').order('date', { ascending: false }),
+        supabase.from('capital_contributions').select('*').order('date', { ascending: false }),
+        supabase.from('income_records').select('*').order('date', { ascending: false }),
+        supabase.from('payroll_records').select('*').order('created_at', { ascending: false })
+      ]);
 
- if (expenseRes.error) throw expenseRes.error;
- if (capitalRes.error) throw capitalRes.error;
- if (incomeRes.error && incomeRes.error.code !== '42P01') throw incomeRes.error; // Ignore if table doesn't exist yet
+      if (expenseRes.error) throw expenseRes.error;
+      if (capitalRes.error) throw capitalRes.error;
+      if (incomeRes.error && incomeRes.error.code !== '42P01') throw incomeRes.error; // Ignore if table doesn't exist yet
 
- setExpenses(expenseRes.data || []);
- setCapital(capitalRes.data || []);
- setIncomes(incomeRes.data || []);
- } catch (error: unknown) {
- console.error("Error fetching finance data:", error);
- toast({ title: "Error", description: "Failed to load financial data", variant: "destructive" });
- } finally {
- setLoading(false);
- }
- };
+      setExpenses(expenseRes.data || []);
+      setCapital(capitalRes.data || []);
+      setIncomes(incomeRes.data || []);
+      if (payrollRes.data) {
+        setPayrollRecords(payrollRes.data as PayrollRecord[]);
+      }
+    } catch (error: unknown) {
+      console.error("Error fetching finance data:", error);
+      toast({ title: "Error", description: "Failed to load financial data", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
  const generateExpenseId = () => {
  const prefix = "EXP";
@@ -1142,6 +1175,9 @@ return (
  <Button variant={activeTab === "analytics" ? "default" : "outline"} onClick={() => setActiveTab("analytics")} className="flex-1 sm:flex-none">
  <BarChart3 className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Analytics & GST</span>
  </Button>
+ <Button variant={activeTab === "payroll" ? "default" : "outline"} onClick={() => setActiveTab("payroll")} className="flex-1 sm:flex-none">
+ <CreditCard className="w-4 h-4 sm:mr-2 text-indigo-500" /> <span className="hidden sm:inline">Payroll & Stipends</span>
+ </Button>
  <Button variant={activeTab === "reports" ? "default" : "outline"} onClick={() => setActiveTab("reports")} className="flex-1 sm:flex-none">
  <Download className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Reports</span>
  </Button>
@@ -1150,7 +1186,7 @@ return (
  {/* DASHBOARD TAB */}
  {activeTab === "dashboard" && (
  <div className="space-y-6">
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+ <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
  <Card className=" ">
  <CardContent className="p-4">
  <p className="text-xs font-medium text-gray-500 mb-1">Total Capital Contributed</p>
@@ -1167,6 +1203,22 @@ return (
  <CardContent className="p-4">
  <p className="text-xs font-medium text-gray-500 mb-1">Total Expenses</p>
  <div className="flex items-center"><IndianRupee className="w-4 h-4 text-red-500 mr-1" /><h3 className="text-xl font-bold text-red-700">{totalExpenses.toLocaleString('en-IN')}</h3></div>
+ </CardContent>
+ </Card>
+ <Card className="border-indigo-100 bg-indigo-50/40">
+ <CardContent className="p-4">
+ <p className="text-xs font-semibold text-indigo-800 mb-1 flex items-center gap-1">
+ <CreditCard className="w-3.5 h-3.5 text-indigo-600" /> Disbursed Salaries & Stipends
+ </p>
+ <div className="flex items-center">
+ <IndianRupee className="w-4 h-4 text-indigo-600 mr-1" />
+ <h3 className="text-xl font-bold text-indigo-950">
+ {payrollRecords.filter(p => p.status === 'paid').reduce((s, p) => s + (p.net_salary || 0), 0).toLocaleString('en-IN')}
+ </h3>
+ </div>
+ <p className="text-[10px] text-indigo-700 mt-0.5">
+ Pending Liability: ₹{payrollRecords.filter(p => p.status !== 'paid').reduce((s, p) => s + (p.net_salary || 0), 0).toLocaleString('en-IN')}
+ </p>
  </CardContent>
  </Card>
  <Card className={` ${netProfitLoss >= 0 ? 'border-l-emerald-500' : 'border-l-rose-500'}`}>
@@ -2148,6 +2200,170 @@ return (
  </Card>
  </div>
  )}
+
+ {/* PAYROLL & COMPENSATION ACCOUNTING TAB */}
+ {activeTab === "payroll" && (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h3 className="text-xl font-extrabold text-gray-900 flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-indigo-600" />
+            Payroll &amp; Compensation Accounting Ledger
+          </h3>
+          <p className="text-xs text-gray-500">
+            Real-time salary disbursements, intern stipends, and performance reward bonuses integrated with financial accounts.
+          </p>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-indigo-950 text-white border-0 shadow-md">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-semibold text-indigo-300 uppercase tracking-wider">Total Disbursed Payroll</p>
+            <div className="flex items-center mt-1">
+              <IndianRupee className="w-5 h-5 text-indigo-300 mr-1" />
+              <h3 className="text-2xl font-black text-white">
+                {payrollRecords.filter(p => p.status === 'paid').reduce((s, p) => s + (p.net_salary || 0), 0).toLocaleString('en-IN')}
+              </h3>
+            </div>
+            <p className="text-[10px] text-indigo-300 mt-1">
+              {payrollRecords.filter(p => p.status === 'paid').length} payments settled
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-amber-200 bg-amber-50/60 shadow-2xs">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-semibold text-amber-800 uppercase tracking-wider">Pending Salary Liabilities</p>
+            <div className="flex items-center mt-1">
+              <IndianRupee className="w-5 h-5 text-amber-600 mr-1" />
+              <h3 className="text-2xl font-black text-amber-950">
+                {payrollRecords.filter(p => p.status !== 'paid').reduce((s, p) => s + (p.net_salary || 0), 0).toLocaleString('en-IN')}
+              </h3>
+            </div>
+            <p className="text-[10px] text-amber-700 mt-1">
+              {payrollRecords.filter(p => p.status !== 'paid').length} drafts / pending approvals
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-emerald-200 bg-emerald-50/60 shadow-2xs">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">Reward Incentives Paid</p>
+            <div className="flex items-center mt-1">
+              <IndianRupee className="w-5 h-5 text-emerald-600 mr-1" />
+              <h3 className="text-2xl font-black text-emerald-950">
+                {payrollRecords.filter(p => p.status === 'paid').reduce((s, p) => s + (p.reward_bonus || 0), 0).toLocaleString('en-IN')}
+              </h3>
+            </div>
+            <p className="text-[10px] text-emerald-700 mt-1">
+              {payrollRecords.filter(p => p.status === 'paid').reduce((s, p) => s + (p.reward_points || 0), 0)} performance points settled
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 bg-white shadow-2xs">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Total Payroll Entries</p>
+            <div className="flex items-center mt-1">
+              <Users className="w-5 h-5 text-gray-400 mr-1" />
+              <h3 className="text-2xl font-black text-gray-900">{payrollRecords.length}</h3>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">
+              Across all monthly cycles
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Accounting Table */}
+      <Card className="border-gray-200 shadow-sm overflow-hidden">
+        <CardHeader className="p-4 bg-slate-50 border-b flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-sm font-bold text-gray-900">Salaries &amp; Compensation Accounting Ledger</CardTitle>
+            <CardDescription className="text-xs">Live disbursement records linked to general expense accounting</CardDescription>
+          </div>
+          <Badge variant="outline" className="bg-white text-xs font-semibold">
+            {payrollRecords.length} Total Records
+          </Badge>
+        </CardHeader>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-gray-50 border-b text-gray-600">
+              <tr>
+                <th className="text-left px-4 py-3 font-semibold">Member</th>
+                <th className="text-left px-4 py-3 font-semibold">Role / Dept</th>
+                <th className="text-left px-3 py-3 font-semibold">Pay Period</th>
+                <th className="text-right px-3 py-3 font-semibold">Base Stipend</th>
+                <th className="text-right px-3 py-3 font-semibold text-emerald-700">Reward Bonus</th>
+                <th className="text-right px-4 py-3 font-bold text-gray-900">Net Disbursed</th>
+                <th className="text-left px-4 py-3 font-semibold">Payment / UTR</th>
+                <th className="text-center px-3 py-3 font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {payrollRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-10 text-gray-400">
+                    <CreditCard className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                    No payroll disbursements recorded yet.
+                  </td>
+                </tr>
+              ) : (
+                payrollRecords.map(rec => (
+                  <tr key={rec.id} className="hover:bg-gray-50/80 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="font-bold text-gray-900">{rec.user_name}</p>
+                      <p className="text-[10px] text-gray-500 font-mono">{rec.user_email}</p>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {rec.role_department}
+                    </td>
+                    <td className="px-3 py-3 font-semibold text-gray-700">
+                      {rec.month} {rec.year}
+                    </td>
+                    <td className="px-3 py-3 text-right font-medium text-gray-800">
+                      ₹{Number(rec.basic_salary || 0).toLocaleString('en-IN')}
+                    </td>
+                    <td className="px-3 py-3 text-right font-bold text-emerald-700">
+                      +₹{Number(rec.reward_bonus || 0).toLocaleString('en-IN')}
+                    </td>
+                    <td className="px-4 py-3 text-right font-extrabold text-gray-900 text-sm">
+                      ₹{Number(rec.net_salary || 0).toLocaleString('en-IN')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-gray-800">{rec.payment_method}</p>
+                      {rec.transaction_id ? (
+                        <p className="text-[10px] text-blue-700 font-mono font-bold">
+                          UTR: {rec.transaction_id}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-gray-400 font-mono truncate max-w-[120px]">{rec.payment_details || '—'}</p>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <Badge
+                        className={`text-[10px] font-bold ${
+                          rec.status === 'paid' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                          rec.status === 'approved' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                          rec.status === 'on_hold' ? 'bg-red-100 text-red-800 border-red-300' :
+                          'bg-amber-100 text-amber-800 border-amber-300'
+                        }`}
+                      >
+                        {rec.status.toUpperCase()}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  )}
  </div>
 );
 }

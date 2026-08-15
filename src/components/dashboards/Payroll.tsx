@@ -693,6 +693,30 @@ export function Payroll() {
 
     await persistPayrollRecord(updatedRecord)
 
+    // ─── Auto-sync into Finance Management expense_records table ─────────────
+    try {
+      await supabase.from('expense_records').insert({
+        expense_id: `EXP-PAYROLL-${updatedRecord.id.slice(0, 8).toUpperCase()}`,
+        date: paidTimestamp.split('T')[0],
+        category: "Salaries & Stipends",
+        sub_category: updatedRecord.is_intern ? "Internship Stipend" : "Staff Salary & Rewards",
+        description: `Salary & Performance Reward Payout - ${updatedRecord.user_name} (${updatedRecord.month} ${updatedRecord.year})`,
+        amount: updatedRecord.net_salary,
+        gst_amount: 0,
+        total_amount: updatedRecord.net_salary,
+        payment_mode: markPaidMode,
+        transaction_ref_number: markPaidTxnId.trim(),
+        paid_by_role: "Executive Finance",
+        paid_by_name: "BiovaCo Payroll Office",
+        beneficiary_name: updatedRecord.user_name,
+        project_department: updatedRecord.role_department,
+        reimbursement_status: "Approved",
+        remarks: `Base: ₹${updatedRecord.basic_salary} + Reward Bonus: ₹${updatedRecord.reward_bonus} - Deductions: ₹${updatedRecord.deductions}. ${markPaidRemarks ? `Admin Note: ${markPaidRemarks}` : ''}`
+      })
+    } catch (expErr) {
+      console.warn("Auto-sync to expense_records error:", expErr)
+    }
+
     if (sendPayslipEmail) {
       await sendPayslipBrevoEmail(updatedRecord, markPaidTxnId.trim(), markPaidMode, paidDateFormatted)
     }
