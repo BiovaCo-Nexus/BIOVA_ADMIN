@@ -18,7 +18,7 @@ import {
   Upload, Users, ListChecks, ChevronRight, Download, FileText,
   Send, ArrowLeft, Trophy, Coins, Zap, Sparkles, Award,
   Gift, Info, HelpCircle, Flame, ArrowUpRight, CreditCard,
-  Wallet, Receipt, CheckCircle, AlertCircle
+  Wallet, Receipt, CheckCircle, AlertCircle, Bell, BellRing
 } from "lucide-react"
 
 type Priority = "critical" | "high" | "medium" | "low"
@@ -211,6 +211,8 @@ export interface WithdrawalClaim {
   transaction_id?: string
   payment_mode_used?: string
   admin_notes?: string
+  last_reminded_at?: string
+  reminder_count?: number
 }
 
 const WITHDRAWALS_KEY = "biovaco_reward_withdrawals"
@@ -307,6 +309,39 @@ export function KnowledgeTracker() {
               type: u.user_type || 'Team Member'
             })).filter(u => u.email.includes('@'))
             setAccessUsers(mapped)
+          }
+        })
+
+      // Fetch / Sync Reward Withdrawals from Supabase table
+      supabase.from('reward_withdrawals')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .then(({ data: dbWithdrawals, error }) => {
+          if (!error && dbWithdrawals && dbWithdrawals.length > 0) {
+            const local = readWithdrawals()
+            const map = new Map<string, WithdrawalClaim>()
+            local.forEach(w => map.set(w.id, w))
+            dbWithdrawals.forEach((w: any) => map.set(w.id, {
+              id: w.id,
+              user_email: (w.user_email || '').toLowerCase().trim(),
+              user_name: w.user_name || 'Member',
+              amount: Number(w.amount),
+              points: Number(w.points || w.amount),
+              payment_method: w.payment_method || 'UPI',
+              payment_details: w.payment_details || '',
+              notes: w.notes,
+              status: w.status || 'pending',
+              created_at: w.created_at || new Date().toISOString(),
+              processed_at: w.processed_at,
+              transaction_id: w.transaction_id,
+              payment_mode_used: w.payment_mode_used,
+              admin_notes: w.admin_notes,
+              last_reminded_at: w.last_reminded_at,
+              reminder_count: w.reminder_count
+            }))
+            const merged = Array.from(map.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            setWithdrawals(merged)
+            writeWithdrawals(merged)
           }
         })
     })
@@ -749,6 +784,146 @@ export function KnowledgeTracker() {
     }
   }
 
+  const persistWithdrawalClaim = async (claim: WithdrawalClaim) => {
+    // 1. Update localStorage
+    const current = readWithdrawals()
+    const exists = current.some(w => w.id === claim.id)
+    const updated = exists ? current.map(w => w.id === claim.id ? claim : w) : [claim, ...current]
+    setWithdrawals(updated)
+    writeWithdrawals(updated)
+
+    // 2. Push to Supabase Cloud Database (guaranteed sync even after refresh or glitch)
+    try {
+      await supabase.from('reward_withdrawals').upsert({
+        id: claim.id,
+        user_email: (claim.user_email || '').toLowerCase().trim(),
+        user_name: claim.user_name || 'Member',
+        amount: claim.amount,
+        points: claim.points || claim.amount,
+        payment_method: claim.payment_method,
+        payment_details: claim.payment_details,
+        notes: claim.notes || null,
+        status: claim.status,
+        transaction_id: claim.transaction_id || null,
+        payment_mode_used: claim.payment_mode_used || null,
+        admin_notes: claim.admin_notes || null,
+        processed_at: claim.processed_at || null,
+        last_reminded_at: claim.last_reminded_at || null,
+        reminder_count: claim.reminder_count || 0,
+        created_at: claim.created_at
+      })
+    } catch (e) {
+      console.warn("Supabase reward_withdrawals upsert error:", e)
+    }
+  }
+
+  const sendPayoutReminderEmailToCEO = async (claim: WithdrawalClaim) => {
+    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || "xkeysib-brevo-key"
+    const reminderTimeStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+    const claimCreatedStr = new Date(claim.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+
+    const recipients = [
+      { email: "ceo@biovaco.in", name: "CEO BiovaCo" },
+      { email: "md@biovaco.in", name: "MD BiovaCo" }
+    ]
+
+    const emailHtml = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; max-width: 650px; background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 5px solid #f59e0b; border-radius: 8px; margin: 0 auto;">
+        <div style="border-bottom: 1px solid #edf2f7; padding-bottom: 15px; margin-bottom: 20px;">
+          <h2 style="color: #b45309; margin: 0; font-size: 20px;">🔔 Payout Follow-Up &amp; Member Reminder</h2>
+          <span style="background-color: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 6px; border: 1px solid #fde68a;">
+            ACTION REQUIRED • PENDING REWARD CLAIM
+          </span>
+        </div>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          Executive Office,
+        </p>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          Team member <strong>${claim.user_name}</strong> (<code>${claim.user_email}</code>) has sent a reminder regarding their pending reward payout of <strong>₹${claim.amount}</strong>.
+        </p>
+
+        <div style="background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 8px 0; color: #718096; width: 140px;"><strong>Member:</strong></td>
+              <td style="padding: 8px 0; color: #1a202c; font-weight: bold;">${claim.user_name} (${claim.user_email})</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Claim Amount:</strong></td>
+              <td style="padding: 8px 0; color: #b45309; font-weight: 800; font-size: 16px;">₹${claim.amount} (${claim.points} Points)</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Payment Mode &amp; A/C:</strong></td>
+              <td style="padding: 8px 0; color: #4B49AC; font-family: monospace; font-weight: bold;">${claim.payment_method}: ${claim.payment_details}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Original Claim Date:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748;">${claimCreatedStr} IST</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Reminder Sent:</strong></td>
+              <td style="padding: 8px 0; color: #b45309; font-weight: 700;">${reminderTimeStr} IST (Reminder #${(claim.reminder_count || 0) + 1})</td>
+            </tr>
+            ${claim.notes ? `
+            <tr>
+              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Member Notes:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748; font-style: italic;">"${claim.notes}"</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <p style="text-align: center; margin-top: 25px;">
+          <a href="https://admin.biovaco.in" style="background-color: #4B49AC; color: #ffffff; text-decoration: none; padding: 11px 22px; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">
+            Open Executive Payouts &amp; Claims Center →
+          </a>
+        </p>
+
+        <p style="color: #a0aec0; font-size: 11px; text-align: center; margin-top: 20px; border-top: 1px solid #edf2f7; padding-top: 15px;">
+          BiovaCo Nexus ERP System • Real-Time Payout Reminder Service
+        </p>
+      </div>
+    `;
+
+    try {
+      await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
+        body: JSON.stringify({
+          sender: { name: "BiovaCo Rewards Bot", email: "no-reply@biovaco.in" },
+          to: recipients,
+          subject: `🔔 [Payout Reminder] ${claim.user_name} requested update on ₹${claim.amount} claim`,
+          htmlContent: emailHtml
+        })
+      });
+    } catch (err) {
+      console.warn("Brevo reminder email error:", err);
+    }
+  }
+
+  const handleSendPayoutReminder = async (claimId: string) => {
+    const claim = withdrawals.find(w => w.id === claimId)
+    if (!claim) return
+
+    const updatedClaim: WithdrawalClaim = {
+      ...claim,
+      last_reminded_at: new Date().toISOString(),
+      reminder_count: (claim.reminder_count || 0) + 1
+    }
+
+    // Re-persist to both local and Supabase (restores to CEO board if previously missing)
+    await persistWithdrawalClaim(updatedClaim)
+    
+    // Dispatches high-priority email to CEO
+    await sendPayoutReminderEmailToCEO(updatedClaim)
+
+    toast({
+      title: "🔔 Reminder Sent to CEO!",
+      description: `Notification sent to ceo@biovaco.in and claim re-synced to Executive Center.`
+    })
+  }
+
   const handleClaimSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const amountNum = parseFloat(claimAmountInput)
@@ -784,9 +959,7 @@ export function KnowledgeTracker() {
       created_at: new Date().toISOString()
     }
 
-    const updated = [newClaim, ...withdrawals]
-    setWithdrawals(updated)
-    writeWithdrawals(updated)
+    await persistWithdrawalClaim(newClaim)
 
     // Send email to CEO
     await sendWithdrawalEmailToCEO(newClaim, userRewardStats.availableBalanceInr)
@@ -919,6 +1092,7 @@ export function KnowledgeTracker() {
     writeWithdrawals(updated)
 
     if (updatedClaim) {
+      await persistWithdrawalClaim(updatedClaim)
       await sendPayoutCompletedEmailToMember(updatedClaim)
     }
 
@@ -933,7 +1107,7 @@ export function KnowledgeTracker() {
     })
   }
 
-  const handleUpdateWithdrawalStatus = (
+  const handleUpdateWithdrawalStatus = async (
     claimId: string,
     newStatus: 'approved' | 'paid' | 'rejected',
     adminNotes?: string
@@ -950,19 +1124,26 @@ export function KnowledgeTracker() {
       }
     }
 
+    let affectedClaim: WithdrawalClaim | null = null
     const updated = withdrawals.map(w => {
       if (w.id === claimId) {
-        return {
+        affectedClaim = {
           ...w,
           status: newStatus,
           processed_at: new Date().toISOString(),
           admin_notes: adminNotes || w.admin_notes
         }
+        return affectedClaim
       }
       return w
     })
-    setWithdrawals(updated)
-    writeWithdrawals(updated)
+
+    if (affectedClaim) {
+      await persistWithdrawalClaim(affectedClaim)
+    } else {
+      setWithdrawals(updated)
+      writeWithdrawals(updated)
+    }
 
     toast({
       title: `Claim marked as ${newStatus.toUpperCase()}`,
@@ -1743,10 +1924,25 @@ export function KnowledgeTracker() {
                     <span>{userRewardStats.tier.icon}</span> {userRewardStats.tier.name}
                   </span>
                   {userRewardStats.pendingClaimInr > 0 && (
-                    <span className="text-[11px] bg-amber-100 text-amber-900 font-semibold px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 animate-pulse">
-                      <Clock className="h-3 w-3 text-amber-700" />
-                      ₹{userRewardStats.pendingClaimInr} Claim In Review (CEO Payout Pending)
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] bg-amber-100 text-amber-900 font-semibold px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 animate-pulse">
+                        <Clock className="h-3 w-3 text-amber-700" />
+                        ₹{userRewardStats.pendingClaimInr} Claim In Review
+                      </span>
+                      {userRewardStats.myWithdrawals.find(w => w.status === 'pending') && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const pendingClaim = userRewardStats.myWithdrawals.find(w => w.status === 'pending');
+                            if (pendingClaim) handleSendPayoutReminder(pendingClaim.id);
+                          }}
+                          className="h-6 text-[11px] border-amber-400 bg-amber-50/80 text-amber-900 hover:bg-amber-100 font-bold px-2 flex items-center gap-1 shadow-2xs"
+                        >
+                          <BellRing className="h-3 w-3 text-amber-700 animate-bounce" /> Remind CEO
+                        </Button>
+                      )}
+                    </div>
                   )}
                   {userRewardStats.totalPaidInr > 0 && (
                     <span className="text-[11px] bg-emerald-50 text-emerald-800 font-semibold px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
@@ -2715,24 +2911,43 @@ export function KnowledgeTracker() {
                   </h4>
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                     {userRewardStats.myWithdrawals.map(w => (
-                      <div key={w.id} className="p-2.5 rounded-lg border bg-gray-50/70 flex items-center justify-between text-xs">
-                        <div>
-                          <div className="flex items-center gap-2">
+                      <div key={w.id} className="p-2.5 rounded-lg border bg-gray-50/70 flex items-center justify-between text-xs gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-gray-900">₹{w.amount}</span>
                             <span className="text-gray-500 font-mono">({w.payment_method}: {w.payment_details})</span>
                           </div>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{new Date(w.created_at).toLocaleDateString()}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            Claimed: {new Date(w.created_at).toLocaleDateString()}
+                            {w.reminder_count && w.reminder_count > 0 && (
+                              <span className="text-amber-700 ml-1 font-semibold">
+                                · Reminded {w.reminder_count}x
+                              </span>
+                            )}
+                          </p>
                         </div>
-                        <Badge
-                          className={`text-[10px] font-bold ${
-                            w.status === 'paid' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                            w.status === 'approved' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                            w.status === 'rejected' ? 'bg-red-100 text-red-800 border-red-300' :
-                            'bg-amber-100 text-amber-800 border-amber-300'
-                          }`}
-                        >
-                          {w.status.toUpperCase()}
-                        </Badge>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {w.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleSendPayoutReminder(w.id)}
+                              className="h-6 text-[10px] border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100 font-bold px-2 flex items-center gap-1"
+                            >
+                              <BellRing className="h-3 w-3 text-amber-700" /> Remind CEO
+                            </Button>
+                          )}
+                          <Badge
+                            className={`text-[10px] font-bold ${
+                              w.status === 'paid' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                              w.status === 'approved' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                              w.status === 'rejected' ? 'bg-red-100 text-red-800 border-red-300' :
+                              'bg-amber-100 text-amber-800 border-amber-300'
+                            }`}
+                          >
+                            {w.status.toUpperCase()}
+                          </Badge>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2848,6 +3063,12 @@ export function KnowledgeTracker() {
                               <td className="px-3 py-2.5">
                                 <p className="font-bold text-gray-900">{claim.user_name}</p>
                                 <p className="text-[10px] text-gray-500">{claim.user_email}</p>
+                                {claim.reminder_count && claim.reminder_count > 0 && (
+                                  <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] px-1.5 py-0 font-bold flex items-center gap-1 mt-1 w-fit animate-pulse">
+                                    <BellRing className="h-2.5 w-2.5 text-amber-700" />
+                                    Reminded {claim.reminder_count}x
+                                  </Badge>
+                                )}
                               </td>
                               <td className="px-3 py-2.5 font-extrabold text-emerald-700 text-sm">
                                 ₹{claim.amount}

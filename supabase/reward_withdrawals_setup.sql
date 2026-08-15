@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS public.reward_withdrawals (
     admin_notes TEXT,                       -- Finance / CEO remarks
     processed_at TIMESTAMPTZ,               -- When CEO marked as Paid / Rejected
     
+    -- Member Follow-up & Reminder Tracking
+    last_reminded_at TIMESTAMPTZ,           -- When member clicked 'Remind CEO'
+    reminder_count INT DEFAULT 0,           -- Number of reminders sent
+    
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
