@@ -16,7 +16,8 @@ import {
   BarChart3, Target, Lightbulb, ShieldCheck, XCircle,
   Wifi, WifiOff, RefreshCw, CloudOff, User, Lock, UserCheck,
   Upload, Users, ListChecks, ChevronRight, Download, FileText,
-  Send, ArrowLeft
+  Send, ArrowLeft, Trophy, Coins, Zap, Sparkles, Award,
+  Gift, Info, HelpCircle, Flame, ArrowUpRight
 } from "lucide-react"
 
 type Priority = "critical" | "high" | "medium" | "low"
@@ -98,6 +99,99 @@ function parseBulkCSV(raw: string): BulkTask[] {
   }).filter(t => t.title.trim())
 }
 
+// ─── Gamification & Rewards Helper (1 Point = ₹1 INR) ──────────────────────────
+export interface TaskRewardInfo {
+  basePoints: number
+  speedBonus: number
+  totalPoints: number
+  inrValue: number
+  bonusType: 'super_fast' | 'on_time' | 'none'
+  bonusLabel: string
+  breakdown: string
+}
+
+export function calculateTaskPoints(item: KnowledgeItem): TaskRewardInfo {
+  let base = 20
+  if (item.priority === 'critical') base = 50
+  else if (item.priority === 'high') base = 30
+  else if (item.priority === 'medium') base = 20
+  else if (item.priority === 'low') base = 10
+
+  let speedBonus = 0
+  let bonusType: 'super_fast' | 'on_time' | 'none' = 'none'
+  let bonusLabel = ''
+  let breakdown = `Base: ${base} Pts`
+
+  if (item.status === 'validated') {
+    if (item.due_date) {
+      const dueTime = new Date(item.due_date).getTime() + (23 * 3600 + 59 * 60) * 1000 // End of due day
+      const completedTime = new Date(item.updated_at).getTime()
+      const diffHours = (dueTime - completedTime) / (1000 * 3600)
+
+      if (diffHours >= 24) {
+        speedBonus = 15
+        bonusType = 'super_fast'
+        bonusLabel = '⚡ Super Fast (+15 Pts)'
+        breakdown = `Base: ${base} Pts + ⚡ Super Early Bonus: 15 Pts (₹15)`
+      } else if (diffHours >= 0) {
+        speedBonus = 5
+        bonusType = 'on_time'
+        bonusLabel = '🎯 On-Time (+5 Pts)'
+        breakdown = `Base: ${base} Pts + 🎯 On-Time Bonus: 5 Pts (₹5)`
+      } else {
+        bonusType = 'none'
+        bonusLabel = 'Completed Overdue'
+        breakdown = `Base: ${base} Pts (Completed Overdue - No speed bonus)`
+      }
+    } else {
+      speedBonus = 5
+      bonusType = 'on_time'
+      bonusLabel = '🎯 Completed (+5 Pts)'
+      breakdown = `Base: ${base} Pts + 🎯 Fast Action Bonus: 5 Pts (₹5)`
+    }
+  } else {
+    // For pending/in progress potential
+    speedBonus = 15 // potential max bonus
+    bonusLabel = 'Potential up to +15 Pts Speed Bonus'
+    breakdown = `Potential Earn: Base ${base} Pts + up to 15 Pts Speed Bonus = ${base + 15} Pts (₹${base + 15})`
+  }
+
+  const totalPoints = item.status === 'validated' ? (base + speedBonus) : (base + speedBonus)
+  return {
+    basePoints: base,
+    speedBonus,
+    totalPoints: item.status === 'validated' ? (base + speedBonus) : base,
+    inrValue: item.status === 'validated' ? (base + speedBonus) : base,
+    bonusType,
+    bonusLabel,
+    breakdown
+  }
+}
+
+export function getMemberTier(points: number): {
+  name: string
+  icon: string
+  color: string
+  bg: string
+  border: string
+  min: number
+  max: number
+  nextName: string
+  nextPoints: number
+  progress: number
+} {
+  if (points >= 700) {
+    return { name: 'Diamond Champion', icon: '💎', color: 'text-cyan-600', bg: 'bg-cyan-50', border: 'border-cyan-200', min: 700, max: 1000, nextName: 'Max Tier', nextPoints: 0, progress: 100 }
+  }
+  if (points >= 300) {
+    return { name: 'Gold Star', icon: '🥇', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', min: 300, max: 700, nextName: 'Diamond Champion', nextPoints: 700 - points, progress: Math.min(100, Math.round(((points - 300) / 400) * 100)) }
+  }
+  if (points >= 100) {
+    return { name: 'Silver Performer', icon: '🥈', color: 'text-slate-700', bg: 'bg-slate-100', border: 'border-slate-300', min: 100, max: 300, nextName: 'Gold Star', nextPoints: 300 - points, progress: Math.min(100, Math.round(((points - 100) / 200) * 100)) }
+  }
+  return { name: 'Bronze Achiever', icon: '🥉', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', min: 0, max: 100, nextName: 'Silver Performer', nextPoints: 100 - points, progress: Math.min(100, Math.round((points / 100) * 100)) }
+}
+
 export function KnowledgeTracker() {
   const { toast } = useToast()
   const { items, isOnline, isLoading, isSyncing, pendingCount, addItem, updateItem, deleteItem, forceSync } = useOfflineSync()
@@ -111,6 +205,11 @@ export function KnowledgeTracker() {
   const [filterPriority, setFilterPriority] = useState<string>("all")
   const [filterAssignee, setFilterAssignee] = useState<string>("all")
   const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  // ─── Gamification & Rewards State ─────────────────────────────────────────────
+  const [walletModalOpen, setWalletModalOpen] = useState(false)
+  const [leaderboardModalOpen, setLeaderboardModalOpen] = useState(false)
+  const [rulesModalOpen, setRulesModalOpen] = useState(false)
 
   // ─── Bulk Todo State ─────────────────────────────────────────────────────────
   const [bulkStep, setBulkStep] = useState<0|1|2|3>(0)   // 0=closed, 1=select users, 2=upload tasks, 3=preview
@@ -355,6 +454,96 @@ export function KnowledgeTracker() {
     const overdue = userAccessibleItems.filter(i => i.due_date && new Date(i.due_date) < new Date() && i.status !== "validated" && i.status !== "rejected").length
     return { total, validated, pending, inProgress, critical, overdue }
   }, [userAccessibleItems])
+
+  // ─── Gamification & Wallet Stats (1 Point = ₹1 INR) ──────────────────────────
+  const userRewardStats = useMemo(() => {
+    const normUserEmail = (userEmail || '').toLowerCase().trim()
+    // Find all validated tasks belonging to this user
+    const validatedTasks = items.filter(item => {
+      if (item.status !== 'validated') return false
+      const assignees = (item.assigned_to || '').split(',').map(e => e.toLowerCase().trim())
+      return assignees.includes(normUserEmail) || (item.created_by || '').toLowerCase().trim() === normUserEmail
+    })
+
+    let totalPoints = 0
+    let basePoints = 0
+    let speedBonusPoints = 0
+    let superFastCount = 0
+    let onTimeCount = 0
+
+    const taskRewards = validatedTasks.map(task => {
+      const reward = calculateTaskPoints(task)
+      totalPoints += reward.totalPoints
+      basePoints += reward.basePoints
+      speedBonusPoints += reward.speedBonus
+      if (reward.bonusType === 'super_fast') superFastCount++
+      if (reward.bonusType === 'on_time') onTimeCount++
+      return { task, reward }
+    })
+
+    const tier = getMemberTier(totalPoints)
+
+    return {
+      totalPoints,
+      totalInr: totalPoints, // 1 Point = 1 INR
+      basePoints,
+      speedBonusPoints,
+      validatedCount: validatedTasks.length,
+      superFastCount,
+      onTimeCount,
+      speedBonusCount: superFastCount + onTimeCount,
+      tier,
+      taskRewards
+    }
+  }, [items, userEmail])
+
+  const teamLeaderboard = useMemo(() => {
+    const memberPointsMap: Record<string, { email: string; label: string; type: string; totalPoints: number; completedCount: number; speedBonusCount: number }> = {}
+
+    // Initialize with assignableUsers
+    assignableUsers.forEach(u => {
+      const cleanEmail = u.email.toLowerCase().trim()
+      memberPointsMap[cleanEmail] = {
+        email: cleanEmail,
+        label: u.label,
+        type: u.type,
+        totalPoints: 0,
+        completedCount: 0,
+        speedBonusCount: 0
+      }
+    })
+
+    items.filter(i => i.status === 'validated').forEach(item => {
+      const reward = calculateTaskPoints(item)
+      const assignees = (item.assigned_to || item.created_by || '').split(',').map(e => e.toLowerCase().trim()).filter(Boolean)
+      
+      assignees.forEach(email => {
+        if (!memberPointsMap[email]) {
+          memberPointsMap[email] = {
+            email,
+            label: email.split('@')[0],
+            type: 'Team Member',
+            totalPoints: 0,
+            completedCount: 0,
+            speedBonusCount: 0
+          }
+        }
+        memberPointsMap[email].totalPoints += reward.totalPoints
+        memberPointsMap[email].completedCount += 1
+        if (reward.bonusType === 'super_fast' || reward.bonusType === 'on_time') {
+          memberPointsMap[email].speedBonusCount += 1
+        }
+      })
+    })
+
+    return Object.values(memberPointsMap)
+      .sort((a, b) => b.totalPoints - a.totalPoints)
+      .map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+        tier: getMemberTier(entry.totalPoints)
+      }))
+  }, [items, assignableUsers])
 
   const getCatMeta = (c: string) => CATEGORIES.find(x => x.value === c) || CATEGORIES[0]
   const getPriMeta = (p: string) => PRIORITIES.find(x => x.value === p) || PRIORITIES[2]
@@ -636,10 +825,16 @@ export function KnowledgeTracker() {
   const handleStatusChange = async (id: string, status: Status) => {
     const item = items.find(i => i.id === id)
     await updateItem(id, { status })
-    toast({ title: `Status → ${status.replace("_", " ")}` })
 
     if (status === "validated" && item) {
+      const reward = calculateTaskPoints({ ...item, status: "validated" })
+      toast({
+        title: `🎉 +₹${reward.totalPoints} Credited! (${reward.totalPoints} Points)`,
+        description: `Task Validated! ${reward.breakdown} • 1 Point = ₹1 INR`,
+      })
       sendTaskValidatedEmail({ ...item, status: "validated" }, userEmail)
+    } else {
+      toast({ title: `Status → ${status.replace("_", " ")}` })
     }
   }
 
@@ -847,6 +1042,116 @@ export function KnowledgeTracker() {
             </Button>
           </div>
         )}
+      </div>
+
+      {/* ═══════════════ MEMBER REWARD WALLET & GAMIFICATION BAR ═══════════════ */}
+      <div className="bg-gradient-to-r from-[#3B398C] via-[#4B49AC] to-[#5C59C2] text-white rounded-2xl p-4 sm:p-5 shadow-lg border border-[#4B49AC]/30 relative overflow-hidden">
+        {/* Background glow effects */}
+        <div className="absolute -right-12 -top-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          {/* Left: Points & Rupee Balance */}
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-inner shrink-0">
+              <Coins className="h-7 w-7 text-amber-300 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold uppercase tracking-wider text-amber-200 flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5" /> Performance Rewards Wallet
+                </span>
+                <span className="text-[10px] bg-amber-400 text-amber-950 font-bold px-2 py-0.5 rounded-full shadow-xs">
+                  1 Point = ₹1 INR
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2 mt-0.5">
+                <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                  ₹{userRewardStats.totalInr}
+                </h3>
+                <span className="text-sm text-white/80 font-medium">
+                  ({userRewardStats.totalPoints} Pts Earned)
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs font-bold text-white bg-white/20 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <span>{userRewardStats.tier.icon}</span> {userRewardStats.tier.name}
+                </span>
+                {userRewardStats.tier.nextPoints > 0 && (
+                  <span className="text-[11px] text-white/80">
+                    {userRewardStats.tier.nextPoints} pts to {userRewardStats.tier.nextName}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Center: Live Stats Highlights */}
+          <div className="grid grid-cols-3 gap-2 bg-black/15 backdrop-blur-md rounded-xl p-2.5 border border-white/10">
+            <div className="text-center px-2">
+              <p className="text-lg font-bold text-white flex items-center justify-center gap-1">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" /> {userRewardStats.validatedCount}
+              </p>
+              <p className="text-[10px] text-white/70 font-medium">Completed</p>
+            </div>
+            <div className="text-center px-2 border-x border-white/10">
+              <p className="text-lg font-bold text-amber-300 flex items-center justify-center gap-1">
+                <Zap className="h-4 w-4 text-amber-300" /> {userRewardStats.speedBonusCount}
+              </p>
+              <p className="text-[10px] text-white/70 font-medium">Speed Bonus</p>
+            </div>
+            <div className="text-center px-2">
+              <p className="text-lg font-bold text-cyan-300 flex items-center justify-center gap-1">
+                <Flame className="h-4 w-4 text-cyan-300" /> {userRewardStats.tier.progress}%
+              </p>
+              <p className="text-[10px] text-white/70 font-medium">Tier XP</p>
+            </div>
+          </div>
+
+          {/* Right: Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setWalletModalOpen(true)}
+              className="bg-white text-[#4B49AC] hover:bg-white/90 font-bold text-xs shadow-md border-0 h-9"
+            >
+              <Coins className="h-3.5 w-3.5 mr-1 text-amber-500" /> Earnings History
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setLeaderboardModalOpen(true)}
+              className="bg-white/10 text-white border-white/20 hover:bg-white/20 font-semibold text-xs h-9"
+            >
+              <Trophy className="h-3.5 w-3.5 mr-1 text-amber-300" /> Leaderboard
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setRulesModalOpen(true)}
+              className="text-white/90 hover:bg-white/10 hover:text-white text-xs h-9 px-2"
+              title="Reward Rules"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Tier Progress Bar */}
+        <div className="mt-3.5 pt-3 border-t border-white/15 flex items-center gap-3">
+          <span className="text-[11px] font-medium text-white/80 shrink-0">
+            {userRewardStats.tier.icon} {userRewardStats.tier.name}
+          </span>
+          <div className="flex-1 bg-white/20 h-2 rounded-full overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-amber-300 to-amber-400 h-full rounded-full transition-all duration-500 shadow-sm"
+              style={{ width: `${Math.max(5, userRewardStats.tier.progress)}%` }}
+            />
+          </div>
+          <span className="text-[11px] font-bold text-amber-200 shrink-0">
+            {userRewardStats.totalPoints} / {userRewardStats.tier.max} Pts
+          </span>
+        </div>
       </div>
 
       {/* KPI Stats (Reflects accessible tasks for logged-in user) */}
@@ -1290,6 +1595,290 @@ export function KnowledgeTracker() {
         </div>
       )}
 
+      {/* ═══════════════ REWARDS: EARNINGS BREAKDOWN MODAL ═══════════════ */}
+      {walletModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700">
+                  <Coins className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                    My Earnings &amp; Points Wallet
+                    <span className="text-xs bg-amber-400 text-amber-950 font-bold px-2 py-0.5 rounded-full">
+                      1 Point = ₹1 INR
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-500">Track all points and cash rewards credited for your validated work</p>
+                </div>
+              </div>
+              <button onClick={() => setWalletModalOpen(false)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Wallet Summary Card */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-gradient-to-br from-[#4B49AC] to-[#3B398C] text-white p-4 rounded-xl shadow-sm">
+                  <p className="text-xs text-amber-200 font-semibold uppercase">Total Cash Balance</p>
+                  <p className="text-3xl font-extrabold mt-1">₹{userRewardStats.totalInr}</p>
+                  <p className="text-[11px] text-white/80 mt-1">{userRewardStats.totalPoints} reward points earned</p>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
+                  <p className="text-xs text-emerald-700 font-semibold uppercase">Completed Tasks</p>
+                  <p className="text-3xl font-extrabold text-emerald-800 mt-1">{userRewardStats.validatedCount}</p>
+                  <p className="text-[11px] text-emerald-600 mt-1">Base points: {userRewardStats.basePoints} Pts</p>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl">
+                  <p className="text-xs text-amber-700 font-semibold uppercase">Speed Bonuses</p>
+                  <p className="text-3xl font-extrabold text-amber-800 mt-1">+{userRewardStats.speedBonusPoints} Pts</p>
+                  <p className="text-[11px] text-amber-600 mt-1">{userRewardStats.speedBonusCount} fast task deliveries</p>
+                </div>
+              </div>
+
+              {/* Task Rewards History Table */}
+              <div>
+                <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <Award className="h-4 w-4 text-[#4B49AC]" /> Completed Tasks Reward History
+                </h4>
+                {userRewardStats.taskRewards.length === 0 ? (
+                  <div className="text-center py-10 border border-dashed rounded-xl bg-gray-50">
+                    <Coins className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500 font-medium">No completed tasks yet</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Validate tasks early to earn base points + ₹15 speed bonuses!</p>
+                  </div>
+                ) : (
+                  <div className="border border-gray-200 rounded-xl overflow-hidden max-h-80 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Task</th>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Priority</th>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Speed Bonus</th>
+                          <th className="text-right px-3 py-2.5 font-semibold text-gray-600 border-b">Points</th>
+                          <th className="text-right px-3 py-2.5 font-semibold text-gray-600 border-b">INR Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {userRewardStats.taskRewards.map(({ task, reward }, idx) => (
+                          <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-3 py-2.5">
+                              <p className="font-semibold text-gray-900 truncate max-w-[220px]">{task.title}</p>
+                              <p className="text-[10px] text-gray-400">Validated: {new Date(task.updated_at).toLocaleDateString()}</p>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <span className="capitalize font-medium text-gray-700">{task.priority}</span>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              {reward.speedBonus > 0 ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                  <Zap className="h-3 w-3 text-amber-600" /> {reward.bonusLabel}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 italic">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 text-right font-bold text-[#4B49AC]">
+                              +{reward.totalPoints} Pts
+                            </td>
+                            <td className="px-3 py-2.5 text-right font-extrabold text-emerald-700">
+                              +₹{reward.inrValue}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Conversion guarantee note */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-blue-600" />
+                  <strong>100% Guaranteed Payout Rate:</strong> 1 Knowledge Point = ₹1.00 INR credited to your monthly incentive.
+                </span>
+                <Button size="sm" variant="outline" onClick={() => setRulesModalOpen(true)} className="h-7 text-xs bg-white">
+                  View Rules
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════ REWARDS: TEAM LEADERBOARD MODAL ═══════════════ */}
+      {leaderboardModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700">
+                  <Trophy className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">Team Rewards Leaderboard</h3>
+                  <p className="text-xs text-gray-500">Top earners and fastest performers across the organization</p>
+                </div>
+              </div>
+              <button onClick={() => setLeaderboardModalOpen(false)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                {teamLeaderboard.map((member) => {
+                  const isCurrent = member.email === (userEmail || '').toLowerCase().trim()
+                  const rankIcon = member.rank === 1 ? "🥇" : member.rank === 2 ? "🥈" : member.rank === 3 ? "🥉" : `#${member.rank}`
+                  return (
+                    <div
+                      key={member.email}
+                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
+                        isCurrent
+                          ? 'border-[#4B49AC] bg-[#4B49AC]/5 shadow-xs'
+                          : 'border-gray-200 bg-white hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-lg font-bold w-7 text-center shrink-0">{rankIcon}</span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-gray-900 truncate">{member.label}</p>
+                            {isCurrent && (
+                              <span className="text-[10px] bg-[#4B49AC] text-white px-1.5 py-0.2 rounded font-bold">YOU</span>
+                            )}
+                            <span className="text-[10px] px-1.5 py-0.2 rounded font-medium bg-gray-100 text-gray-600">
+                              {member.type}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 truncate">
+                            {member.completedCount} tasks completed · {member.speedBonusCount} speed bonuses
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p className="text-base font-extrabold text-emerald-700">₹{member.totalPoints}</p>
+                        <p className="text-[11px] font-semibold text-[#4B49AC]">
+                          {member.totalPoints} Pts · {member.tier.icon}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════ REWARDS: RULES MODAL ═══════════════ */}
+      {rulesModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-700">
+                  <Gift className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">Reward &amp; Points Rules</h3>
+                  <p className="text-xs text-gray-500">1 Point = ₹1 INR Real Incentive Policy</p>
+                </div>
+              </div>
+              <button onClick={() => setRulesModalOpen(false)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 text-sm">
+              {/* Base points */}
+              <div>
+                <h4 className="font-bold text-gray-900 flex items-center gap-2 mb-2">
+                  <Award className="h-4 w-4 text-[#4B49AC]" /> 1. Base Points by Task Priority
+                </h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 flex justify-between items-center">
+                    <span className="font-semibold text-red-800">Critical Priority</span>
+                    <span className="font-bold text-red-900">50 Pts (₹50)</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-orange-50 border border-orange-200 flex justify-between items-center">
+                    <span className="font-semibold text-orange-800">High Priority</span>
+                    <span className="font-bold text-orange-900">30 Pts (₹30)</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-yellow-50 border border-yellow-200 flex justify-between items-center">
+                    <span className="font-semibold text-yellow-800">Medium Priority</span>
+                    <span className="font-bold text-yellow-900">20 Pts (₹20)</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-200 flex justify-between items-center">
+                    <span className="font-semibold text-gray-800">Low Priority</span>
+                    <span className="font-bold text-gray-900">10 Pts (₹10)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Speed Bonus */}
+              <div>
+                <h4 className="font-bold text-gray-900 flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-amber-500" /> 2. Speed &amp; Efficiency Multiplier Bonus
+                </h4>
+                <div className="space-y-2 text-xs">
+                  <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-amber-900">⚡ Super Fast Delivery (&gt;= 24 Hours Early)</p>
+                      <p className="text-amber-700">Completed more than a day before the due date</p>
+                    </div>
+                    <span className="font-extrabold text-amber-900 text-sm">+15 Pts (₹15)</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-emerald-900">🎯 On-Time Delivery</p>
+                      <p className="text-emerald-700">Completed on or before deadline</p>
+                    </div>
+                    <span className="font-extrabold text-emerald-900 text-sm">+5 Pts (₹5)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tiers */}
+              <div>
+                <h4 className="font-bold text-gray-900 flex items-center gap-2 mb-2">
+                  <Trophy className="h-4 w-4 text-cyan-600" /> 3. Performance Tiers
+                </h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded-lg bg-orange-50 border border-orange-200">
+                    <p className="font-bold text-orange-900">🥉 Bronze Achiever</p>
+                    <p className="text-orange-700">0 - 99 Pts</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-slate-100 border border-slate-300">
+                    <p className="font-bold text-slate-800">🥈 Silver Performer</p>
+                    <p className="text-slate-600">100 - 299 Pts</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-amber-50 border border-amber-200">
+                    <p className="font-bold text-amber-900">🥇 Gold Star</p>
+                    <p className="text-amber-700">300 - 699 Pts</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-cyan-50 border border-cyan-200">
+                    <p className="font-bold text-cyan-900">💎 Diamond Champion</p>
+                    <p className="text-cyan-700">700+ Pts</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 text-center">
+                <Button onClick={() => setRulesModalOpen(false)} className="bg-[#4B49AC] hover:bg-[#3e3d93] text-white px-8">
+                  Got it, Let's Earn!
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filter Controls Bar */}
       <Card>
         <CardContent className="p-3">
@@ -1358,6 +1947,7 @@ export function KnowledgeTracker() {
             const StaIcon = sta.icon, CatIcon = cat.icon
             const isExpanded = expandedId === item.id
             const isOverdue = item.due_date && new Date(item.due_date) < new Date() && item.status !== "validated" && item.status !== "rejected"
+            const itemReward = calculateTaskPoints(item)
             return (
               <Card key={item.id} className="shadow-sm hover:shadow-md transition-all border-gray-200/80">
                 <CardContent className="p-4">
@@ -1373,6 +1963,20 @@ export function KnowledgeTracker() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className={`font-semibold text-gray-900 ${item.status === "validated" ? "line-through opacity-60" : ""}`}>{item.title}</h3>
                         {isOverdue && <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px] px-1.5 py-0">OVERDUE</Badge>}
+
+                        {/* Reward Badge */}
+                        {item.status === "validated" ? (
+                          <Badge className="bg-emerald-50 text-emerald-800 border-emerald-300 border text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 shadow-2xs">
+                            <Coins className="h-3 w-3 text-emerald-600" />
+                            +₹{itemReward.inrValue} ({itemReward.totalPoints} Pts)
+                            {itemReward.speedBonus > 0 && <span className="text-amber-600 ml-0.5 font-extrabold">⚡+15</span>}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-amber-50/80 text-amber-800 border-amber-200 text-[10px] px-2 py-0.5 font-semibold flex items-center gap-1">
+                            <Coins className="h-3 w-3 text-amber-600" />
+                            Potential: +₹{itemReward.basePoints + 15} ({itemReward.basePoints + 15} Pts)
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <Badge variant="outline" className={`${cat.color} text-[11px] px-1.5 py-0 border`}><CatIcon className="h-3 w-3 mr-1" />{cat.label}</Badge>
@@ -1406,6 +2010,16 @@ export function KnowledgeTracker() {
                   </div>
                   {isExpanded && (
                     <div className="mt-4 pl-8 space-y-3 animate-in slide-in-from-top-1 duration-200">
+                      {/* Reward breakdown highlight */}
+                      <div className="p-2.5 rounded-lg bg-amber-50/60 border border-amber-200/80 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <Coins className="h-4 w-4 text-amber-600" />
+                          <span className="font-bold text-gray-800">Task Value:</span>
+                          <span className="text-gray-700">{itemReward.breakdown}</span>
+                        </div>
+                        <span className="font-bold text-emerald-700">1 Pt = ₹1 INR</span>
+                      </div>
+
                       {item.description && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Description</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{item.description}</p></div>}
                       {item.validation_notes && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Validation Notes</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{item.validation_notes}</p></div>}
                       {item.source && <div><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Source</p><p className="text-sm text-gray-700">{item.source}</p></div>}
