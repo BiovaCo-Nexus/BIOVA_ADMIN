@@ -195,6 +195,7 @@ export function getMemberTier(points: number): {
 }
 
 // ─── Withdrawal & Claim Types ────────────────────────────────────────────────
+// ─── Withdrawal & Claim Types ────────────────────────────────────────────────
 export interface WithdrawalClaim {
   id: string
   user_email: string
@@ -207,6 +208,8 @@ export interface WithdrawalClaim {
   status: 'pending' | 'approved' | 'paid' | 'rejected'
   created_at: string
   processed_at?: string
+  transaction_id?: string
+  payment_mode_used?: string
   admin_notes?: string
 }
 
@@ -251,6 +254,14 @@ export function KnowledgeTracker() {
   const [claimNotes, setClaimNotes] = useState<string>("")
   const [isClaimSubmitting, setIsClaimSubmitting] = useState(false)
   const [payoutsFilterStatus, setPayoutsFilterStatus] = useState<string>('all')
+
+  // ─── Mark Paid with Transaction ID Modal State ──────────────────────────────
+  const [markPaidModalClaim, setMarkPaidModalClaim] = useState<WithdrawalClaim | null>(null)
+  const [markPaidTxnId, setMarkPaidTxnId] = useState<string>("")
+  const [markPaidMode, setMarkPaidMode] = useState<string>("UPI Transfer")
+  const [markPaidTime, setMarkPaidTime] = useState<string>("")
+  const [markPaidRemarks, setMarkPaidRemarks] = useState<string>("")
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false)
 
   // ─── 2-Step Work QA & CEO Validation State ─────────────────────────────────
   const [submitReviewModalItem, setSubmitReviewModalItem] = useState<KnowledgeItem | null>(null)
@@ -794,7 +805,9 @@ export function KnowledgeTracker() {
 
   const sendPayoutCompletedEmailToMember = async (claim: WithdrawalClaim) => {
     const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || "xkeysib-brevo-key"
-    const completedAtStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+    const completedAtStr = claim.processed_at 
+      ? new Date(claim.processed_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+      : new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
 
     const recipients = [
       { email: claim.user_email, name: claim.user_name },
@@ -806,7 +819,7 @@ export function KnowledgeTracker() {
         <div style="border-bottom: 1px solid #edf2f7; padding-bottom: 15px; margin-bottom: 20px;">
           <h2 style="color: #065f46; margin: 0; font-size: 20px;">✅ Reward Payout Processed &amp; Paid</h2>
           <span style="background-color: #ecfdf5; color: #047857; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 6px; border: 1px solid #a7f3d0;">
-            DISBURSED BY CEO OFFICE
+            OFFICIALLY DISBURSED BY CEO OFFICE
           </span>
         </div>
 
@@ -815,30 +828,34 @@ export function KnowledgeTracker() {
         </p>
 
         <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
-          Your reward withdrawal claim of <strong>₹${claim.amount}</strong> (${claim.points} Points) has been approved and marked as <strong>PAID</strong> by CEO Office.
+          Your reward withdrawal claim of <strong>₹${claim.amount}</strong> (${claim.points} Points) has been approved and successfully disbursed to your provided account.
         </p>
 
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
           <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
             <tr>
-              <td style="padding: 8px 0; color: #718096; width: 140px;"><strong>Amount Disbursed:</strong></td>
-              <td style="padding: 8px 0; color: #047857; font-weight: 800; font-size: 16px;">₹${claim.amount}</td>
+              <td style="padding: 8px 0; color: #718096; width: 150px;"><strong>Amount Disbursed:</strong></td>
+              <td style="padding: 8px 0; color: #047857; font-weight: 800; font-size: 18px;">₹${claim.amount}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Transaction / UTR ID:</strong></td>
+              <td style="padding: 8px 0; color: #1e3a8a; font-family: monospace; font-weight: bold; font-size: 14px;">${claim.transaction_id || 'N/A'}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #718096;"><strong>Payment Mode:</strong></td>
-              <td style="padding: 8px 0; color: #2d3748; font-weight: 600;">${claim.payment_method}</td>
+              <td style="padding: 8px 0; color: #2d3748; font-weight: 600;">${claim.payment_mode_used || claim.payment_method}</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #718096;"><strong>Paid To:</strong></td>
+              <td style="padding: 8px 0; color: #718096;"><strong>Beneficiary Details:</strong></td>
               <td style="padding: 8px 0; color: #4B49AC; font-family: monospace; font-weight: bold;">${claim.payment_details}</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #718096;"><strong>Paid Time:</strong></td>
+              <td style="padding: 8px 0; color: #718096;"><strong>Disbursed Time:</strong></td>
               <td style="padding: 8px 0; color: #2d3748;">${completedAtStr} IST</td>
             </tr>
             ${claim.admin_notes ? `
             <tr>
-              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Transaction Ref / Note:</strong></td>
+              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Admin Notes:</strong></td>
               <td style="padding: 8px 0; color: #2d3748;">${claim.admin_notes}</td>
             </tr>` : ''}
           </table>
@@ -851,7 +868,7 @@ export function KnowledgeTracker() {
         </p>
 
         <p style="color: #a0aec0; font-size: 11px; text-align: center; margin-top: 20px; border-top: 1px solid #edf2f7; padding-top: 15px;">
-          BiovaCo Nexus ERP System • Real-Time Payout Receipt
+          BiovaCo Nexus ERP System • Official Real-Time Payout Receipt
         </p>
       </div>
     `;
@@ -863,7 +880,7 @@ export function KnowledgeTracker() {
         body: JSON.stringify({
           sender: { name: "BiovaCo Executive Office", email: "no-reply@biovaco.in" },
           to: recipients,
-          subject: `[Payout Paid] ₹${claim.amount} Disbursed to ${claim.user_name}`,
+          subject: `[Payout Paid] ₹${claim.amount} Disbursed (Txn: ${claim.transaction_id || 'Approved'})`,
           htmlContent: emailHtml
         })
       });
@@ -872,36 +889,84 @@ export function KnowledgeTracker() {
     }
   }
 
+  const handleConfirmMarkPaid = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!markPaidModalClaim) return
+    if (!markPaidTxnId.trim()) {
+      toast({ title: "Transaction ID / UTR is required", variant: "destructive" }); return
+    }
+
+    setIsMarkingPaid(true)
+    const processedTime = markPaidTime ? new Date(markPaidTime).toISOString() : new Date().toISOString()
+    
+    let updatedClaim: WithdrawalClaim | null = null
+    const updated = withdrawals.map(w => {
+      if (w.id === markPaidModalClaim.id) {
+        updatedClaim = {
+          ...w,
+          status: 'paid' as const,
+          transaction_id: markPaidTxnId.trim(),
+          payment_mode_used: markPaidMode,
+          processed_at: processedTime,
+          admin_notes: markPaidRemarks.trim() || undefined
+        }
+        return updatedClaim
+      }
+      return w
+    })
+
+    setWithdrawals(updated)
+    writeWithdrawals(updated)
+
+    if (updatedClaim) {
+      await sendPayoutCompletedEmailToMember(updatedClaim)
+    }
+
+    setIsMarkingPaid(false)
+    setMarkPaidModalClaim(null)
+    setMarkPaidTxnId("")
+    setMarkPaidRemarks("")
+
+    toast({
+      title: "✅ Payout Marked as PAID!",
+      description: `Txn ID: ${markPaidTxnId} recorded & receipt email sent to ${(updatedClaim as any)?.user_email}.`
+    })
+  }
+
   const handleUpdateWithdrawalStatus = (
     claimId: string,
     newStatus: 'approved' | 'paid' | 'rejected',
     adminNotes?: string
   ) => {
-    let affectedClaim: WithdrawalClaim | null = null
+    if (newStatus === 'paid') {
+      const claim = withdrawals.find(w => w.id === claimId)
+      if (claim) {
+        setMarkPaidModalClaim(claim)
+        setMarkPaidTxnId("")
+        setMarkPaidMode(claim.payment_method === 'UPI' ? 'UPI Transfer' : 'Bank IMPS')
+        setMarkPaidTime(new Date().toISOString().slice(0, 16))
+        setMarkPaidRemarks("")
+        return
+      }
+    }
+
     const updated = withdrawals.map(w => {
       if (w.id === claimId) {
-        affectedClaim = {
+        return {
           ...w,
           status: newStatus,
           processed_at: new Date().toISOString(),
           admin_notes: adminNotes || w.admin_notes
         }
-        return affectedClaim
       }
       return w
     })
     setWithdrawals(updated)
     writeWithdrawals(updated)
 
-    if (newStatus === 'paid' && affectedClaim) {
-      sendPayoutCompletedEmailToMember(affectedClaim)
-    }
-
     toast({
       title: `Claim marked as ${newStatus.toUpperCase()}`,
-      description: newStatus === 'paid'
-        ? `Payment confirmed & receipt email sent to ${(affectedClaim as any)?.user_email || 'member'}.`
-        : `Claim status updated to ${newStatus}.`
+      description: `Claim status updated to ${newStatus}.`
     })
   }
 
@@ -2790,10 +2855,20 @@ export function KnowledgeTracker() {
                               <td className="px-3 py-2.5">
                                 <p className="font-semibold text-gray-800">{claim.payment_method}</p>
                                 <p className="font-mono text-gray-600">{claim.payment_details}</p>
+                                {claim.transaction_id && (
+                                  <p className="text-[10px] text-blue-700 font-mono font-bold mt-0.5">
+                                    Txn/UTR: {claim.transaction_id}
+                                  </p>
+                                )}
                                 {claim.notes && <p className="text-[10px] text-gray-400 italic">"{claim.notes}"</p>}
                               </td>
                               <td className="px-3 py-2.5 text-gray-500">
-                                {new Date(claim.created_at).toLocaleDateString()}
+                                <p>{new Date(claim.created_at).toLocaleDateString()}</p>
+                                {claim.processed_at && (
+                                  <p className="text-[10px] text-emerald-700 font-medium">
+                                    Paid: {new Date(claim.processed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                )}
                               </td>
                               <td className="px-3 py-2.5">
                                 <Badge
@@ -2828,9 +2903,14 @@ export function KnowledgeTracker() {
                                   </div>
                                 )}
                                 {claim.status === 'paid' && (
-                                  <span className="text-[11px] text-emerald-700 font-bold flex items-center justify-end gap-1">
-                                    <CheckCircle className="h-3.5 w-3.5" /> Disbursed
-                                  </span>
+                                  <div className="text-right">
+                                    <span className="text-[11px] text-emerald-700 font-bold flex items-center justify-end gap-1">
+                                      <CheckCircle className="h-3.5 w-3.5" /> Disbursed
+                                    </span>
+                                    {claim.payment_mode_used && (
+                                      <span className="text-[10px] text-gray-500 block">{claim.payment_mode_used}</span>
+                                    )}
+                                  </div>
                                 )}
                                 {claim.status === 'rejected' && (
                                   <span className="text-[11px] text-red-600 font-semibold">Rejected</span>
@@ -2906,6 +2986,123 @@ export function KnowledgeTracker() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════ EXECUTIVE: MARK PAID WITH TRANSACTION ID MODAL ═══════════════ */}
+      {markPaidModalClaim && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700">
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">Record Payout &amp; Mark as Paid</h3>
+                  <p className="text-xs text-gray-500">Enter bank transaction / UTR reference ID</p>
+                </div>
+              </div>
+              <button onClick={() => setMarkPaidModalClaim(null)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmMarkPaid} className="p-6 space-y-4">
+              {/* Claim Summary */}
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 font-semibold uppercase">Claim Amount</span>
+                  <span className="text-lg font-extrabold text-emerald-700">₹{markPaidModalClaim.amount} ({markPaidModalClaim.points} Pts)</span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-slate-200">
+                  <span className="text-gray-500">Beneficiary:</span>
+                  <span className="font-bold text-gray-900">{markPaidModalClaim.user_name} &lt;{markPaidModalClaim.user_email}&gt;</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Payment Mode &amp; A/C:</span>
+                  <span className="font-mono font-bold text-[#4B49AC]">{markPaidModalClaim.payment_method}: {markPaidModalClaim.payment_details}</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-700 uppercase">
+                  Transaction ID / UTR / Reference Number *
+                </label>
+                <Input
+                  required
+                  value={markPaidTxnId}
+                  onChange={e => setMarkPaidTxnId(e.target.value)}
+                  placeholder="e.g. UPI UTR 423589123456 / IMPS12345678"
+                  className="h-10 text-sm font-mono font-semibold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700 uppercase">Payment Mode Used *</label>
+                  <Select value={markPaidMode} onValueChange={setMarkPaidMode}>
+                    <SelectTrigger className="h-10 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="UPI (GPay / PhonePe / Paytm)">UPI (GPay / PhonePe / Paytm)</SelectItem>
+                      <SelectItem value="Bank IMPS Transfer">Bank IMPS Transfer</SelectItem>
+                      <SelectItem value="Bank NEFT / RTGS">Bank NEFT / RTGS</SelectItem>
+                      <SelectItem value="Company Account Transfer">Company Account Transfer</SelectItem>
+                      <SelectItem value="Cash / Other">Cash / Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700 uppercase">Disbursed Date &amp; Time *</label>
+                  <Input
+                    type="datetime-local"
+                    required
+                    value={markPaidTime}
+                    onChange={e => setMarkPaidTime(e.target.value)}
+                    className="h-10 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-700 uppercase">Admin / Finance Remarks (Optional)</label>
+                <Textarea
+                  value={markPaidRemarks}
+                  onChange={e => setMarkPaidRemarks(e.target.value)}
+                  placeholder="Any bank reference notes..."
+                  rows={2}
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>
+                  Confirming will permanently mark this claim as <strong>PAID</strong>, update the member's wallet ledger, and send a receipt email with the transaction ID to <strong>{markPaidModalClaim.user_email}</strong>.
+                </span>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setMarkPaidModalClaim(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isMarkingPaid}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6"
+                >
+                  {isMarkingPaid ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Recording Payout...</>
+                  ) : (
+                    <><Check className="h-4 w-4 mr-2" /> Confirm Payout &amp; Send Receipt</>
+                  )}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
