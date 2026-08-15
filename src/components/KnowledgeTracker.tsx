@@ -17,7 +17,8 @@ import {
   Wifi, WifiOff, RefreshCw, CloudOff, User, Lock, UserCheck,
   Upload, Users, ListChecks, ChevronRight, Download, FileText,
   Send, ArrowLeft, Trophy, Coins, Zap, Sparkles, Award,
-  Gift, Info, HelpCircle, Flame, ArrowUpRight
+  Gift, Info, HelpCircle, Flame, ArrowUpRight, CreditCard,
+  Wallet, Receipt, CheckCircle, AlertCircle
 } from "lucide-react"
 
 type Priority = "critical" | "high" | "medium" | "low"
@@ -192,6 +193,36 @@ export function getMemberTier(points: number): {
   return { name: 'Bronze Achiever', icon: '🥉', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', min: 0, max: 100, nextName: 'Silver Performer', nextPoints: 100 - points, progress: Math.min(100, Math.round((points / 100) * 100)) }
 }
 
+// ─── Withdrawal & Claim Types ────────────────────────────────────────────────
+export interface WithdrawalClaim {
+  id: string
+  user_email: string
+  user_name: string
+  amount: number
+  points: number
+  payment_method: 'UPI' | 'Bank Transfer' | 'Other'
+  payment_details: string
+  notes?: string
+  status: 'pending' | 'approved' | 'paid' | 'rejected'
+  created_at: string
+  processed_at?: string
+  admin_notes?: string
+}
+
+const WITHDRAWALS_KEY = "biovaco_reward_withdrawals"
+
+function readWithdrawals(): WithdrawalClaim[] {
+  try {
+    return JSON.parse(localStorage.getItem(WITHDRAWALS_KEY) || "[]")
+  } catch {
+    return []
+  }
+}
+
+function writeWithdrawals(data: WithdrawalClaim[]) {
+  localStorage.setItem(WITHDRAWALS_KEY, JSON.stringify(data))
+}
+
 export function KnowledgeTracker() {
   const { toast } = useToast()
   const { items, isOnline, isLoading, isSyncing, pendingCount, addItem, updateItem, deleteItem, forceSync } = useOfflineSync()
@@ -206,10 +237,19 @@ export function KnowledgeTracker() {
   const [filterAssignee, setFilterAssignee] = useState<string>("all")
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  // ─── Gamification & Rewards State ─────────────────────────────────────────────
+  // ─── Gamification, Wallet & Withdrawal State ─────────────────────────────────
   const [walletModalOpen, setWalletModalOpen] = useState(false)
   const [leaderboardModalOpen, setLeaderboardModalOpen] = useState(false)
   const [rulesModalOpen, setRulesModalOpen] = useState(false)
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false)
+  const [executivePayoutsModalOpen, setExecutivePayoutsModalOpen] = useState(false)
+  const [withdrawals, setWithdrawals] = useState<WithdrawalClaim[]>(readWithdrawals)
+  const [claimAmountInput, setClaimAmountInput] = useState<string>("")
+  const [claimPaymentMethod, setClaimPaymentMethod] = useState<'UPI' | 'Bank Transfer' | 'Other'>('UPI')
+  const [claimPaymentDetails, setClaimPaymentDetails] = useState<string>("")
+  const [claimNotes, setClaimNotes] = useState<string>("")
+  const [isClaimSubmitting, setIsClaimSubmitting] = useState(false)
+  const [payoutsFilterStatus, setPayoutsFilterStatus] = useState<string>('all')
 
   // ─── Bulk Todo State ─────────────────────────────────────────────────────────
   const [bulkStep, setBulkStep] = useState<0|1|2|3>(0)   // 0=closed, 1=select users, 2=upload tasks, 3=preview
@@ -483,9 +523,27 @@ export function KnowledgeTracker() {
 
     const tier = getMemberTier(totalPoints)
 
+    // Calculate Claims & Withdrawn stats
+    const myWithdrawals = withdrawals.filter(w => w.user_email.toLowerCase().trim() === normUserEmail)
+    const totalClaimedInr = myWithdrawals
+      .filter(w => w.status !== 'rejected')
+      .reduce((sum, w) => sum + w.amount, 0)
+    const totalPaidInr = myWithdrawals
+      .filter(w => w.status === 'paid')
+      .reduce((sum, w) => sum + w.amount, 0)
+    const pendingClaimInr = myWithdrawals
+      .filter(w => w.status === 'pending' || w.status === 'approved')
+      .reduce((sum, w) => sum + w.amount, 0)
+    const availableBalanceInr = Math.max(0, totalPoints - totalClaimedInr)
+
     return {
       totalPoints,
-      totalInr: totalPoints, // 1 Point = 1 INR
+      totalInr: totalPoints, // Total lifetime earned
+      availableBalanceInr,   // Available to claim now
+      totalClaimedInr,
+      totalPaidInr,
+      pendingClaimInr,
+      myWithdrawals,
       basePoints,
       speedBonusPoints,
       validatedCount: validatedTasks.length,
@@ -495,10 +553,10 @@ export function KnowledgeTracker() {
       tier,
       taskRewards
     }
-  }, [items, userEmail])
+  }, [items, userEmail, withdrawals])
 
   const teamLeaderboard = useMemo(() => {
-    const memberPointsMap: Record<string, { email: string; label: string; type: string; totalPoints: number; completedCount: number; speedBonusCount: number }> = {}
+    const memberPointsMap: Record<string, { email: string; label: string; type: string; totalPoints: number; completedCount: number; speedBonusCount: number; claimedInr: number; paidInr: number; pendingInr: number; availableInr: number }> = {}
 
     // Initialize with assignableUsers
     assignableUsers.forEach(u => {
@@ -509,7 +567,11 @@ export function KnowledgeTracker() {
         type: u.type,
         totalPoints: 0,
         completedCount: 0,
-        speedBonusCount: 0
+        speedBonusCount: 0,
+        claimedInr: 0,
+        paidInr: 0,
+        pendingInr: 0,
+        availableInr: 0
       }
     })
 
@@ -525,7 +587,11 @@ export function KnowledgeTracker() {
             type: 'Team Member',
             totalPoints: 0,
             completedCount: 0,
-            speedBonusCount: 0
+            speedBonusCount: 0,
+            claimedInr: 0,
+            paidInr: 0,
+            pendingInr: 0,
+            availableInr: 0
           }
         }
         memberPointsMap[email].totalPoints += reward.totalPoints
@@ -536,14 +602,209 @@ export function KnowledgeTracker() {
       })
     })
 
+    // Compute withdrawal amounts per member
+    withdrawals.forEach(w => {
+      const cleanEmail = w.user_email.toLowerCase().trim()
+      if (memberPointsMap[cleanEmail]) {
+        if (w.status !== 'rejected') {
+          memberPointsMap[cleanEmail].claimedInr += w.amount
+        }
+        if (w.status === 'paid') {
+          memberPointsMap[cleanEmail].paidInr += w.amount
+        }
+        if (w.status === 'pending' || w.status === 'approved') {
+          memberPointsMap[cleanEmail].pendingInr += w.amount
+        }
+      }
+    })
+
     return Object.values(memberPointsMap)
+      .map(m => ({
+        ...m,
+        availableInr: Math.max(0, m.totalPoints - m.claimedInr)
+      }))
       .sort((a, b) => b.totalPoints - a.totalPoints)
       .map((entry, index) => ({
         ...entry,
         rank: index + 1,
         tier: getMemberTier(entry.totalPoints)
       }))
-  }, [items, assignableUsers])
+  }, [items, assignableUsers, withdrawals])
+
+  const pendingWithdrawalsCount = useMemo(() => {
+    return withdrawals.filter(w => w.status === 'pending').length
+  }, [withdrawals])
+
+  const sendWithdrawalEmailToCEO = async (
+    claim: WithdrawalClaim,
+    currentBalance: number
+  ) => {
+    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || "xkeysib-brevo-key"
+    const requestedAtStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+
+    const recipients = [
+      { email: "ceo@biovaco.in", name: "CEO Office (BiovaCo)" },
+      { email: "md@biovaco.in", name: "MD Office (BiovaCo)" }
+    ]
+
+    const emailHtml = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; max-width: 650px; background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 5px solid #4B49AC; border-radius: 8px; margin: 0 auto;">
+        <div style="border-bottom: 1px solid #edf2f7; padding-bottom: 15px; margin-bottom: 20px;">
+          <h2 style="color: #4B49AC; margin: 0; font-size: 20px;">💰 Reward Wallet Withdrawal Claim</h2>
+          <span style="background-color: #f2f6ff; color: #4B49AC; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 6px; border: 1px solid #c7d2fe;">
+            EXECUTIVE PAYOUT ACTION REQUIRED
+          </span>
+        </div>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          Dear CEO &amp; Management,
+        </p>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          <strong>${claim.user_name}</strong> (<code>${claim.user_email}</code>) has submitted a <strong>Claim / Withdrawal Request</strong> for their performance rewards on the Knowledge Tracker:
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 8px 0; color: #718096; width: 150px;"><strong>Claim Amount:</strong></td>
+              <td style="padding: 8px 0; color: #047857; font-weight: 800; font-size: 18px;">₹${claim.amount} (${claim.points} Points)</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Claimed By:</strong></td>
+              <td style="padding: 8px 0; color: #1a202c; font-weight: bold;">${claim.user_name} &lt;${claim.user_email}&gt;</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Payment Method:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748; font-weight: 600;">${claim.payment_method}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>UPI / Account Info:</strong></td>
+              <td style="padding: 8px 0; color: #4B49AC; font-weight: bold; font-family: monospace; font-size: 14px;">${claim.payment_details}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Requested Time:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748;">${requestedAtStr} IST</td>
+            </tr>
+            ${claim.notes ? `
+            <tr>
+              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Member Note:</strong></td>
+              <td style="padding: 8px 0; color: #4a5568;">${claim.notes}</td>
+            </tr>` : ''}
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Remaining Balance:</strong></td>
+              <td style="padding: 8px 0; color: #4a5568;">₹${Math.max(0, currentBalance - claim.amount)}</td>
+            </tr>
+          </table>
+        </div>
+
+        <p style="text-align: center; margin-top: 25px;">
+          <a href="https://admin.biovaco.in" style="background-color: #4B49AC; color: #ffffff; text-decoration: none; padding: 11px 22px; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">
+            Open Executive Payouts Dashboard →
+          </a>
+        </p>
+
+        <p style="color: #a0aec0; font-size: 11px; text-align: center; margin-top: 20px; border-top: 1px solid #edf2f7; padding-top: 15px;">
+          BiovaCo Nexus ERP System • Automated Reward Payout Notice
+        </p>
+      </div>
+    `;
+
+    const payload = {
+      sender: { name: "BiovaCo Reward Wallet", email: "no-reply@biovaco.in" },
+      to: recipients,
+      subject: `[Payout Claim] ${claim.user_name} requested ₹${claim.amount} (${claim.points} Pts)`,
+      htmlContent: emailHtml
+    };
+
+    try {
+      await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      console.warn("Brevo withdrawal email error:", err);
+    }
+  }
+
+  const handleClaimSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const amountNum = parseFloat(claimAmountInput)
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast({ title: "Enter a valid amount", variant: "destructive" }); return
+    }
+    if (amountNum > userRewardStats.availableBalanceInr) {
+      toast({
+        title: "Insufficient available balance",
+        description: `You have ₹${userRewardStats.availableBalanceInr} available to claim.`,
+        variant: "destructive"
+      }); return
+    }
+    if (!claimPaymentDetails.trim()) {
+      toast({ title: "Payment details (UPI / Bank) required", variant: "destructive" }); return
+    }
+
+    setIsClaimSubmitting(true)
+    const normUserEmail = (userEmail || '').toLowerCase().trim()
+    const foundUser = assignableUsers.find(u => u.email === normUserEmail)
+    const userName = foundUser ? foundUser.label : (userEmail?.split('@')[0] || "Team Member")
+
+    const newClaim: WithdrawalClaim = {
+      id: crypto.randomUUID(),
+      user_email: normUserEmail,
+      user_name: userName,
+      amount: amountNum,
+      points: amountNum, // 1 Point = 1 INR
+      payment_method: claimPaymentMethod,
+      payment_details: claimPaymentDetails.trim(),
+      notes: claimNotes.trim() || undefined,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    }
+
+    const updated = [newClaim, ...withdrawals]
+    setWithdrawals(updated)
+    writeWithdrawals(updated)
+
+    // Send email to CEO
+    await sendWithdrawalEmailToCEO(newClaim, userRewardStats.availableBalanceInr)
+
+    setIsClaimSubmitting(false)
+    setWithdrawModalOpen(false)
+    setClaimAmountInput("")
+    setClaimPaymentDetails("")
+    setClaimNotes("")
+
+    toast({
+      title: `🎉 Claim Submitted for ₹${amountNum}!`,
+      description: `Request sent to ceo@biovaco.in for payout processing.`
+    })
+  }
+
+  const handleUpdateWithdrawalStatus = (
+    claimId: string,
+    newStatus: 'approved' | 'paid' | 'rejected',
+    adminNotes?: string
+  ) => {
+    const updated = withdrawals.map(w => {
+      if (w.id === claimId) {
+        return {
+          ...w,
+          status: newStatus,
+          processed_at: new Date().toISOString(),
+          admin_notes: adminNotes || w.admin_notes
+        }
+      }
+      return w
+    })
+    setWithdrawals(updated)
+    writeWithdrawals(updated)
+    toast({
+      title: `Claim marked as ${newStatus.toUpperCase()}`,
+      description: `Updated status for selected withdrawal request.`
+    })
+  }
 
   const getCatMeta = (c: string) => CATEGORIES.find(x => x.value === c) || CATEGORIES[0]
   const getPriMeta = (p: string) => PRIORITIES.find(x => x.value === p) || PRIORITIES[2]
@@ -1027,132 +1288,167 @@ export function KnowledgeTracker() {
         </div>
 
         {!isEditing && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {isExecutive && (
-              <Button
-                onClick={handleBulkOpen}
-                variant="outline"
-                className="border-[#4B49AC] text-[#4B49AC] hover:bg-[#4B49AC]/10 font-semibold"
-              >
-                <ListChecks className="h-4 w-4 mr-2" /> Bulk Todo
-              </Button>
+              <>
+                <Button
+                  onClick={() => setExecutivePayoutsModalOpen(true)}
+                  variant="outline"
+                  className="border-emerald-600 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 font-semibold relative"
+                >
+                  <Receipt className="h-4 w-4 mr-2 text-emerald-600" />
+                  Payouts &amp; Claims
+                  {pendingWithdrawalsCount > 0 && (
+                    <span className="ml-1.5 bg-red-500 text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
+                      {pendingWithdrawalsCount}
+                    </span>
+                  )}
+                </Button>
+                <Button
+                  onClick={handleBulkOpen}
+                  variant="outline"
+                  className="border-[#4B49AC] text-[#4B49AC] hover:bg-[#4B49AC]/10 font-semibold"
+                >
+                  <ListChecks className="h-4 w-4 mr-2" /> Bulk Todo
+                </Button>
+              </>
             )}
-            <Button onClick={() => { resetForm(); setIsEditing(true) }} className="bg-primary hover:bg-primary/90 text-white">
+            <Button onClick={() => { resetForm(); setIsEditing(true) }} className="bg-primary hover:bg-primary/90 text-white font-semibold">
               <Plus className="h-4 w-4 mr-2" /> Add Knowledge Item
             </Button>
           </div>
         )}
       </div>
 
-      {/* ═══════════════ MEMBER REWARD WALLET & GAMIFICATION BAR ═══════════════ */}
-      <div className="bg-gradient-to-r from-[#3B398C] via-[#4B49AC] to-[#5C59C2] text-white rounded-2xl p-4 sm:p-5 shadow-lg border border-[#4B49AC]/30 relative overflow-hidden">
-        {/* Background glow effects */}
-        <div className="absolute -right-12 -top-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          {/* Left: Points & Rupee Balance */}
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-inner shrink-0">
-              <Coins className="h-7 w-7 text-amber-300 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-semibold uppercase tracking-wider text-amber-200 flex items-center gap-1">
-                  <Sparkles className="h-3.5 w-3.5" /> Performance Rewards Wallet
-                </span>
-                <span className="text-[10px] bg-amber-400 text-amber-950 font-bold px-2 py-0.5 rounded-full shadow-xs">
-                  1 Point = ₹1 INR
-                </span>
+      {/* ═══════════════ PROFESSIONAL REWARD WALLET & CLAIM BAR ═══════════════ */}
+      <Card className="border border-slate-200/90 shadow-sm bg-white overflow-hidden rounded-2xl">
+        <CardContent className="p-5">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+            {/* Left: Wallet Balances (Available vs Total) */}
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-[#4B49AC]/10 border border-[#4B49AC]/20 flex items-center justify-center shrink-0">
+                <Wallet className="h-7 w-7 text-[#4B49AC]" />
               </div>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                  ₹{userRewardStats.totalInr}
-                </h3>
-                <span className="text-sm text-white/80 font-medium">
-                  ({userRewardStats.totalPoints} Pts Earned)
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs font-bold text-white bg-white/20 px-2 py-0.5 rounded-md flex items-center gap-1">
-                  <span>{userRewardStats.tier.icon}</span> {userRewardStats.tier.name}
-                </span>
-                {userRewardStats.tier.nextPoints > 0 && (
-                  <span className="text-[11px] text-white/80">
-                    {userRewardStats.tier.nextPoints} pts to {userRewardStats.tier.nextName}
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+                    <Coins className="h-3.5 w-3.5 text-amber-500" /> Performance Rewards Wallet
                   </span>
-                )}
+                  <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-300 font-bold text-[10px] px-2 py-0">
+                    1 Point = ₹1 INR
+                  </Badge>
+                </div>
+
+                <div className="flex items-baseline gap-3 mt-1 flex-wrap">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xs text-gray-500 font-medium">Available:</span>
+                    <h3 className="text-2xl sm:text-3xl font-extrabold text-emerald-700 tracking-tight">
+                      ₹{userRewardStats.availableBalanceInr}
+                    </h3>
+                  </div>
+                  <span className="text-xs text-gray-400 font-medium">
+                    (Lifetime Earned: ₹{userRewardStats.totalInr} · {userRewardStats.totalPoints} Pts)
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="text-xs font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md flex items-center gap-1 border border-slate-200">
+                    <span>{userRewardStats.tier.icon}</span> {userRewardStats.tier.name}
+                  </span>
+                  {userRewardStats.pendingClaimInr > 0 && (
+                    <span className="text-[11px] bg-amber-100 text-amber-800 font-medium px-2 py-0.5 rounded-full border border-amber-200">
+                      ₹{userRewardStats.pendingClaimInr} Claim In Review
+                    </span>
+                  )}
+                  {userRewardStats.totalPaidInr > 0 && (
+                    <span className="text-[11px] text-emerald-700 font-medium">
+                      ✓ ₹{userRewardStats.totalPaidInr} Paid Out
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Center: Live Stats Highlights */}
+            <div className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200/80 rounded-xl p-2.5">
+              <div className="text-center px-2">
+                <p className="text-base font-bold text-gray-900 flex items-center justify-center gap-1">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" /> {userRewardStats.validatedCount}
+                </p>
+                <p className="text-[10px] text-gray-500 font-medium">Completed</p>
+              </div>
+              <div className="text-center px-2 border-x border-slate-200">
+                <p className="text-base font-bold text-amber-600 flex items-center justify-center gap-1">
+                  <Zap className="h-4 w-4 text-amber-500" /> {userRewardStats.speedBonusCount}
+                </p>
+                <p className="text-[10px] text-gray-500 font-medium">Speed Bonus</p>
+              </div>
+              <div className="text-center px-2">
+                <p className="text-base font-bold text-[#4B49AC] flex items-center justify-center gap-1">
+                  <Flame className="h-4 w-4 text-[#4B49AC]" /> {userRewardStats.tier.progress}%
+                </p>
+                <p className="text-[10px] text-gray-500 font-medium">Tier XP</p>
+              </div>
+            </div>
+
+            {/* Right: Primary Claim Button & Action Modals */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={() => {
+                  setClaimAmountInput(userRewardStats.availableBalanceInr.toString())
+                  setWithdrawModalOpen(true)
+                }}
+                disabled={userRewardStats.availableBalanceInr <= 0}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm h-9 px-4"
+              >
+                <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+                Claim / Withdraw
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setWalletModalOpen(true)}
+                className="font-semibold text-xs h-9 border-slate-300 text-gray-700 hover:bg-slate-50"
+              >
+                <Coins className="h-3.5 w-3.5 mr-1 text-amber-600" /> History
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setLeaderboardModalOpen(true)}
+                className="font-semibold text-xs h-9 border-slate-300 text-gray-700 hover:bg-slate-50"
+              >
+                <Trophy className="h-3.5 w-3.5 mr-1 text-amber-500" /> Leaderboard
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setRulesModalOpen(true)}
+                className="text-gray-500 hover:text-gray-900 text-xs h-9 px-2"
+                title="Reward Rules"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
-          {/* Center: Live Stats Highlights */}
-          <div className="grid grid-cols-3 gap-2 bg-black/15 backdrop-blur-md rounded-xl p-2.5 border border-white/10">
-            <div className="text-center px-2">
-              <p className="text-lg font-bold text-white flex items-center justify-center gap-1">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" /> {userRewardStats.validatedCount}
-              </p>
-              <p className="text-[10px] text-white/70 font-medium">Completed</p>
+          {/* Tier Progress Bar */}
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3">
+            <span className="text-[11px] font-medium text-gray-600 shrink-0">
+              {userRewardStats.tier.icon} {userRewardStats.tier.name}
+            </span>
+            <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200">
+              <div
+                className="bg-[#4B49AC] h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.max(5, userRewardStats.tier.progress)}%` }}
+              />
             </div>
-            <div className="text-center px-2 border-x border-white/10">
-              <p className="text-lg font-bold text-amber-300 flex items-center justify-center gap-1">
-                <Zap className="h-4 w-4 text-amber-300" /> {userRewardStats.speedBonusCount}
-              </p>
-              <p className="text-[10px] text-white/70 font-medium">Speed Bonus</p>
-            </div>
-            <div className="text-center px-2">
-              <p className="text-lg font-bold text-cyan-300 flex items-center justify-center gap-1">
-                <Flame className="h-4 w-4 text-cyan-300" /> {userRewardStats.tier.progress}%
-              </p>
-              <p className="text-[10px] text-white/70 font-medium">Tier XP</p>
-            </div>
+            <span className="text-[11px] font-bold text-[#4B49AC] shrink-0">
+              {userRewardStats.totalPoints} / {userRewardStats.tier.max} Pts
+            </span>
           </div>
-
-          {/* Right: Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              onClick={() => setWalletModalOpen(true)}
-              className="bg-white text-[#4B49AC] hover:bg-white/90 font-bold text-xs shadow-md border-0 h-9"
-            >
-              <Coins className="h-3.5 w-3.5 mr-1 text-amber-500" /> Earnings History
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setLeaderboardModalOpen(true)}
-              className="bg-white/10 text-white border-white/20 hover:bg-white/20 font-semibold text-xs h-9"
-            >
-              <Trophy className="h-3.5 w-3.5 mr-1 text-amber-300" /> Leaderboard
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setRulesModalOpen(true)}
-              className="text-white/90 hover:bg-white/10 hover:text-white text-xs h-9 px-2"
-              title="Reward Rules"
-            >
-              <HelpCircle className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Tier Progress Bar */}
-        <div className="mt-3.5 pt-3 border-t border-white/15 flex items-center gap-3">
-          <span className="text-[11px] font-medium text-white/80 shrink-0">
-            {userRewardStats.tier.icon} {userRewardStats.tier.name}
-          </span>
-          <div className="flex-1 bg-white/20 h-2 rounded-full overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-amber-300 to-amber-400 h-full rounded-full transition-all duration-500 shadow-sm"
-              style={{ width: `${Math.max(5, userRewardStats.tier.progress)}%` }}
-            />
-          </div>
-          <span className="text-[11px] font-bold text-amber-200 shrink-0">
-            {userRewardStats.totalPoints} / {userRewardStats.tier.max} Pts
-          </span>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* KPI Stats (Reflects accessible tasks for logged-in user) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -1879,7 +2175,394 @@ export function KnowledgeTracker() {
         </div>
       )}
 
-      {/* Filter Controls Bar */}
+      {/* ═══════════════ REWARDS: WITHDRAW / CLAIM MODAL ═══════════════ */}
+      {withdrawModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700">
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">Claim Your Reward Amount</h3>
+                  <p className="text-xs text-gray-500">Request payout directly to your UPI ID or Bank Account</p>
+                </div>
+              </div>
+              <button onClick={() => setWithdrawModalOpen(false)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Available balance highlight */}
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 font-semibold uppercase">Available Claim Balance</p>
+                  <p className="text-2xl font-extrabold text-emerald-700 mt-0.5">
+                    ₹{userRewardStats.availableBalanceInr}
+                  </p>
+                </div>
+                <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full">
+                  1 Point = ₹1 INR
+                </span>
+              </div>
+
+              {/* Claim Form */}
+              <form onSubmit={handleClaimSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-gray-700 uppercase">Amount to Claim (₹) *</label>
+                    <button
+                      type="button"
+                      onClick={() => setClaimAmountInput(userRewardStats.availableBalanceInr.toString())}
+                      className="text-xs text-[#4B49AC] hover:underline font-bold"
+                    >
+                      Claim Full (₹{userRewardStats.availableBalanceInr})
+                    </button>
+                  </div>
+                  <Input
+                    type="number"
+                    min="1"
+                    max={userRewardStats.availableBalanceInr}
+                    required
+                    value={claimAmountInput}
+                    onChange={e => setClaimAmountInput(e.target.value)}
+                    placeholder="Enter amount in ₹..."
+                    className="h-10 text-sm font-semibold"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700 uppercase">Payment Method *</label>
+                  <Select value={claimPaymentMethod} onValueChange={(v: any) => setClaimPaymentMethod(v)}>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="UPI">UPI (GooglePay / PhonePe / Paytm / BHIM)</SelectItem>
+                      <SelectItem value="Bank Transfer">Bank Transfer (IMPS / NEFT)</SelectItem>
+                      <SelectItem value="Other">Other Payout Mode</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700 uppercase">
+                    {claimPaymentMethod === 'UPI' ? 'UPI ID (e.g. yourname@okaxis or 9876543210@paytm) *' : 'Bank Account Details (A/C No, IFSC, Beneficiary Name) *'}
+                  </label>
+                  <Input
+                    required
+                    value={claimPaymentDetails}
+                    onChange={e => setClaimPaymentDetails(e.target.value)}
+                    placeholder={claimPaymentMethod === 'UPI' ? 'e.g. member@okhdfcbank' : 'A/C: 1234567890, IFSC: HDFC0001234, Name: John Doe'}
+                    className="h-10 text-sm font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700 uppercase">Notes / Remarks (Optional)</label>
+                  <Textarea
+                    value={claimNotes}
+                    onChange={e => setClaimNotes(e.target.value)}
+                    placeholder="Any message for CEO / finance team..."
+                    rows={2}
+                    className="text-xs"
+                  />
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center gap-2">
+                  <Info className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span>
+                    Submitting this claim will notify <strong>ceo@biovaco.in</strong> via email. Payout is processed directly to your provided details.
+                  </span>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button type="button" variant="outline" onClick={() => setWithdrawModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isClaimSubmitting || userRewardStats.availableBalanceInr <= 0}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6"
+                  >
+                    {isClaimSubmitting ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting Request...</>
+                    ) : (
+                      <><Send className="h-4 w-4 mr-2" /> Submit Claim &amp; Notify CEO</>
+                    )}
+                  </Button>
+                </div>
+              </form>
+
+              {/* My Past Claims History */}
+              {userRewardStats.myWithdrawals.length > 0 && (
+                <div className="pt-3 border-t border-gray-200">
+                  <h4 className="text-xs font-bold text-gray-700 uppercase mb-2 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" /> My Recent Claim Requests
+                  </h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {userRewardStats.myWithdrawals.map(w => (
+                      <div key={w.id} className="p-2.5 rounded-lg border bg-gray-50/70 flex items-center justify-between text-xs">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900">₹{w.amount}</span>
+                            <span className="text-gray-500 font-mono">({w.payment_method}: {w.payment_details})</span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{new Date(w.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <Badge
+                          className={`text-[10px] font-bold ${
+                            w.status === 'paid' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                            w.status === 'approved' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                            w.status === 'rejected' ? 'bg-red-100 text-red-800 border-red-300' :
+                            'bg-amber-100 text-amber-800 border-amber-300'
+                          }`}
+                        >
+                          {w.status.toUpperCase()}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════ EXECUTIVE: PAYOUTS & CLAIMS CENTER (CEO / MD) ═══════════════ */}
+      {executivePayoutsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700">
+                  <Receipt className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                    Executive Payouts &amp; Claims Management
+                    <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 font-bold text-[10px]">
+                      CEO Dashboard
+                    </Badge>
+                  </h3>
+                  <p className="text-xs text-gray-500">Track who claimed rewards, pending payouts, and member balances</p>
+                </div>
+              </div>
+              <button onClick={() => setExecutivePayoutsModalOpen(false)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Executive KPI Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                  <p className="text-[11px] text-gray-500 font-semibold uppercase">Total Pool Earned</p>
+                  <p className="text-2xl font-extrabold text-gray-900 mt-1">
+                    ₹{teamLeaderboard.reduce((s, m) => s + m.totalPoints, 0)}
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Across all members</p>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl">
+                  <p className="text-[11px] text-amber-800 font-semibold uppercase">Pending Claims</p>
+                  <p className="text-2xl font-extrabold text-amber-900 mt-1">
+                    ₹{withdrawals.filter(w => w.status === 'pending').reduce((s, w) => s + w.amount, 0)}
+                  </p>
+                  <p className="text-[10px] text-amber-700 mt-0.5">{pendingWithdrawalsCount} requests waiting</p>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl">
+                  <p className="text-[11px] text-emerald-800 font-semibold uppercase">Total Paid Out</p>
+                  <p className="text-2xl font-extrabold text-emerald-900 mt-1">
+                    ₹{withdrawals.filter(w => w.status === 'paid').reduce((s, w) => s + w.amount, 0)}
+                  </p>
+                  <p className="text-[10px] text-emerald-700 mt-0.5">Disbursed rewards</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 p-3.5 rounded-xl">
+                  <p className="text-[11px] text-blue-800 font-semibold uppercase">Unclaimed Balances</p>
+                  <p className="text-2xl font-extrabold text-blue-900 mt-1">
+                    ₹{teamLeaderboard.reduce((s, m) => s + m.availableInr, 0)}
+                  </p>
+                  <p className="text-[10px] text-blue-700 mt-0.5">Active member balance</p>
+                </div>
+              </div>
+
+              {/* Section 1: Withdrawal Claims Requests */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <h4 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                    <CreditCard className="h-4 w-4 text-[#4B49AC]" /> Member Withdrawal Claims
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <Select value={payoutsFilterStatus} onValueChange={setPayoutsFilterStatus}>
+                      <SelectTrigger className="h-8 text-xs w-[130px]">
+                        <SelectValue placeholder="All Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Claims</SelectItem>
+                        <SelectItem value="pending">Pending Only</SelectItem>
+                        <SelectItem value="paid">Paid Out</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {withdrawals.length === 0 ? (
+                  <div className="text-center py-10 border border-dashed rounded-xl bg-gray-50">
+                    <Receipt className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500 font-medium">No withdrawal claims submitted yet</p>
+                    <p className="text-xs text-gray-400 mt-0.5">When members click Claim Amount on their wallet, requests will appear here for payout approval.</p>
+                  </div>
+                ) : (
+                  <div className="border border-gray-200 rounded-xl overflow-hidden max-h-72 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Member</th>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Amount</th>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Payment Info</th>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Date</th>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Status</th>
+                          <th className="text-right px-3 py-2.5 font-semibold text-gray-600 border-b">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {withdrawals
+                          .filter(w => payoutsFilterStatus === 'all' || w.status === payoutsFilterStatus)
+                          .map((claim) => (
+                            <tr key={claim.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="px-3 py-2.5">
+                                <p className="font-bold text-gray-900">{claim.user_name}</p>
+                                <p className="text-[10px] text-gray-500">{claim.user_email}</p>
+                              </td>
+                              <td className="px-3 py-2.5 font-extrabold text-emerald-700 text-sm">
+                                ₹{claim.amount}
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <p className="font-semibold text-gray-800">{claim.payment_method}</p>
+                                <p className="font-mono text-gray-600">{claim.payment_details}</p>
+                                {claim.notes && <p className="text-[10px] text-gray-400 italic">"{claim.notes}"</p>}
+                              </td>
+                              <td className="px-3 py-2.5 text-gray-500">
+                                {new Date(claim.created_at).toLocaleDateString()}
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <Badge
+                                  className={`text-[10px] font-bold ${
+                                    claim.status === 'paid' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                                    claim.status === 'approved' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                                    claim.status === 'rejected' ? 'bg-red-100 text-red-800 border-red-300' :
+                                    'bg-amber-100 text-amber-800 border-amber-300'
+                                  }`}
+                                >
+                                  {claim.status.toUpperCase()}
+                                </Badge>
+                              </td>
+                              <td className="px-3 py-2.5 text-right">
+                                {claim.status === 'pending' && (
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleUpdateWithdrawalStatus(claim.id, 'paid')}
+                                      className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                    >
+                                      Mark Paid
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleUpdateWithdrawalStatus(claim.id, 'rejected')}
+                                      className="h-7 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                                    >
+                                      Reject
+                                    </Button>
+                                  </div>
+                                )}
+                                {claim.status === 'paid' && (
+                                  <span className="text-[11px] text-emerald-700 font-bold flex items-center justify-end gap-1">
+                                    <CheckCircle className="h-3.5 w-3.5" /> Disbursed
+                                  </span>
+                                )}
+                                {claim.status === 'rejected' && (
+                                  <span className="text-[11px] text-red-600 font-semibold">Rejected</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Member Balance & Withdrawal Tracker */}
+              <div className="space-y-3 pt-3 border-t border-gray-200">
+                <h4 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                  <Users className="h-4 w-4 text-[#4B49AC]" /> Member Balance &amp; Claim Tracker (Who Withdrew vs Who Hasn't)
+                </h4>
+                <div className="border border-gray-200 rounded-xl overflow-hidden max-h-72 overflow-y-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Member</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Type</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 border-b">Lifetime Earned</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 border-b">Total Claimed</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 border-b">Available Unclaimed</th>
+                        <th className="text-center px-3 py-2.5 font-semibold text-gray-600 border-b">Claim Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teamLeaderboard.map((member) => (
+                        <tr key={member.email} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="px-3 py-2.5">
+                            <p className="font-bold text-gray-900">{member.label}</p>
+                            <p className="text-[10px] text-gray-500">{member.email}</p>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-gray-100 text-gray-600">
+                              {member.type}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-bold text-gray-900">
+                            ₹{member.totalPoints}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-semibold text-emerald-700">
+                            ₹{member.claimedInr}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-extrabold text-[#4B49AC]">
+                            ₹{member.availableInr}
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            {member.pendingInr > 0 ? (
+                              <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-bold">
+                                Pending ₹{member.pendingInr}
+                              </Badge>
+                            ) : member.claimedInr > 0 && member.availableInr === 0 ? (
+                              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-bold">
+                                Fully Claimed
+                              </Badge>
+                            ) : member.availableInr > 0 ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 text-[10px] font-medium">
+                                Unclaimed Balance
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400 text-[11px]">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <Card>
         <CardContent className="p-3">
           <div className="flex flex-col sm:flex-row gap-3">
