@@ -523,26 +523,27 @@ export function KnowledgeTracker() {
 
     const tier = getMemberTier(totalPoints)
 
-    // Calculate Claims & Withdrawn stats
+    // Calculate Claims & Withdrawn stats (Ledger Architecture)
     const myWithdrawals = withdrawals.filter(w => w.user_email.toLowerCase().trim() === normUserEmail)
-    const totalClaimedInr = myWithdrawals
-      .filter(w => w.status !== 'rejected')
-      .reduce((sum, w) => sum + w.amount, 0)
     const totalPaidInr = myWithdrawals
       .filter(w => w.status === 'paid')
       .reduce((sum, w) => sum + w.amount, 0)
     const pendingClaimInr = myWithdrawals
       .filter(w => w.status === 'pending' || w.status === 'approved')
       .reduce((sum, w) => sum + w.amount, 0)
-    const availableBalanceInr = Math.max(0, totalPoints - totalClaimedInr)
+    // Account balance remains with member until CEO actually marks it paid:
+    const currentAccountBalanceInr = Math.max(0, totalPoints - totalPaidInr)
+    // Available to make a new claim request:
+    const availableBalanceInr = Math.max(0, totalPoints - totalPaidInr - pendingClaimInr)
 
     return {
       totalPoints,
       totalInr: totalPoints, // Total lifetime earned
-      availableBalanceInr,   // Available to claim now
-      totalClaimedInr,
-      totalPaidInr,
-      pendingClaimInr,
+      currentAccountBalanceInr, // Account balance holding (only decreases when CEO marks paid)
+      availableBalanceInr,   // Available to submit new claim
+      totalClaimedInr: totalPaidInr + pendingClaimInr,
+      totalPaidInr,          // Money disbursed by CEO
+      pendingClaimInr,       // Money currently waiting for CEO action
       myWithdrawals,
       basePoints,
       speedBonusPoints,
@@ -782,27 +783,116 @@ export function KnowledgeTracker() {
     })
   }
 
+  const sendPayoutCompletedEmailToMember = async (claim: WithdrawalClaim) => {
+    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || "xkeysib-brevo-key"
+    const completedAtStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+
+    const recipients = [
+      { email: claim.user_email, name: claim.user_name },
+      { email: "ceo@biovaco.in", name: "CEO Office (Confirmation Copy)" }
+    ]
+
+    const emailHtml = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; max-width: 650px; background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 5px solid #10b981; border-radius: 8px; margin: 0 auto;">
+        <div style="border-bottom: 1px solid #edf2f7; padding-bottom: 15px; margin-bottom: 20px;">
+          <h2 style="color: #065f46; margin: 0; font-size: 20px;">✅ Reward Payout Processed &amp; Paid</h2>
+          <span style="background-color: #ecfdf5; color: #047857; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 6px; border: 1px solid #a7f3d0;">
+            DISBURSED BY CEO OFFICE
+          </span>
+        </div>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          Hello <strong>${claim.user_name}</strong>,
+        </p>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          Your reward withdrawal claim of <strong>₹${claim.amount}</strong> (${claim.points} Points) has been approved and marked as <strong>PAID</strong> by CEO Office.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 8px 0; color: #718096; width: 140px;"><strong>Amount Disbursed:</strong></td>
+              <td style="padding: 8px 0; color: #047857; font-weight: 800; font-size: 16px;">₹${claim.amount}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Payment Mode:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748; font-weight: 600;">${claim.payment_method}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Paid To:</strong></td>
+              <td style="padding: 8px 0; color: #4B49AC; font-family: monospace; font-weight: bold;">${claim.payment_details}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Paid Time:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748;">${completedAtStr} IST</td>
+            </tr>
+            ${claim.admin_notes ? `
+            <tr>
+              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Transaction Ref / Note:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748;">${claim.admin_notes}</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <p style="text-align: center; margin-top: 25px;">
+          <a href="https://admin.biovaco.in" style="background-color: #10b981; color: #ffffff; text-decoration: none; padding: 11px 22px; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">
+            Open Your Rewards Wallet →
+          </a>
+        </p>
+
+        <p style="color: #a0aec0; font-size: 11px; text-align: center; margin-top: 20px; border-top: 1px solid #edf2f7; padding-top: 15px;">
+          BiovaCo Nexus ERP System • Real-Time Payout Receipt
+        </p>
+      </div>
+    `;
+
+    try {
+      await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
+        body: JSON.stringify({
+          sender: { name: "BiovaCo Executive Office", email: "no-reply@biovaco.in" },
+          to: recipients,
+          subject: `[Payout Paid] ₹${claim.amount} Disbursed to ${claim.user_name}`,
+          htmlContent: emailHtml
+        })
+      });
+    } catch(err) {
+      console.warn("Brevo payout paid email error:", err);
+    }
+  }
+
   const handleUpdateWithdrawalStatus = (
     claimId: string,
     newStatus: 'approved' | 'paid' | 'rejected',
     adminNotes?: string
   ) => {
+    let affectedClaim: WithdrawalClaim | null = null
     const updated = withdrawals.map(w => {
       if (w.id === claimId) {
-        return {
+        affectedClaim = {
           ...w,
           status: newStatus,
           processed_at: new Date().toISOString(),
           admin_notes: adminNotes || w.admin_notes
         }
+        return affectedClaim
       }
       return w
     })
     setWithdrawals(updated)
     writeWithdrawals(updated)
+
+    if (newStatus === 'paid' && affectedClaim) {
+      sendPayoutCompletedEmailToMember(affectedClaim)
+    }
+
     toast({
       title: `Claim marked as ${newStatus.toUpperCase()}`,
-      description: `Updated status for selected withdrawal request.`
+      description: newStatus === 'paid'
+        ? `Payment confirmed & receipt email sent to ${(affectedClaim as any)?.user_email || 'member'}.`
+        : `Claim status updated to ${newStatus}.`
     })
   }
 
@@ -1341,13 +1431,13 @@ export function KnowledgeTracker() {
 
                 <div className="flex items-baseline gap-3 mt-1 flex-wrap">
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-xs text-gray-500 font-medium">Available:</span>
-                    <h3 className="text-2xl sm:text-3xl font-extrabold text-emerald-700 tracking-tight">
-                      ₹{userRewardStats.availableBalanceInr}
+                    <span className="text-xs text-gray-500 font-medium">Account Balance:</span>
+                    <h3 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+                      ₹{userRewardStats.currentAccountBalanceInr}
                     </h3>
                   </div>
                   <span className="text-xs text-gray-400 font-medium">
-                    (Lifetime Earned: ₹{userRewardStats.totalInr} · {userRewardStats.totalPoints} Pts)
+                    (₹{userRewardStats.availableBalanceInr} Available to Claim · Lifetime Earned: ₹{userRewardStats.totalInr})
                   </span>
                 </div>
 
@@ -1356,13 +1446,15 @@ export function KnowledgeTracker() {
                     <span>{userRewardStats.tier.icon}</span> {userRewardStats.tier.name}
                   </span>
                   {userRewardStats.pendingClaimInr > 0 && (
-                    <span className="text-[11px] bg-amber-100 text-amber-800 font-medium px-2 py-0.5 rounded-full border border-amber-200">
-                      ₹{userRewardStats.pendingClaimInr} Claim In Review
+                    <span className="text-[11px] bg-amber-100 text-amber-900 font-semibold px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 animate-pulse">
+                      <Clock className="h-3 w-3 text-amber-700" />
+                      ₹{userRewardStats.pendingClaimInr} Claim In Review (CEO Payout Pending)
                     </span>
                   )}
                   {userRewardStats.totalPaidInr > 0 && (
-                    <span className="text-[11px] text-emerald-700 font-medium">
-                      ✓ ₹{userRewardStats.totalPaidInr} Paid Out
+                    <span className="text-[11px] bg-emerald-50 text-emerald-800 font-semibold px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3 text-emerald-600" />
+                      ₹{userRewardStats.totalPaidInr} Disbursed &amp; Paid
                     </span>
                   )}
                 </div>
@@ -1916,22 +2008,27 @@ export function KnowledgeTracker() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Wallet Summary Card */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-gradient-to-br from-[#4B49AC] to-[#3B398C] text-white p-4 rounded-xl shadow-sm">
-                  <p className="text-xs text-amber-200 font-semibold uppercase">Total Cash Balance</p>
-                  <p className="text-3xl font-extrabold mt-1">₹{userRewardStats.totalInr}</p>
-                  <p className="text-[11px] text-white/80 mt-1">{userRewardStats.totalPoints} reward points earned</p>
+              {/* Wallet Summary Cards (Ledger Overview) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-gradient-to-br from-[#4B49AC] to-[#3B398C] text-white p-3.5 rounded-xl shadow-sm">
+                  <p className="text-[11px] text-amber-200 font-semibold uppercase">Account Balance</p>
+                  <p className="text-2xl font-extrabold mt-1">₹{userRewardStats.currentAccountBalanceInr}</p>
+                  <p className="text-[10px] text-white/80 mt-0.5">Holding in wallet</p>
                 </div>
-                <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
-                  <p className="text-xs text-emerald-700 font-semibold uppercase">Completed Tasks</p>
-                  <p className="text-3xl font-extrabold text-emerald-800 mt-1">{userRewardStats.validatedCount}</p>
-                  <p className="text-[11px] text-emerald-600 mt-1">Base points: {userRewardStats.basePoints} Pts</p>
+                <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl">
+                  <p className="text-[11px] text-emerald-700 font-semibold uppercase">Available to Claim</p>
+                  <p className="text-2xl font-extrabold text-emerald-800 mt-1">₹{userRewardStats.availableBalanceInr}</p>
+                  <p className="text-[10px] text-emerald-600 mt-0.5">Ready for payout request</p>
                 </div>
-                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl">
-                  <p className="text-xs text-amber-700 font-semibold uppercase">Speed Bonuses</p>
-                  <p className="text-3xl font-extrabold text-amber-800 mt-1">+{userRewardStats.speedBonusPoints} Pts</p>
-                  <p className="text-[11px] text-amber-600 mt-1">{userRewardStats.speedBonusCount} fast task deliveries</p>
+                <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl">
+                  <p className="text-[11px] text-amber-700 font-semibold uppercase">In Review (CEO)</p>
+                  <p className="text-2xl font-extrabold text-amber-800 mt-1">₹{userRewardStats.pendingClaimInr}</p>
+                  <p className="text-[10px] text-amber-600 mt-0.5">Pending CEO disbursement</p>
+                </div>
+                <div className="bg-slate-100 border border-slate-200 p-3.5 rounded-xl">
+                  <p className="text-[11px] text-slate-700 font-semibold uppercase">Disbursed &amp; Paid</p>
+                  <p className="text-2xl font-extrabold text-slate-900 mt-1">₹{userRewardStats.totalPaidInr}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Completed bank/UPI payouts</p>
                 </div>
               </div>
 
@@ -2195,17 +2292,34 @@ export function KnowledgeTracker() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Available balance highlight */}
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500 font-semibold uppercase">Available Claim Balance</p>
-                  <p className="text-2xl font-extrabold text-emerald-700 mt-0.5">
-                    ₹{userRewardStats.availableBalanceInr}
-                  </p>
+              {/* Available balance highlight & Ledger Overview */}
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500 font-semibold uppercase">Account Holding Balance</p>
+                    <p className="text-2xl font-extrabold text-gray-900 mt-0.5">
+                      ₹{userRewardStats.currentAccountBalanceInr}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-300 font-bold text-xs px-2.5 py-1">
+                    1 Point = ₹1 INR
+                  </Badge>
                 </div>
-                <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full">
-                  1 Point = ₹1 INR
-                </span>
+
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200 text-xs">
+                  <div>
+                    <span className="text-gray-500 block text-[11px]">Available to Claim</span>
+                    <span className="font-extrabold text-emerald-700 text-sm">₹{userRewardStats.availableBalanceInr}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-[11px]">In Review (CEO)</span>
+                    <span className="font-bold text-amber-700 text-sm">₹{userRewardStats.pendingClaimInr}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-[11px]">Total Paid Out</span>
+                    <span className="font-semibold text-slate-700 text-sm">₹{userRewardStats.totalPaidInr}</span>
+                  </div>
+                </div>
               </div>
 
               {/* Claim Form */}
