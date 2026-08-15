@@ -106,6 +106,8 @@ export function useOfflineSync() {
             source: action.item.source,
             validation_notes: action.item.validation_notes,
             due_date: action.item.due_date,
+            created_by: action.item.created_by,
+            assigned_to: action.item.assigned_to,
           }])
           if (error) { remaining.push(action); allSuccess = false }
         } else if (action.type === "update") {

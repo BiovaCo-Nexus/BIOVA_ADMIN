@@ -14,7 +14,9 @@ import {
   AlertTriangle, BookOpen, TrendingUp, Server, Search,
   Filter, ChevronDown, ChevronUp, Edit, Loader2,
   BarChart3, Target, Lightbulb, ShieldCheck, XCircle,
-  Wifi, WifiOff, RefreshCw, CloudOff, User, Lock, UserCheck
+  Wifi, WifiOff, RefreshCw, CloudOff, User, Lock, UserCheck,
+  Upload, Users, ListChecks, ChevronRight, Download, FileText,
+  Send, ArrowLeft
 } from "lucide-react"
 
 type Priority = "critical" | "high" | "medium" | "low"
@@ -47,6 +49,55 @@ const emptyForm = () => ({
   status: "pending" as Status, source: "", validation_notes: "", due_date: "", assigned_to: ""
 })
 
+// ─── Bulk Todo Types ──────────────────────────────────────────────────────────
+type BulkTask = {
+  title: string
+  description: string
+  category: Category
+  priority: Priority
+  due_date: string
+  source: string
+  validation_notes: string
+  _error?: string
+}
+
+const BULK_CSV_TEMPLATE = `title,description,category,priority,due_date,source
+Analyze competitor pricing,Check competitor X new pricing strategy,market,high,2026-09-01,Internal Research
+Update system documentation,Review and update all SOPs for Q3,system,medium,2026-09-15,Management`
+
+function parseBulkCSV(raw: string): BulkTask[] {
+  const lines = raw.trim().split('\n').filter(l => l.trim())
+  if (lines.length < 2) return []
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
+  return lines.slice(1).map(line => {
+    // Handle quoted CSVs
+    const cols: string[] = []
+    let cur = '', inQuote = false
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === '"') { inQuote = !inQuote }
+      else if (line[i] === ',' && !inQuote) { cols.push(cur.trim()); cur = '' }
+      else cur += line[i]
+    }
+    cols.push(cur.trim())
+    const get = (field: string) => cols[headers.indexOf(field)] || ''
+    const cat = get('category') as Category
+    const pri = get('priority') as Priority
+    const validCats: Category[] = ['system','market','competitor','regulation','technology','customer']
+    const validPris: Priority[] = ['critical','high','medium','low']
+    const task: BulkTask = {
+      title: get('title'),
+      description: get('description'),
+      category: validCats.includes(cat) ? cat : 'system',
+      priority: validPris.includes(pri) ? pri : 'medium',
+      due_date: get('due_date'),
+      source: get('source'),
+      validation_notes: get('validation_notes') || '',
+    }
+    if (!task.title.trim()) task._error = 'Title is required'
+    return task
+  }).filter(t => t.title.trim())
+}
+
 export function KnowledgeTracker() {
   const { toast } = useToast()
   const { items, isOnline, isLoading, isSyncing, pendingCount, addItem, updateItem, deleteItem, forceSync } = useOfflineSync()
@@ -60,6 +111,15 @@ export function KnowledgeTracker() {
   const [filterPriority, setFilterPriority] = useState<string>("all")
   const [filterAssignee, setFilterAssignee] = useState<string>("all")
   const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  // ─── Bulk Todo State ─────────────────────────────────────────────────────────
+  const [bulkStep, setBulkStep] = useState<0|1|2|3>(0)   // 0=closed, 1=select users, 2=upload tasks, 3=preview
+  const [bulkSelectedEmails, setBulkSelectedEmails] = useState<string[]>([])
+  const [bulkRawCSV, setBulkRawCSV] = useState(BULK_CSV_TEMPLATE)
+  const [bulkParsedTasks, setBulkParsedTasks] = useState<BulkTask[]>([])
+  const [isBulkSubmitting, setIsBulkSubmitting] = useState(false)
+  const [bulkDefaultPriority, setBulkDefaultPriority] = useState<Priority>('medium')
+  const [bulkDefaultDueDate, setBulkDefaultDueDate] = useState('')
   
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [interns, setInterns] = useState<{name: string, email: string}[]>([])
@@ -375,6 +435,119 @@ export function KnowledgeTracker() {
     deduplicate();
   }, [items, isLoading]);
 
+  const sendTaskValidatedEmail = async (
+    item: KnowledgeItem,
+    completedByEmail: string | null,
+    validationNotes?: string
+  ) => {
+    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || "xkeysib-brevo-key"
+    
+    // Find member label/name
+    const memberObj = assignableUsers.find(u => u.email.toLowerCase() === (completedByEmail || '').toLowerCase())
+    const memberName = memberObj ? memberObj.label : (completedByEmail?.split('@')[0] || 'Team Member')
+    const completedAtStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+
+    const recipients = [
+      { email: "ceo@biovaco.in", name: "CEO Office (BiovaCo)" },
+      { email: "md@biovaco.in", name: "MD Office (BiovaCo)" }
+    ]
+
+    const emailHtml = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; max-width: 650px; background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 5px solid #10b981; border-radius: 8px; margin: 0 auto;">
+        <div style="border-bottom: 1px solid #edf2f7; padding-bottom: 15px; margin-bottom: 20px;">
+          <h2 style="color: #065f46; margin: 0; font-size: 20px;">✅ Task Completed &amp; Validated</h2>
+          <span style="background-color: #ecfdf5; color: #047857; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 6px; border: 1px solid #a7f3d0;">
+            WORK COMPLETION ALERT FOR EXECUTIVE OFFICE
+          </span>
+        </div>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          Dear CEO &amp; Management,
+        </p>
+
+        <p style="color: #2d3748; font-size: 14px; line-height: 1.6;">
+          <strong>${memberName}</strong> (<code>${completedByEmail || 'N/A'}</code>) has marked the following task as <strong>Validated / Completed</strong> in the <strong>Knowledge Tracker</strong>:
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 8px 0; color: #718096; width: 140px;"><strong>Task Title:</strong></td>
+              <td style="padding: 8px 0; color: #1a202c; font-weight: bold; font-size: 15px;">${item.title}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Completed By:</strong></td>
+              <td style="padding: 8px 0; color: #047857; font-weight: bold;">${memberName} &lt;${completedByEmail || 'N/A'}&gt;</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Completed Time:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748; font-weight: 500;">${completedAtStr} IST</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Priority:</strong></td>
+              <td style="padding: 8px 0;"><span style="background-color: #fff5f5; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">${(item.priority || 'MEDIUM').toUpperCase()}</span></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Category:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748; font-weight: 600;">${(item.category || 'SYSTEM').toUpperCase()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Assigned To:</strong></td>
+              <td style="padding: 8px 0; color: #4B49AC;">${item.assigned_to || memberName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #718096;"><strong>Due Date:</strong></td>
+              <td style="padding: 8px 0; color: #2d3748;">${item.due_date || "No deadline"}</td>
+            </tr>
+            ${item.description ? `
+            <tr>
+              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Description:</strong></td>
+              <td style="padding: 8px 0; color: #4a5568; line-height: 1.5;">${item.description}</td>
+            </tr>` : ''}
+            ${(validationNotes || item.validation_notes) ? `
+            <tr>
+              <td style="padding: 8px 0; color: #718096; vertical-align: top;"><strong>Validation Notes:</strong></td>
+              <td style="padding: 8px 0; color: #065f46; background: #ecfdf5; padding: 8px; border-radius: 6px; font-weight: 500;">${validationNotes || item.validation_notes}</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <p style="text-align: center; margin-top: 25px;">
+          <a href="https://admin.biovaco.in" style="background-color: #10b981; color: #ffffff; text-decoration: none; padding: 11px 22px; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">
+            Open Knowledge Tracker Portal →
+          </a>
+        </p>
+
+        <p style="color: #a0aec0; font-size: 11px; text-align: center; margin-top: 20px; border-top: 1px solid #edf2f7; padding-top: 15px;">
+          BiovaCo Nexus Enterprise ERP • Automated Task Completion Notice
+        </p>
+      </div>
+    `;
+
+    const payload = {
+      sender: { name: "BiovaCo Task Validation", email: "no-reply@biovaco.in" },
+      to: recipients,
+      subject: `[Task Validated] ${memberName} completed: "${item.title}"`,
+      htmlContent: emailHtml
+    };
+
+    try {
+      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        toast({
+          title: "✉️ CEO Notified!",
+          description: `Completion notice sent to ceo@biovaco.in for "${item.title}".`
+        });
+      }
+    } catch (err) {
+      console.warn("Brevo completion notification error:", err);
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.title.trim()) { toast({ title: "Title is required", variant: "destructive" }); return }
@@ -386,6 +559,9 @@ export function KnowledgeTracker() {
       : (userEmail || "")
 
     if (editId) {
+      const existingItem = items.find(i => i.id === editId)
+      const isNewlyValidated = form.status === "validated" && existingItem?.status !== "validated"
+
       await updateItem(editId, {
         ...form,
         assigned_to: targetAssignedTo,
@@ -396,7 +572,7 @@ export function KnowledgeTracker() {
       })
       
       const assignees = targetAssignedTo.split(',').map(e => e.trim()).filter(Boolean)
-      if (assignees.length > 0) {
+      if (assignees.length > 0 && !isNewlyValidated) {
         sendAssignmentEmail(
           assignees,
           form.title,
@@ -407,10 +583,18 @@ export function KnowledgeTracker() {
           userEmail
         )
       }
+
+      if (isNewlyValidated && existingItem) {
+        sendTaskValidatedEmail(
+          { ...existingItem, ...form, assigned_to: targetAssignedTo },
+          userEmail,
+          form.validation_notes
+        )
+      }
       
       toast({ title: isOnline ? "Item updated" : "Item updated (will sync when online)" })
     } else {
-      await addItem({
+      const createdItem = await addItem({
         ...form,
         created_by: userEmail,
         assigned_to: targetAssignedTo,
@@ -432,6 +616,10 @@ export function KnowledgeTracker() {
           userEmail
         )
       }
+
+      if (form.status === "validated") {
+        sendTaskValidatedEmail(createdItem, userEmail, form.validation_notes)
+      }
       
       toast({ title: isOnline ? "Item created" : "Item saved offline (will sync when online)" })
     }
@@ -446,8 +634,13 @@ export function KnowledgeTracker() {
   }
 
   const handleStatusChange = async (id: string, status: Status) => {
+    const item = items.find(i => i.id === id)
     await updateItem(id, { status })
     toast({ title: `Status → ${status.replace("_", " ")}` })
+
+    if (status === "validated" && item) {
+      sendTaskValidatedEmail({ ...item, status: "validated" }, userEmail)
+    }
   }
 
   const handleEdit = (item: KnowledgeItem) => {
@@ -461,6 +654,120 @@ export function KnowledgeTracker() {
   }
 
   const resetForm = () => { setForm(emptyForm()); setEditId(null); setIsEditing(false) }
+
+  // ─── Bulk Todo Handlers ───────────────────────────────────────────────────────
+  const handleBulkOpen = () => {
+    setBulkStep(1)
+    setBulkSelectedEmails([])
+    setBulkRawCSV(BULK_CSV_TEMPLATE)
+    setBulkParsedTasks([])
+    setBulkDefaultPriority('medium')
+    setBulkDefaultDueDate('')
+  }
+
+  const handleBulkStep2 = () => {
+    if (bulkSelectedEmails.length === 0) {
+      toast({ title: 'Select at least one assignee', variant: 'destructive' }); return
+    }
+    setBulkStep(2)
+  }
+
+  const handleBulkPreview = () => {
+    const parsed = parseBulkCSV(bulkRawCSV)
+    if (parsed.length === 0) {
+      toast({ title: 'No valid tasks found', description: 'Check your CSV format and try again', variant: 'destructive' }); return
+    }
+    // Apply defaults where fields are empty
+    const withDefaults = parsed.map(t => ({
+      ...t,
+      priority: t.priority || bulkDefaultPriority,
+      due_date: t.due_date || bulkDefaultDueDate
+    }))
+    setBulkParsedTasks(withDefaults)
+    setBulkStep(3)
+  }
+
+  const handleBulkSubmit = async () => {
+    if (bulkParsedTasks.length === 0) return
+    setIsBulkSubmitting(true)
+    let successCount = 0
+    const assignedToStr = bulkSelectedEmails.join(',')
+
+    for (const task of bulkParsedTasks) {
+      try {
+        await addItem({
+          title: task.title,
+          description: task.description || null,
+          category: task.category,
+          priority: task.priority,
+          status: 'pending',
+          source: task.source || null,
+          validation_notes: task.validation_notes || null,
+          due_date: task.due_date || null,
+          created_by: userEmail,
+          assigned_to: assignedToStr,
+        })
+        successCount++
+      } catch(e) {
+        console.error('Bulk task creation error:', e)
+      }
+    }
+
+    // Send one bulk assignment email
+    if (successCount > 0) {
+      const titlesStr = bulkParsedTasks.slice(0, 5).map(t => `• ${t.title}`).join('<br>') +
+        (bulkParsedTasks.length > 5 ? `<br>• ...and ${bulkParsedTasks.length - 5} more` : '')
+
+      const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || "xkeysib-brevo-key"
+      const ceoEmail = 'ceo@biovaco.in'
+      const allRecipients = Array.from(new Set([...bulkSelectedEmails, ceoEmail]))
+      const formattedRecipients = allRecipients.map(email => ({
+        email,
+        name: assignableUsers.find(u => u.email === email)?.label || email
+      }))
+      const assigneeNamesStr = bulkSelectedEmails.map(email => {
+        return assignableUsers.find(u => u.email === email)?.label || email
+      }).join(', ')
+
+      const emailHtml = `
+        <div style="font-family: 'Segoe UI', sans-serif; padding: 25px; max-width: 650px; background: #fff; border: 1px solid #e2e8f0; border-top: 5px solid #4B49AC; border-radius: 8px; margin: 0 auto;">
+          <h2 style="color: #4B49AC; margin: 0;">BiovaCo Nexus — Bulk Task Assignment</h2>
+          <span style="background:#f2f6ff; color:#4B49AC; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:bold; display:inline-block; margin-top:6px;">BULK TASK DISPATCH · ${successCount} TASKS</span>
+          <p style="color:#2d3748; font-size:14px; margin-top:16px;">Hello Team,</p>
+          <p style="color:#2d3748; font-size:14px;"><strong>${successCount} tasks</strong> have been bulk-assigned to you via BiovaCo Nexus by <strong>${userEmail || 'Management'}</strong>.</p>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:18px; margin:20px 0;">
+            <p style="margin:0 0 8px; color:#718096; font-size:12px; font-weight:bold;">ASSIGNED TO:</p>
+            <p style="margin:0 0 16px; color:#4B49AC; font-weight:bold;">${assigneeNamesStr}</p>
+            <p style="margin:0 0 8px; color:#718096; font-size:12px; font-weight:bold;">TASKS ASSIGNED:</p>
+            <div style="color:#1a202c; font-size:13px; line-height:2;">${titlesStr}</div>
+          </div>
+          <p style="text-align:center; margin-top:25px;">
+            <a href="https://admin.biovaco.in" style="background:#4B49AC; color:#fff; text-decoration:none; padding:10px 20px; border-radius:6px; font-weight:bold; font-size:13px; display:inline-block;">Open BiovaCo Nexus Portal →</a>
+          </p>
+          <p style="color:#a0aec0; font-size:11px; text-align:center; margin-top:20px; border-top:1px solid #edf2f7; padding-top:15px;">BiovaCo Nexus Enterprise ERP • Automated Bulk Task Assignment Notice</p>
+        </div>
+      `
+      try {
+        await fetch("https://api.brevo.com/v3/smtp/email", {
+          method: "POST",
+          headers: { "accept": "application/json", "content-type": "application/json", "api-key": BREVO_API_KEY },
+          body: JSON.stringify({
+            sender: { name: "BiovaCo Executive Office", email: "no-reply@biovaco.in" },
+            to: formattedRecipients,
+            subject: `[Bulk Task Assignment] ${successCount} Tasks Assigned`,
+            htmlContent: emailHtml
+          })
+        })
+      } catch(e) { console.warn('Bulk email error:', e) }
+    }
+
+    setIsBulkSubmitting(false)
+    setBulkStep(0)
+    toast({
+      title: `✅ ${successCount} Tasks Created!`,
+      description: `Bulk assigned to ${bulkSelectedEmails.length} member(s) with email notification sent.`
+    })
+  }
 
   if (isLoading && items.length === 0) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-foreground" /></div>
@@ -525,9 +832,20 @@ export function KnowledgeTracker() {
         </div>
 
         {!isEditing && (
-          <Button onClick={() => { resetForm(); setIsEditing(true) }} className="bg-primary hover:bg-primary/90 text-white">
-            <Plus className="h-4 w-4 mr-2" /> Add Knowledge Item
-          </Button>
+          <div className="flex items-center gap-2">
+            {isExecutive && (
+              <Button
+                onClick={handleBulkOpen}
+                variant="outline"
+                className="border-[#4B49AC] text-[#4B49AC] hover:bg-[#4B49AC]/10 font-semibold"
+              >
+                <ListChecks className="h-4 w-4 mr-2" /> Bulk Todo
+              </Button>
+            )}
+            <Button onClick={() => { resetForm(); setIsEditing(true) }} className="bg-primary hover:bg-primary/90 text-white">
+              <Plus className="h-4 w-4 mr-2" /> Add Knowledge Item
+            </Button>
+          </div>
         )}
       </div>
 
@@ -661,6 +979,315 @@ export function KnowledgeTracker() {
             </form>
           </CardContent>
         </Card>
+      )}
+
+      {/* ═══════════════ BULK TODO MODAL ═══════════════ */}
+      {bulkStep > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#4B49AC]/10 flex items-center justify-center">
+                  <ListChecks className="h-5 w-5 text-[#4B49AC]" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">Bulk Todo Assignment</h3>
+                  <p className="text-xs text-gray-500">
+                    {bulkStep === 1 && 'Step 1 of 3 — Select Assignees'}
+                    {bulkStep === 2 && 'Step 2 of 3 — Upload Tasks'}
+                    {bulkStep === 3 && 'Step 3 of 3 — Preview & Confirm'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {/* Step Pills */}
+                <div className="hidden sm:flex items-center gap-1">
+                  {[1,2,3].map(s => (
+                    <div key={s} className={`w-2 h-2 rounded-full transition-all ${
+                      bulkStep >= s ? 'bg-[#4B49AC]' : 'bg-gray-200'
+                    }`} />
+                  ))}
+                </div>
+                <button onClick={() => setBulkStep(0)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+
+            {/* ── STEP 1: Select Assignees ── */}
+            {bulkStep === 1 && (
+              <div className="space-y-5">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
+                  <Users className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-800">Select who gets these bulk tasks</p>
+                    <p className="text-xs text-blue-600 mt-0.5">All selected members will receive every task you upload in the next step + email notification.</p>
+                  </div>
+                </div>
+
+                {/* Quick Select All / Clear */}
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-700">
+                    Team Members & Access Users
+                    <span className="ml-2 text-xs bg-[#4B49AC]/10 text-[#4B49AC] px-2 py-0.5 rounded-full font-semibold">
+                      {bulkSelectedEmails.length} selected
+                    </span>
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setBulkSelectedEmails(assignableUsers.map(u => u.email))}
+                      className="text-xs text-[#4B49AC] hover:underline font-medium"
+                    >Select All</button>
+                    <span className="text-gray-300">|</span>
+                    <button
+                      onClick={() => setBulkSelectedEmails([])}
+                      className="text-xs text-gray-500 hover:underline"
+                    >Clear</button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1">
+                  {assignableUsers.map(u => {
+                    const isSelected = bulkSelectedEmails.includes(u.email)
+                    return (
+                      <button
+                        key={u.email}
+                        onClick={() => {
+                          setBulkSelectedEmails(prev =>
+                            isSelected ? prev.filter(e => e !== u.email) : [...prev, u.email]
+                          )
+                        }}
+                        className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
+                          isSelected
+                            ? 'border-[#4B49AC] bg-[#4B49AC]/5'
+                            : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
+                          isSelected ? 'border-[#4B49AC] bg-[#4B49AC]' : 'border-gray-300'
+                        }`}>
+                          {isSelected && <Check className="h-3 w-3 text-white" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-semibold truncate ${isSelected ? 'text-[#4B49AC]' : 'text-gray-800'}`}>{u.label}</p>
+                          <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                        </div>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${
+                          u.type === 'Executive' ? 'bg-purple-100 text-purple-700' :
+                          u.type === 'Intern' ? 'bg-green-100 text-green-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>{u.type}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={handleBulkStep2}
+                    className="bg-[#4B49AC] hover:bg-[#3e3d93] text-white px-6"
+                  >
+                    Next: Upload Tasks <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP 2: Upload Tasks ── */}
+            {bulkStep === 2 && (
+              <div className="space-y-5">
+                <div className="bg-[#4B49AC]/5 border border-[#4B49AC]/20 rounded-xl p-4">
+                  <p className="text-sm font-semibold text-[#4B49AC] flex items-center gap-2">
+                    <FileText className="h-4 w-4" /> Assigning to {bulkSelectedEmails.length} member(s)
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {bulkSelectedEmails.map(email => (
+                      <span key={email} className="text-xs bg-[#4B49AC] text-white px-2 py-0.5 rounded-full font-medium">
+                        {assignableUsers.find(u => u.email === email)?.label || email.split('@')[0]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Default overrides */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Default Priority (if not in CSV)</label>
+                    <Select value={bulkDefaultPriority} onValueChange={v => setBulkDefaultPriority(v as Priority)}>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Default Due Date (if not in CSV)</label>
+                    <Input
+                      type="date"
+                      value={bulkDefaultDueDate}
+                      onChange={e => setBulkDefaultDueDate(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Format guide */}
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800 space-y-1">
+                  <p className="font-bold uppercase tracking-wide mb-2">📋 CSV Column Format</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    <span><code className="bg-amber-100 px-1 rounded">title</code> — Task name <span className="text-red-600">*required</span></span>
+                    <span><code className="bg-amber-100 px-1 rounded">description</code> — Details</span>
+                    <span><code className="bg-amber-100 px-1 rounded">category</code> — system / market / competitor / regulation / technology / customer</span>
+                    <span><code className="bg-amber-100 px-1 rounded">priority</code> — critical / high / medium / low</span>
+                    <span><code className="bg-amber-100 px-1 rounded">due_date</code> — YYYY-MM-DD</span>
+                    <span><code className="bg-amber-100 px-1 rounded">source</code> — Reference source</span>
+                  </div>
+                </div>
+
+                {/* CSV area + download template */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-gray-700">Paste Your CSV Tasks Below</label>
+                    <button
+                      onClick={() => {
+                        const blob = new Blob([BULK_CSV_TEMPLATE], { type: 'text/csv' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url; a.download = 'bulk_tasks_template.csv'; a.click()
+                        URL.revokeObjectURL(url)
+                      }}
+                      className="flex items-center gap-1.5 text-xs text-[#4B49AC] hover:underline font-medium"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download Template
+                    </button>
+                  </div>
+                  <Textarea
+                    value={bulkRawCSV}
+                    onChange={e => setBulkRawCSV(e.target.value)}
+                    rows={10}
+                    className="font-mono text-xs leading-relaxed resize-y"
+                    placeholder="Paste CSV here with header row..."
+                  />
+                </div>
+
+                <div className="flex justify-between pt-2">
+                  <Button variant="outline" onClick={() => setBulkStep(1)}>
+                    <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                  </Button>
+                  <Button
+                    onClick={handleBulkPreview}
+                    className="bg-[#4B49AC] hover:bg-[#3e3d93] text-white px-6"
+                  >
+                    Preview Tasks <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP 3: Preview & Confirm ── */}
+            {bulkStep === 3 && (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">
+                      {bulkParsedTasks.length} Tasks Ready
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Will be assigned to: {bulkSelectedEmails.map(e => assignableUsers.find(u => u.email === e)?.label || e.split('@')[0]).join(', ')}
+                    </p>
+                  </div>
+                  <span className="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-semibold">
+                    Ready to Submit
+                  </span>
+                </div>
+
+                {/* Preview Table */}
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto max-h-72">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">#</th>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Title</th>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Category</th>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Priority</th>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Due Date</th>
+                          <th className="text-left px-3 py-2.5 font-semibold text-gray-600 border-b">Source</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bulkParsedTasks.map((task, idx) => {
+                          const priMeta = getPriMeta(task.priority)
+                          const catMeta = getCatMeta(task.category)
+                          return (
+                            <tr key={idx} className={`border-b border-gray-100 hover:bg-gray-50 ${
+                              task._error ? 'bg-red-50' : ''
+                            }`}>
+                              <td className="px-3 py-2.5 text-gray-400 font-mono">{idx+1}</td>
+                              <td className="px-3 py-2.5">
+                                <p className="font-semibold text-gray-800 max-w-[200px] truncate">{task.title}</p>
+                                {task.description && <p className="text-gray-400 truncate max-w-[200px]">{task.description}</p>}
+                                {task._error && <p className="text-red-600 font-medium">{task._error}</p>}
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${catMeta.color}`}>{catMeta.label}</span>
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${priMeta.color}`}>{priMeta.label}</span>
+                              </td>
+                              <td className="px-3 py-2.5 text-gray-600">{task.due_date || <span className="text-gray-400 italic">—</span>}</td>
+                              <td className="px-3 py-2.5 text-gray-500 max-w-[120px] truncate">{task.source || <span className="text-gray-300 italic">—</span>}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Assignee summary */}
+                <div className="bg-[#4B49AC]/5 border border-[#4B49AC]/15 rounded-xl p-4">
+                  <p className="text-xs font-bold text-[#4B49AC] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Send className="h-3.5 w-3.5" /> Email notification will be sent to:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {bulkSelectedEmails.map(email => (
+                      <span key={email} className="text-xs bg-[#4B49AC] text-white px-2.5 py-1 rounded-full font-medium">
+                        {assignableUsers.find(u => u.email === email)?.label || email.split('@')[0]}
+                      </span>
+                    ))}
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-medium">+ CEO (confirmation copy)</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between pt-2">
+                  <Button variant="outline" onClick={() => setBulkStep(2)} disabled={isBulkSubmitting}>
+                    <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                  </Button>
+                  <Button
+                    onClick={handleBulkSubmit}
+                    disabled={isBulkSubmitting}
+                    className="bg-[#4B49AC] hover:bg-[#3e3d93] text-white px-8 font-semibold"
+                  >
+                    {isBulkSubmitting ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating {bulkParsedTasks.length} Tasks...</>
+                    ) : (
+                      <><Upload className="h-4 w-4 mr-2" /> Submit {bulkParsedTasks.length} Tasks & Send Email</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Filter Controls Bar */}
