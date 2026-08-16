@@ -35,7 +35,7 @@ INSERT INTO post_countdown_content (title, subtitle, hero_video_url, hero_video_
     'See What''s Coming Next',
     '/our-story',
     'Share Your Thoughts',
-    'mailto:info@electroculture.in',
+    'mailto:info@biovaco.in',
     'MittiMitra is just the beginning.',
     'Follow our journey from analog sensors to fully autonomous farming',
     'Follow Our Journey — From Sketch to Soil',
@@ -46,5 +46,5 @@ INSERT INTO post_countdown_content (title, subtitle, hero_video_url, hero_video_
     'Notify Me When MittiMitra Launches',
     '/#',
     'Share Your Suggestion',
-    'mailto:info@electroculture.in'
+    'mailto:info@biovaco.in'
 );

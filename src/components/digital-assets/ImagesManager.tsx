@@ -159,7 +159,7 @@ export function ImagesManager() {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <ImageIcon className="h-6 w-6 text-[#4B49AC]" /> Image Assets & Photography Hub
           </h1>
-          <p className="text-sm text-gray-500">High-resolution photography for electroculture hardware, crop yield comparisons, and infographics.</p>
+          <p className="text-sm text-gray-500">High-resolution photography for biotechnology innovations, crop yield comparisons, and infographics.</p>
         </div>
         <Button onClick={() => setIsModalOpen(true)} className="bg-[#4B49AC] hover:bg-[#3b3a8c] text-white text-xs h-9 flex items-center gap-1.5">
           <Plus className="h-4 w-4" /> Upload Image
@@ -299,7 +299,7 @@ export function ImagesManager() {
               <div><label className="font-semibold text-slate-700 mb-1 block">Dimensions</label><Input placeholder="3840 x 2160" value={form.dimensions} onChange={e => setForm({ ...form, dimensions: e.target.value })} /></div>
             </div>
             <div><label className="font-semibold text-slate-700 mb-1 block">Image URL *</label><Input placeholder="https://..." value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })} /></div>
-            <div><label className="font-semibold text-slate-700 mb-1 block">Tags (comma separated)</label><Input placeholder="Sugarcane, Electroculture, Root Growth" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} /></div>
+            <div><label className="font-semibold text-slate-700 mb-1 block">Tags (comma separated)</label><Input placeholder="Sugarcane, Bio-Innovation, Root Growth" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>Cancel</Button>

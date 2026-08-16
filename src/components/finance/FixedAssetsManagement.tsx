@@ -25,7 +25,7 @@ const DEFAULT_ASSETS: FixedAsset[] = [
   {
     id: "fa_1",
     assetTag: "AST-RD-001",
-    name: "Precision Bio-Electroculture Telemetry Frequency Controller",
+    name: "Precision Bio-Formulation Telemetry Frequency Controller",
     category: "Lab & Testing Equipment",
     purchaseDate: "2025-11-10",
     purchaseCost: 450000,

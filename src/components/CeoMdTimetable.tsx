@@ -102,8 +102,8 @@ const DEMO_SCHEDULE: ScheduleItem[] = [
  day_of_week: "Monday",
  start_time: "14:00",
  end_time: "16:00",
- task_title: "Site Visit: Electroculture Experimental Fields",
- description: "Inspection of high-yield crops utilizing electromagnetic stimulation coils.",
+ task_title: "Site Visit: Bio-Formulation Experimental Fields",
+ description: "Inspection of high-yield crops utilizing advanced biological stimulation trials.",
  category: "Site Visit"
  },
  {
@@ -133,7 +133,7 @@ const DEMO_SCHEDULE: ScheduleItem[] = [
  start_time: "14:00",
  end_time: "15:00",
  task_title: "Key Account Review: GreenGrow Corp Partnership",
- description: "Discussing customized electroculture packages and supply scheduling.",
+ description: "Discussing customized bio-formulation packages and supply scheduling.",
  category: "Client Call"
  },
  {
@@ -195,7 +195,7 @@ const DEMO_SCHEDULE: ScheduleItem[] = [
  start_time: "11:00",
  end_time: "13:00",
  task_title: "R&D Prototype Quality Inspection",
- description: "Verifying production builds of the new Electroculture Grow Rods v3.",
+ description: "Verifying production builds of the new BiovaCo Agri-Growth Systems v3.",
  category: "Site Visit"
  },
  {

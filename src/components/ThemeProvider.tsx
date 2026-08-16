@@ -24,7 +24,7 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 export function ThemeProvider({
  children,
  defaultTheme = "light",
- storageKey = "electroculture-ui-theme",
+ storageKey = "biovaco-nexus-ui-theme",
  ...props
 }: ThemeProviderProps) {
  const [theme, setTheme] = useState<Theme>(defaultTheme);

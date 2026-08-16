@@ -475,7 +475,7 @@ export const Model3DViewer = () => {
  Explore Our 3D Innovation
  </h2>
  <p className="text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed" style={{ color: "#555555" }}>
- Interactive 3D models showcasing our electroculture technology and innovations
+ Interactive 3D models showcasing our biotechnology and hardware innovations
  </p>
  </div>
  </div>

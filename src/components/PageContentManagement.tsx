@@ -218,7 +218,7 @@ const PageContentManagement = () => {
  <Textarea
  value={formData.description}
  onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
- placeholder="Discover the journey behind ElectroCulture..."
+ placeholder="Discover the journey behind BiovaCo Nexus..."
  />
  </div>
  </CardContent>

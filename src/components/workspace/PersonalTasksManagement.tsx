@@ -20,7 +20,7 @@ interface PersonalTask {
 }
 
 const DEFAULT_TASKS: PersonalTask[] = [
-  { id: "task_1", title: "Review Electroculture Bio-Trial Lab Batch #4 report", priority: "High", dueDate: "2026-08-03", category: "R&D", completed: false },
+  { id: "task_1", title: "Review BiovaCo Bio-Trial Lab Batch #4 report", priority: "High", dueDate: "2026-08-03", category: "R&D", completed: false },
   { id: "task_2", title: "Approve July 2026 executive payroll disbursement vouchers", priority: "High", dueDate: "2026-08-02", category: "Finance", completed: true },
   { id: "task_3", title: "Update GST GSTR-3B tax return reconciliation ledger", priority: "Medium", dueDate: "2026-08-05", category: "Taxation", completed: false },
   { id: "task_4", title: "Schedule quarterly performance review with Senior Field Engineers", priority: "Low", dueDate: "2026-08-10", category: "HRMS", completed: false }

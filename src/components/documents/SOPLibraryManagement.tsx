@@ -37,9 +37,9 @@ const DEFAULT_SOPS: SOPRecord[] = [
   {
     id: "sop_002",
     code: "SOP-RD-004",
-    title: "Electroculture Bio-Formulation Testing Protocol",
+    title: "BiovaCo Bio-Formulation Testing Protocol",
     category: "R&D Operations",
-    description: "Laboratory procedures for handling electroculture fertilizer trials, pH balancing, chemical safety, and batch logging.",
+    description: "Laboratory procedures for handling organic bio-fertilizer trials, pH balancing, chemical safety, and batch logging.",
     author: "Head of R&D",
     version: "v2.2",
     effectiveDate: "2026-03-15",

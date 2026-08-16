@@ -51,9 +51,9 @@ const handler = async (req: Request): Promise<Response> => {
     if (subscription.confirmed) {
       return new Response(
         `<html><body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-          <h2 style="color: #16a34a;">Already Confirmed!</h2>
+          <h2 style="color: #4B49AC;">Already Confirmed!</h2>
           <p>Your subscription has already been confirmed.</p>
-          <p>Thank you for subscribing to ElectroCulture newsletter!</p>
+          <p>Thank you for subscribing to BiovaCo Nexus newsletter!</p>
         </body></html>`,
         {
           status: 200,
@@ -80,11 +80,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(
       `<html><body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-        <h2 style="color: #16a34a;">Subscription Confirmed!</h2>
-        <p>Thank you for confirming your subscription to the ElectroCulture newsletter!</p>
-        <p>You'll receive updates about our launch on August 22nd, 2025.</p>
-        <a href="/" style="display: inline-block; background-color: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">
-          Return to ElectroCulture
+        <h2 style="color: #4B49AC;">Subscription Confirmed!</h2>
+        <p>Thank you for confirming your subscription to the BiovaCo Nexus newsletter!</p>
+        <p>You will receive our latest research, formulation launches, and corporate updates.</p>
+        <a href="/" style="display: inline-block; background-color: #4B49AC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">
+          Return to BiovaCo Nexus
         </a>
       </body></html>`,
       {

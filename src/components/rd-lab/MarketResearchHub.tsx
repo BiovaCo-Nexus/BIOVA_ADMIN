@@ -62,11 +62,11 @@ const MOCK_ITEMS: MarketResearchItem[] = [
  title: "High-Active Bio-Organic Fertilizers Market Expansion",
  category: "market_opportunity",
  source_or_consultant: "Director of Agri-Business Growth (Advisory)",
- description: "North Indian potato belt states are seeing a 30% YoY rise in organic product demand. Setting up localized distribution for electroculture kits and bio-sprays has potential high margins.",
+ description: "North Indian potato belt states are seeing a 30% YoY rise in organic product demand. Setting up localized distribution for bio-stimulant kits and organic sprays has potential high margins.",
  competitors_pricing: "Main competitors (AgriOrganic, GreenSoil) pricing premium kits at ₹2,500/kit. We can position at ₹1,800/kit.",
  key_takeaways: [
  "High concentration of potential organic certified farms in Punjab & Haryana.",
- "Vast market gap in low-cost electroculture copper coils.",
+ "Vast market gap in high-yield bio-growth enhancers.",
  "Government subsidy schemes can be leveraged for farmer onboarding."
  ],
  action_plan: "Conduct pilot demo camps in 5 central villages in Rohtak.",

@@ -66,13 +66,13 @@ export const generateApplicationPDF = async (
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(22);
   pdf.setTextColor(green);
-  pdf.text('ELECTROCULTURE', pageWidth / 2, brandY, { align: 'center' });
+  pdf.text('BIOVACO NEXUS', pageWidth / 2, brandY, { align: 'center' });
 
   const subtitleY = brandY + 7.2;
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(12);
   pdf.setTextColor('#222');
-  pdf.text('Electronics Empower Agriculture', pageWidth / 2, subtitleY, { align: 'center' });
+  pdf.text('Enterprise Operations & Biotechnology', pageWidth / 2, subtitleY, { align: 'center' });
 
   // -- Green band below brand --
   const bandY = subtitleY + 8;
@@ -193,8 +193,8 @@ export const generateApplicationPDF = async (
   pdf.setFontSize(10);
   pdf.setTextColor('#222');
   const compInfoY = y + 7.1;
-  pdf.text('ElectroCulture', sideMargin + 5, compInfoY);
-  pdf.text('info@electroculture.in', pageWidth/2 - 14, compInfoY);
+  pdf.text('BiovaCo Nexus', sideMargin + 5, compInfoY);
+  pdf.text('info@biovaco.in', pageWidth/2 - 14, compInfoY);
   pdf.text('8177806422 / 7249245392', pageWidth - sideMargin - 56, compInfoY);
   pdf.text('Chhatrapati Sq, 16, Kapil Nagar, Suyog Nagar,', sideMargin + 5, y + 12.7);
   pdf.text('New Sneh Nagar, Nagpur, Maharashtra 440015', sideMargin + 5, y + 17.5);
@@ -249,7 +249,7 @@ export const generateApplicationPDF = async (
   pdf.text('You can see your application status online:', sideMargin, footerY + 8.3);
 
   // Link "Track Application"
-  const trackUrl = `https://electroculture.shop/track?application_id=${encodeURIComponent(applicationId || '')}`;
+  const trackUrl = `https://biovaco.in/track?application_id=${encodeURIComponent(applicationId || '')}`;
   pdf.setTextColor('#0389C2');
   pdf.textWithLink('Track Application', pageWidth - sideMargin - 47, footerY + 8.4, { url: trackUrl });
 
@@ -260,5 +260,5 @@ export const generateApplicationPDF = async (
   pdf.text('Founder: Richa Rajan', sideMargin, pageHeight - 7);
   pdf.text('Co-Founder: Nakul Mundhada', pageWidth - sideMargin - 63, pageHeight - 7);
 
-  pdf.save(`ElectroCulture_Application_${applicationId}.pdf`);
+  pdf.save(`BiovaCo_Application_${applicationId}.pdf`);
 };

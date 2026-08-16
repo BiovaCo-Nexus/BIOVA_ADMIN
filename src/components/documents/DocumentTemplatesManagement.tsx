@@ -64,7 +64,7 @@ const DEFAULT_TEMPLATES: DocumentTemplate[] = [
     id: "tpl_rd_trial_protocol",
     title: "R&D Bio-Formulation Testing Protocol",
     category: "Research & Development",
-    description: "Standardized laboratory test sheet for recording trial batch stability, pH levels, and electroculture results.",
+    description: "Standardized laboratory test sheet for recording trial batch stability, pH levels, and biological growth results.",
     placeholders: ["Trial ID", "Researcher Name", "Formulation Code", "Observations"],
     format: "DOCX",
     version: "v1.2",

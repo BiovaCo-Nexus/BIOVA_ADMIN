@@ -365,7 +365,7 @@ export function MarketingPostsManagement() {
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Monsoon Electroculture Offer Announcement"
+                placeholder="e.g. Monsoon Bio-Innovation Offer Announcement"
               />
             </div>
 
@@ -393,7 +393,7 @@ export function MarketingPostsManagement() {
               <Input
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
-                placeholder="electroculture, organic, farmers, monsoon"
+                placeholder="biotechnology, organic, agriculture, innovation"
               />
             </div>
           </div>

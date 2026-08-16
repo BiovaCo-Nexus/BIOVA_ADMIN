@@ -178,9 +178,20 @@ import { SOPLibraryManagement } from "@/components/documents/SOPLibraryManagemen
 import { CeoMdTimetable } from "@/components/CeoMdTimetable"
 import { ManufacturingManagement } from "@/components/ManufacturingManagement"
 import { UserAccessSettings } from "@/components/UserAccessSettings"
+import { SundayHolidayScreen } from "@/components/SundayHolidayScreen"
+import { ProjectsManagement } from "@/components/operations/ProjectsManagement"
+import { TasksManagement } from "@/components/operations/TasksManagement"
+import { KanbanBoard } from "@/components/operations/KanbanBoard"
+import { OperationsMeetings } from "@/components/operations/OperationsMeetings"
+import { OperationsCalendar } from "@/components/operations/OperationsCalendar"
+import { ApprovalsManagement } from "@/components/operations/ApprovalsManagement"
+import { AnnouncementsManagement } from "@/components/operations/AnnouncementsManagement"
 import { useActiveTimeTracker } from "@/hooks/useActiveTimeTracker"
 import { format } from "date-fns"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { MarketCalendarWidget } from "@/components/MarketCalendarWidget"
+import { HolidaysDashboard } from "@/components/dashboards/HolidaysDashboard"
+import { FINANCIAL_HOLIDAYS, getNextHoliday, getTodayHoliday } from "@/data/holidays"
 
 interface NewsletterSubscription {
   id: string
@@ -361,14 +372,14 @@ const INITIAL_TABS = [
   { id: "sop_library", label: "SOP Library", icon: Briefcase, category: "Documents" },
 
   // Operations
-  { id: "operations_dashboard", label: "🔴 Operations Dashboard", icon: BarChart3, category: "Operations" },
-  { id: "projects", label: "🔴 Projects", icon: Kanban, category: "Operations" },
-  { id: "tasks", label: "🔴 Tasks", icon: Kanban, category: "Operations" },
-  { id: "kanban_board", label: "🔴 Kanban Board", icon: Kanban, category: "Operations" },
+  { id: "operations_dashboard", label: "Operations Dashboard", icon: BarChart3, category: "Operations" },
+  { id: "projects", label: "Projects", icon: Kanban, category: "Operations" },
+  { id: "tasks", label: "Tasks", icon: Kanban, category: "Operations" },
+  { id: "kanban_board", label: "Kanban Board", icon: Kanban, category: "Operations" },
   { id: "meetings_operations", label: "Meetings", icon: Calendar, category: "Operations" },
-  { id: "calendar", label: "🔴 Calendar", icon: Calendar, category: "Operations" },
-  { id: "approvals", label: "🔴 Approvals", icon: Briefcase, category: "Operations" },
-  { id: "announcements", label: "🔴 Announcements", icon: Briefcase, category: "Operations" },
+  { id: "calendar", label: "Calendar", icon: Calendar, category: "Operations" },
+  { id: "approvals", label: "Approvals", icon: Briefcase, category: "Operations" },
+  { id: "announcements", label: "Announcements", icon: Briefcase, category: "Operations" },
 
   // IT & System
   { id: "access_control", label: "Access Control", icon: Shield, category: "IT & System" },
@@ -405,7 +416,7 @@ const INITIAL_TABS = [
   { id: "branch_settings", label: "🔴 Branch Settings", icon: Settings, category: "Administration" },
   { id: "currency", label: "🔴 Currency", icon: Briefcase, category: "Administration" },
   { id: "tax_configuration", label: "🔴 Tax Configuration", icon: Settings, category: "Administration" },
-  { id: "holidays", label: "🔴 Holidays", icon: Calendar, category: "Administration" },
+  { id: "holidays", label: "Holidays", icon: Calendar, category: "Administration" },
   { id: "business_hours", label: "🔴 Business Hours", icon: Briefcase, category: "Administration" },
   { id: "notifications_administration", label: "🔴 Notifications", icon: Briefcase, category: "Administration" },
   { id: "licenses", label: "🔴 Licenses", icon: Briefcase, category: "Administration" },
@@ -420,20 +431,6 @@ const INITIAL_TABS = [
   { id: "profile", label: "Profile", icon: FileText, category: "My Workspace (Personal)" },
 ];
 
-const FINANCIAL_HOLIDAYS = [
-  { date: "2026-01-26", name: "Republic Day", type: "National" },
-  { date: "2026-03-08", name: "Maha Shivaratri", type: "Market Closed" },
-  { date: "2026-03-25", name: "Holi", type: "Market Closed" },
-  { date: "2026-03-29", name: "Good Friday", type: "Market Closed" },
-  { date: "2026-04-11", name: "Id-Ul-Fitr", type: "Market Closed" },
-  { date: "2026-04-17", name: "Ram Navami", type: "Market Closed" },
-  { date: "2026-05-01", name: "Maharashtra Day", type: "Market Closed" },
-  { date: "2026-08-15", name: "Independence Day", type: "National" },
-  { date: "2026-10-02", name: "Gandhi Jayanti", type: "National" },
-  { date: "2026-11-01", name: "Diwali (Laxmi Pujan)", type: "Trading" },
-  { date: "2026-12-25", name: "Christmas", type: "Market Closed" }
-];
-
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [targetApplicationId, setTargetApplicationId] = useState<string | undefined>()
@@ -443,20 +440,11 @@ const Admin = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [documentPayload, setDocumentPayload] = useState<string | undefined>()
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [calendarDate, setCalendarDate] = useState<Date | undefined>(new Date())
   const navigate = useNavigate()
   const { toast } = useToast()
 
   // Live Portal Active Working Hours Tracker
   const activeTracker = useActiveTimeTracker({ userEmail: user?.email, enabled: !!user?.email })
-
-  // Holiday computation
-  const todayDateStr = format(currentTime, 'yyyy-MM-dd');
-  const selectedDateStr = calendarDate ? format(calendarDate, 'yyyy-MM-dd') : null;
-  const todayHoliday = FINANCIAL_HOLIDAYS.find(h => h.date === todayDateStr);
-  const selectedHoliday = FINANCIAL_HOLIDAYS.find(h => h.date === selectedDateStr);
-  const nextHoliday = FINANCIAL_HOLIDAYS.find(h => new Date(h.date + "T00:00:00").getTime() > currentTime.getTime());
-  const daysToNext = nextHoliday ? Math.ceil((new Date(nextHoliday.date + "T00:00:00").getTime() - currentTime.getTime()) / (1000 * 3600 * 24)) : null;
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
@@ -465,8 +453,14 @@ const Admin = () => {
 
 
 
-  interface UserAccessState { allowed_pages: string[]; default_tab: string | null; }
+  interface UserAccessState { 
+    allowed_pages: string[]; 
+    default_tab: string | null; 
+    user_type?: string; 
+    user_label?: string; 
+  }
   const [userAccess, setUserAccess] = useState<UserAccessState | null>(null);
+  const [previewSundayMode, setPreviewSundayMode] = useState(false);
 
   const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY || ""
   const SENDER_EMAIL = "no-reply@biovaco.in"
@@ -744,7 +738,12 @@ const Admin = () => {
           : [];
 
       setUser(session.user);
-      setUserAccess({ allowed_pages: pages, default_tab: accessRule.default_tab });
+      setUserAccess({ 
+        allowed_pages: pages, 
+        default_tab: accessRule.default_tab,
+        user_type: accessRule.user_type || accessRule.role || '',
+        user_label: accessRule.user_label || accessRule.role || '',
+      });
 
       const defaultTab = (accessRule.default_tab && pages.includes(accessRule.default_tab))
         ? accessRule.default_tab
@@ -811,40 +810,78 @@ const Admin = () => {
     setActiveTab(tab)
   }
 
+  const isSunday = new Date().getDay() === 0;
+
   if (isCheckingAuth) {
     return <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-10 w-10 animate-spin text-[#7DA0FA]" /></div>
   }
 
+  // Sunday Maintenance & Holiday Mode Check
+  // CEO and MD always have full access. For other members and interns, Sunday mode is enforced.
+  if ((isSunday && !isCEOorMD) || (previewSundayMode && !isCEOorMD)) {
+    return (
+      <SundayHolidayScreen
+        userEmail={user?.email || ''}
+        userLabel={userAccess?.user_label || ''}
+        userType={userAccess?.user_type || ''}
+        onPreviewDismiss={() => setPreviewSundayMode(false)}
+        isPreview={previewSundayMode}
+      />
+    );
+  }
+
+  // If CEO/MD is explicitly previewing the Sunday screen
+  if (isCEOorMD && previewSundayMode) {
+    return (
+      <SundayHolidayScreen
+        userEmail={user?.email || 'ceo@biovaco.in'}
+        userLabel="Executive Leadership"
+        userType="Admin"
+        onPreviewDismiss={() => setPreviewSundayMode(false)}
+        isPreview={true}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f8fafc]">
-      <header className="bg-white border-b-2 border-[#7DA0FA] sticky top-0 z-40" style={{ boxShadow: '0 1px 3px 0 rgba(0,0,0,0.05)' }}>
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14">
-            <div className="flex items-center space-x-3 w-auto md:w-1/3">
-              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden lg:flex -ml-2 text-gray-500 hover:text-[#4B49AC]">
+      <header className="bg-white border-b border-gray-200/80 sticky top-0 z-40 shadow-xs">
+        <div className="px-4 sm:px-6">
+          <div className="flex items-center justify-between h-16 gap-3">
+            
+            {/* Left Section: Brand Logo, Name & Quick Search */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setSidebarOpen(!sidebarOpen)} 
+                className="hidden lg:flex text-gray-500 hover:text-[#4B49AC] hover:bg-indigo-50/60 h-9 w-9 -ml-1 rounded-lg"
+              >
                 <Menu className="h-5 w-5" />
               </Button>
-              <BiovaCoLogo className="h-9 w-auto" />
-              <div className="hidden sm:flex flex-col">
-                <span className="text-base font-semibold text-[#4B49AC] leading-tight">
-                  {isCEOorMD ? "BiovaCo Nexus" : "BiovaCo Portal"}
-                </span>
-                <span className="text-[10px] font-medium text-[#7DA0FA] uppercase tracking-wider leading-tight">Admin Console</span>
+              
+              <div className="flex items-center gap-2.5">
+                <BiovaCoLogo className="h-8 w-auto object-contain" />
+                <div className="hidden sm:flex flex-col justify-center">
+                  <span className="text-[14px] font-bold text-[#4B49AC] leading-none tracking-tight">
+                    {isCEOorMD ? "BiovaCo Nexus" : "BiovaCo Portal"}
+                  </span>
+                  <span className="text-[9px] font-semibold text-[#7DA0FA] uppercase tracking-wider mt-1 leading-none">
+                    Admin Console
+                  </span>
+                </div>
               </div>
-              <span className="text-base font-semibold text-[#4B49AC] sm:hidden">
-                {isCEOorMD ? "Nexus" : "Portal"}
-              </span>
-            </div>
 
-            {/* Middle Section: Functional Search Bar */}
-            <div className="hidden md:flex flex-1 items-center justify-center w-1/3 px-4">
-              <div className="relative w-full max-w-md group">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 group-focus-within:text-[#4B49AC] transition-colors" />
+              <div className="hidden md:block h-5 w-px bg-gray-200 mx-1" />
+
+              {/* Functional Search Bar */}
+              <div className="hidden md:flex relative w-48 lg:w-60 group">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400 group-focus-within:text-[#4B49AC] transition-colors" />
                 <Input 
                   ref={searchInputRef}
                   type="text" 
-                  placeholder="Search modules, people, tasks... (⌘K)" 
-                  className="w-full pl-9 pr-12 h-9 bg-gray-50/80 border-gray-200/80 text-sm focus-visible:ring-2 focus-visible:ring-[#4B49AC]/20 focus-visible:border-[#4B49AC] rounded-lg shadow-sm transition-all duration-200" 
+                  placeholder="Search modules... (⌘K)" 
+                  className="w-full pl-8 pr-11 h-8 bg-gray-50/90 hover:bg-gray-100/60 focus:bg-white border-gray-200/90 text-xs focus-visible:ring-1 focus-visible:ring-[#4B49AC]/30 focus-visible:border-[#4B49AC] rounded-lg shadow-xs transition-all" 
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -853,13 +890,13 @@ const Admin = () => {
                   onFocus={() => setShowSearchDropdown(true)}
                   onBlur={() => setTimeout(() => setShowSearchDropdown(false), 200)}
                 />
-                <div className="absolute right-3 top-2 flex items-center gap-1 pointer-events-none">
-                  <span className="text-[10px] font-medium text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 bg-white shadow-sm">⌘ K</span>
+                <div className="absolute right-2 top-1.5 flex items-center pointer-events-none">
+                  <span className="text-[9px] font-medium text-gray-400 border border-gray-200 rounded px-1 py-0.2 bg-white">⌘K</span>
                 </div>
                 
                 {showSearchDropdown && searchQuery && (
-                  <div className="absolute top-11 left-0 w-full bg-white/95 backdrop-blur-xl border border-gray-100 shadow-2xl rounded-xl overflow-hidden z-50 ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="max-h-[400px] overflow-y-auto py-1">
+                  <div className="absolute top-10 left-0 w-80 bg-white/95 backdrop-blur-xl border border-gray-100 shadow-2xl rounded-xl overflow-hidden z-50 ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="max-h-[380px] overflow-y-auto py-1">
                       {/* Modules Search */}
                       {visibleTabs.filter(t => matchesModule(t, searchQuery)).length > 0 && (
                         <div className="p-2">
@@ -867,16 +904,16 @@ const Admin = () => {
                           {visibleTabs.filter(t => matchesModule(t, searchQuery)).slice(0, 8).map(tab => (
                             <div 
                               key={tab.id} 
-                              className="px-3 py-2 text-sm cursor-pointer hover:bg-[#f2f6ff] flex items-center justify-between transition-colors text-gray-700 hover:text-[#4B49AC] rounded-lg mx-2 my-0.5" 
+                              className="px-3 py-2 text-xs cursor-pointer hover:bg-[#f2f6ff] flex items-center justify-between transition-colors text-gray-700 hover:text-[#4B49AC] rounded-lg mx-1 my-0.5" 
                               onClick={() => {
                                 handleNavigateToTab(tab.id);
                                 setSearchQuery("");
                                 setShowSearchDropdown(false);
                               }}
                             >
-                              <div className="flex items-center">
-                                <tab.icon className="w-4 h-4 mr-2" />
-                                {tab.label}
+                              <div className="flex items-center gap-2">
+                                <tab.icon className="w-3.5 h-3.5 text-[#4B49AC]" />
+                                <span className="font-semibold">{tab.label}</span>
                               </div>
                               <span className="text-[9px] text-gray-400 font-medium">{tab.category}</span>
                             </div>
@@ -886,12 +923,12 @@ const Admin = () => {
 
                       {/* Deep Search Results */}
                       {searchResults.length > 0 && (
-                        <div className="p-2 border-t border-gray-100 mt-2">
-                          <div className="text-[10px] font-bold text-gray-400 uppercase px-2 mb-2 mt-1">Deep Search Results</div>
+                        <div className="p-2 border-t border-gray-100 mt-1">
+                          <div className="text-[10px] font-bold text-gray-400 uppercase px-2 mb-1.5">Deep Search Results</div>
                           {searchResults.map(res => (
                             <div 
                               key={res.id} 
-                              className="px-3 py-2.5 cursor-pointer hover:bg-[#f2f6ff] transition-colors text-gray-700 hover:text-[#4B49AC] rounded-lg flex flex-col mx-1 my-0.5" 
+                              className="px-3 py-2 cursor-pointer hover:bg-[#f2f6ff] transition-colors text-gray-700 hover:text-[#4B49AC] rounded-lg flex flex-col mx-1 my-0.5" 
                               onClick={() => {
                                 handleNavigateToTab(res.tab, res.payload);
                                 setSearchQuery("");
@@ -899,10 +936,10 @@ const Admin = () => {
                               }}
                             >
                               <div className="flex items-center justify-between mb-0.5">
-                                <span className="text-sm font-semibold">{res.title}</span>
-                                <Badge variant="secondary" className="text-[9px] font-medium h-4 px-1.5 bg-[#7DA0FA]/10 text-[#4B49AC] border-0">{res.type}</Badge>
+                                <span className="text-xs font-semibold">{res.title}</span>
+                                <Badge variant="secondary" className="text-[9px] font-medium h-4 px-1 bg-[#7DA0FA]/10 text-[#4B49AC] border-0">{res.type}</Badge>
                               </div>
-                              <span className="text-xs text-muted-foreground">{res.subtitle}</span>
+                              <span className="text-[11px] text-muted-foreground">{res.subtitle}</span>
                             </div>
                           ))}
                         </div>
@@ -915,7 +952,7 @@ const Admin = () => {
                       )}
 
                       {!isSearching && searchResults.length === 0 && visibleTabs.filter(t => matchesModule(t, searchQuery)).length === 0 && (
-                        <div className="px-3 py-6 text-sm text-gray-500 text-center">No results found for "{searchQuery}"</div>
+                        <div className="px-3 py-6 text-xs text-gray-500 text-center">No results found for "{searchQuery}"</div>
                       )}
                     </div>
                   </div>
@@ -923,132 +960,99 @@ const Admin = () => {
               </div>
             </div>
 
-            {/* Right Section: Notification, Profile, Logout */}
-            <div className="flex items-center justify-end space-x-2.5 flex-shrink-0">
-              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-lg shadow-sm whitespace-nowrap">
-                <Clock className="h-4 w-4 text-[#4B49AC]" />
-                <span className="text-[11px] font-semibold text-gray-700 tracking-wide tabular-nums">
-                  {format(currentTime, 'MMM dd, yyyy • hh:mm:ss a')}
+            {/* Right Section: Time, Tracker, Holiday, Notifications, User & SignOut */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              
+              {/* Live Clock */}
+              <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200/80 rounded-lg text-xs font-semibold text-gray-700 whitespace-nowrap shadow-xs h-8">
+                <Clock className="h-3.5 w-3.5 text-[#4B49AC]" />
+                <span className="tabular-nums text-[11px] font-medium text-gray-800">
+                  {format(currentTime, 'MMM dd, yyyy • hh:mm a')}
                 </span>
               </div>
 
               {/* Active Working Hours Tracker Badge */}
               {user?.email && (
-                <div className={`hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border shadow-sm text-xs font-semibold whitespace-nowrap ${
+                <div className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold whitespace-nowrap shadow-xs h-8 ${
                   activeTracker.isCompleted 
                     ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
                     : "bg-indigo-50/80 text-[#4B49AC] border-indigo-100"
                 }`}>
                   <Cpu className="h-3.5 w-3.5 text-[#4B49AC]" />
-                  <span>⏱️ Work: {activeTracker.formattedActiveTime} / {activeTracker.targetHours}h ({activeTracker.progressPercentage}%)</span>
+                  <span className="text-[11px]">Work: {activeTracker.formattedActiveTime} / {activeTracker.targetHours}h ({activeTracker.progressPercentage}%)</span>
                 </div>
               )}
               
+              {/* Market & Corporate Holiday Calendar Widget */}
+              <MarketCalendarWidget 
+                currentTime={currentTime} 
+                onNavigateToHolidays={() => handleNavigateToTab("holidays")} 
+              />
+
+              {/* Notifications Popover */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-8 w-8 text-gray-500 hover:text-[#4B49AC] hover:bg-[#f2f6ff] shadow-sm hidden md:flex border-gray-200">
-                    <Calendar className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" className="relative text-gray-500 hover:text-primary hover:bg-indigo-50/50 h-8 w-8 rounded-lg">
+                    <Bell className="h-4 w-4" />
+                    {notifications.length > 0 && (
+                      <span className="absolute top-1 right-1 h-2 w-2 bg-[#F3797E] rounded-full border border-white"></span>
+                    )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-[330px] p-0 shadow-2xl border-gray-200 rounded-xl overflow-hidden ring-1 ring-black/5">
-                  <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-4 text-white">
-                    <h4 className="font-semibold text-sm flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-[#7DA0FA]" /> Market Calendar
-                    </h4>
-                    {todayHoliday ? (
-                      <div className="mt-2.5 inline-flex items-center gap-1.5 bg-rose-500/20 text-rose-200 border border-rose-500/30 px-2.5 py-1 rounded-md text-[11px] font-bold">
-                        <AlertCircle className="h-3 w-3" /> Today is {todayHoliday.name}
-                      </div>
-                    ) : nextHoliday ? (
-                      <p className="text-[11px] text-gray-300 mt-1 font-medium tracking-wide">
-                        Next Holiday: <span className="text-white font-bold">{nextHoliday.name}</span> in {daysToNext} days
-                      </p>
-                    ) : null}
+                <PopoverContent align="end" className="w-80 p-0 shadow-xl border-gray-100 rounded-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/70 flex items-center justify-between">
+                    <span className="font-semibold text-xs text-foreground">Notifications & Alerts</span>
+                    <Badge variant="secondary" className="bg-primary/10 text-primary border-0 text-[10px]">{notifications.length} New</Badge>
                   </div>
-                  <div className="p-3 bg-white">
-                    <CalendarComponent
-                      mode="single"
-                      selected={calendarDate}
-                      onSelect={setCalendarDate}
-                      initialFocus
-                      modifiers={{
-                        holiday: FINANCIAL_HOLIDAYS.map(h => new Date(h.date + "T00:00:00"))
-                      }}
-                      modifiersStyles={{
-                        holiday: {
-                          backgroundColor: '#1f2937',
-                          color: 'white',
-                          fontWeight: 'bold',
-                        }
-                      }}
-                      className="rounded-lg bg-white border-none mx-auto p-0"
-                    />
-                  </div>
-                  {selectedHoliday && selectedDateStr !== todayDateStr && (
-                    <div className="border-t border-gray-100 bg-gray-50/80 p-3.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-[13px] font-bold text-gray-900">{selectedHoliday.name}</p>
-                          <p className="text-[10px] font-medium text-gray-500 mt-0.5">{format(new Date(selectedHoliday.date + "T00:00:00"), 'MMMM do, yyyy')}</p>
-                        </div>
-                        <Badge variant="secondary" className="bg-[#4B49AC]/10 text-[#4B49AC] text-[10px] font-bold border-0 shadow-sm">{selectedHoliday.type}</Badge>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {notifications.length > 0 ? notifications.map((n, i) => (
+                      <div key={i} className="px-4 py-3 border-b border-gray-50 hover:bg-gray-50/80 transition-colors last:border-0">
+                        <p className="text-xs font-semibold text-primary">{n.title}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{n.desc}</p>
                       </div>
-                    </div>
-                  )}
+                    )) : (
+                      <div className="px-4 py-8 text-center text-gray-500 text-xs">No pending alerts. You're all caught up!</div>
+                    )}
+                  </div>
                 </PopoverContent>
               </Popover>
 
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative text-gray-500 hover:text-primary hover:bg-primary/5 hidden md:flex">
-                      <Bell className="h-5 w-5" />
-                      {notifications.length > 0 && (
-                        <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-[#F3797E] rounded-full border border-white"></span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-80 p-0 shadow-lg border-gray-100">
-                    <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between rounded-t-lg">
-                      <span className="font-semibold text-sm text-foreground">Notifications & Alerts</span>
-                      <Badge variant="secondary" className="bg-primary/10 text-primary border-0">{notifications.length} New</Badge>
-                    </div>
-                    <div className="max-h-[300px] overflow-y-auto">
-                      {notifications.length > 0 ? notifications.map((n, i) => (
-                        <div key={i} className="px-4 py-3 border-b border-gray-50 hover:bg-gray-50/80 transition-colors last:border-0">
-                          <p className="text-sm font-semibold text-primary">{n.title}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{n.desc}</p>
-                        </div>
-                      )) : (
-                        <div className="px-4 py-8 text-center text-gray-500 text-sm">No pending alerts. You're all caught up!</div>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-[#f2f6ff] border border-[#7DA0FA]/20 rounded-md">
-                <div className="h-2 w-2 rounded-full bg-[#7DA0FA]" />
-                <span className="text-xs text-[#4B49AC] font-medium">{user?.email}</span>
+              {/* User Profile Pill */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50/70 border border-blue-100 rounded-lg text-xs font-medium text-blue-900 shadow-xs h-8">
+                <div className="h-2 w-2 rounded-full bg-blue-500" />
+                <span className="text-[11px] max-w-[130px] truncate">{user?.email}</span>
               </div>
-              <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-gray-500 hover:text-red-600 hover:bg-red-50">
+
+              {/* Logout Button */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleSignOut} 
+                title="Sign Out"
+                className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+              >
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
 
-            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            {/* Mobile Menu Trigger */}
+            <Button variant="ghost" size="icon" className="md:hidden h-8 w-8" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
 
+          {/* Mobile Collapsible Menu */}
           {mobileMenuOpen && (
-            <div className="md:hidden border-t border-gray-100 py-3 space-y-1">
-              <div className="flex items-center gap-2 px-3 py-2">
+            <div className="md:hidden border-t border-gray-100 py-3 space-y-1.5">
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
                 <div className="h-2 w-2 rounded-full bg-[#7DA0FA]" />
-                <span className="text-xs text-gray-500">{user?.email}</span>
+                <span className="text-xs text-gray-700 font-medium">{user?.email}</span>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleSignOut}
-                className="w-full justify-start text-gray-600 hover:text-[#4B49AC]"
+                className="w-full justify-start text-gray-600 hover:text-red-600 hover:bg-red-50 text-xs"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
@@ -1057,6 +1061,31 @@ const Admin = () => {
           )}
         </div>
       </header>
+
+      {/* Sunday Active Notice Banner for CEO & MD */}
+      {isCEOorMD && isSunday && (
+        <div className="bg-gradient-to-r from-amber-500/15 via-indigo-500/10 to-emerald-500/15 border-b border-amber-400/40 px-4 py-2 flex flex-wrap items-center justify-between text-xs text-amber-950 font-medium">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+            </span>
+            <span>
+              <strong>Sunday Scheduled Maintenance & Holiday Protocol Active:</strong> Non-executive staff & interns are restricted to Sunday Holiday Mode. <strong>CEO/MD Executive Bypass Active (Full Access).</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mt-1 sm:mt-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setPreviewSundayMode(true)}
+              className="h-6 px-2.5 text-[11px] bg-white/90 border-amber-400/50 text-amber-900 hover:bg-amber-100 font-semibold shadow-xs"
+            >
+              👁️ View Sunday Holiday Screen
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex" style={{ minHeight: 'calc(100vh - 56px)' }}>
         <aside
@@ -1253,13 +1282,13 @@ const Admin = () => {
                 {activeTab === "contracts_documents" && <Contracts />}
                 {activeTab === "sop_library" && <SOPLibraryManagement />}
                 {activeTab === "operations_dashboard" && <CoreOperationsDashboard />}
-                {activeTab === "projects" && <PlaceholderPage title="Projects" category="Operations" />}
-                {activeTab === "tasks" && <PlaceholderPage title="Tasks" category="Operations" />}
-                {activeTab === "kanban_board" && <PlaceholderPage title="Kanban Board" category="Operations" />}
-                {activeTab === "meetings_operations" && <Meetings />}
-                {activeTab === "calendar" && <PlaceholderPage title="Calendar" category="Operations" />}
-                {activeTab === "approvals" && <PlaceholderPage title="Approvals" category="Operations" />}
-                {activeTab === "announcements" && <PlaceholderPage title="Announcements" category="Operations" />}
+                {activeTab === "projects" && <ProjectsManagement onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "tasks" && <TasksManagement onNavigateToTab={handleNavigateToTab} />}
+                {activeTab === "kanban_board" && <KanbanBoard />}
+                {activeTab === "meetings_operations" && <OperationsMeetings />}
+                {activeTab === "calendar" && <OperationsCalendar />}
+                {activeTab === "approvals" && <ApprovalsManagement />}
+                {activeTab === "announcements" && <AnnouncementsManagement />}
                 {activeTab === "access_control" && <UserAccessSettings />}
                 {activeTab === "user_management" && <UserManagement onNavigateToTab={handleNavigateToTab} />}
                 {activeTab === "roles_permissions" && <RolesPermissionsManagement />}
@@ -1288,7 +1317,7 @@ const Admin = () => {
                 {activeTab === "branch_settings" && <PlaceholderPage title="Branch Settings" category="Administration" />}
                 {activeTab === "currency" && <PlaceholderPage title="Currency" category="Administration" />}
                 {activeTab === "tax_configuration" && <PlaceholderPage title="Tax Configuration" category="Administration" />}
-                {activeTab === "holidays" && <PlaceholderPage title="Holidays" category="Administration" />}
+                {activeTab === "holidays" && <HolidaysDashboard />}
                 {activeTab === "business_hours" && <PlaceholderPage title="Business Hours" category="Administration" />}
                 {activeTab === "notifications_administration" && <PlaceholderPage title="Notifications" category="Administration" />}
                 {activeTab === "licenses" && <PlaceholderPage title="Licenses" category="Administration" />}

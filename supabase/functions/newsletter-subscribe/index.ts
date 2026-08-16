@@ -78,21 +78,21 @@ const handler = async (req: Request): Promise<Response> => {
       const emailResponse = await resend.emails.send({
         from: "onboarding@resend.dev", // Using Resend's default verified domain
         to: [email],
-        subject: "Thank you for subscribing to ElectroCulture!",
+        subject: "Thank you for subscribing to BiovaCo Nexus!",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #16a34a;">Thank you for subscribing!</h2>
-            <p>Welcome to the ElectroCulture newsletter! We're excited to share updates about our launch on August 22nd, 2025.</p>
+            <h2 style="color: #4B49AC;">Thank you for subscribing!</h2>
+            <p>Welcome to the BiovaCo Nexus newsletter! We're excited to share research updates, breakthrough formulations, and enterprise news.</p>
             <p>You'll receive:</p>
             <ul>
-              <li>Product launch updates</li>
-              <li>Early access notifications</li>
-              <li>Special offers and discounts</li>
+              <li>Product & formulation launch updates</li>
+              <li>Early access research notifications</li>
+              <li>Special announcements</li>
             </ul>
             <p>If you ever want to unsubscribe, just reply to any of our emails and we'll take care of it.</p>
             <p style="color: #666; font-size: 14px; margin-top: 30px;">
               Best regards,<br>
-              The ElectroCulture Team
+              The BiovaCo Nexus Team
             </p>
           </div>
         `,

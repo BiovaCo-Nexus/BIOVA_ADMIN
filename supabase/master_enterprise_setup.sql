@@ -333,14 +333,14 @@ VALUES
     ('2000-101', 'Accounts Payable (Trade Creditors)', 'Liability', 'Current Liability', 195000.00),
     ('2200-101', 'GST Output Tax Payable', 'Liability', 'Statutory Liability', 42000.00),
     ('3000-101', 'Founder Share Capital', 'Equity', 'Paid-up Capital', 2000000.00),
-    ('4000-101', 'Electroculture Product Sales Revenue', 'Revenue', 'Operating Revenue', 1280000.00),
+    ('4000-101', 'Bio-Product & Formulations Sales Revenue', 'Revenue', 'Operating Revenue', 1280000.00),
     ('5000-101', 'Raw Material Procurement COGS', 'Expense', 'Direct Cost', 420000.00),
     ('5100-101', 'Staff Payroll & Wages', 'Expense', 'Operating Expense', 340000.00)
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO public.personal_tasks (user_email, title, priority, due_date, category, completed)
 VALUES 
-    ('nakul.m@biovaco.in', 'Review Electroculture Bio-Trial Lab Batch #4 report', 'High', CURRENT_DATE + 1, 'R&D', false),
+    ('nakul.m@biovaco.in', 'Review BiovaCo Bio-Trial Lab Batch #4 report', 'High', CURRENT_DATE + 1, 'R&D', false),
     ('nakul.m@biovaco.in', 'Approve July 2026 executive payroll disbursement vouchers', 'High', CURRENT_DATE, 'Finance', true),
     ('nakul.m@biovaco.in', 'Update GST GSTR-3B tax return reconciliation ledger', 'Medium', CURRENT_DATE + 3, 'Taxation', false),
     ('nakul.m@biovaco.in', 'Schedule quarterly performance review with Senior Field Engineers', 'Low', CURRENT_DATE + 7, 'HRMS', false)
@@ -348,7 +348,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO public.user_profiles (email, name, role, department, phone, bio, location)
 VALUES 
-    ('nakul.m@biovaco.in', 'Dr. Nakul Mundhada', 'Chief Executive Officer / Founder', 'Executive Board & R&D Strategy', '+91 98765 43210', 'Leading BiovaCo Nexus electroculture agricultural research, enterprise ERP engineering, and corporate operations.', 'Amravati / Head Office')
+    ('nakul.m@biovaco.in', 'Dr. Nakul Mundhada', 'Chief Executive Officer / Founder', 'Executive Board & R&D Strategy', '+91 98765 43210', 'Leading BiovaCo Nexus biotechnology agricultural research, enterprise ERP engineering, and corporate operations.', 'Amravati / Head Office')
 ON CONFLICT (email) DO NOTHING;
 
 -- --------------------------------------------------------------------
@@ -467,7 +467,7 @@ CREATE TABLE IF NOT EXISTS public.blog_articles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     slug TEXT NOT NULL,
-    category TEXT DEFAULT 'Electroculture Science',
+    category TEXT DEFAULT 'Biotechnology Science',
     excerpt TEXT,
     content TEXT,
     author TEXT DEFAULT 'BiovaCo R&D Team',
@@ -523,7 +523,7 @@ CREATE TABLE IF NOT EXISTS public.image_assets (
     dimensions TEXT DEFAULT '3840 x 2160',
     file_size TEXT DEFAULT '4.5 MB',
     image_url TEXT NOT NULL,
-    tags TEXT[] DEFAULT ARRAY['Electroculture'],
+    tags TEXT[] DEFAULT ARRAY['Biotechnology'],
     download_count INT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -542,7 +542,7 @@ ALTER TABLE public.website_videos ADD COLUMN IF NOT EXISTS download_count INT DE
 
 INSERT INTO public.marketing_campaigns (name, channel, budget, leads_generated, status, target_audience, start_date)
 VALUES
-    ('Electroculture Bio-Kit Monsoon Farmer Outreach', 'Meta & YouTube Ads', 150000.00, 340, 'Active', 'Maharashtra & Gujarat Cotton/Spices Farmers', CURRENT_DATE - 15),
+    ('BiovaCo Bio-Kit Monsoon Farmer Outreach', 'Meta & YouTube Ads', 150000.00, 340, 'Active', 'Maharashtra & Gujarat Cotton/Spices Farmers', CURRENT_DATE - 15),
     ('Enterprise AgTech B2B Distributor Campaign', 'LinkedIn & Direct Email', 80000.00, 45, 'Active', 'Agri-fertilizer Dealers & Wholesalers', CURRENT_DATE - 10)
 ON CONFLICT DO NOTHING;
 

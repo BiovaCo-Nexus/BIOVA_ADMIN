@@ -16,7 +16,7 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Only specific email can access profiles" 
 ON public.profiles 
 FOR ALL 
-USING (email = 'electroculture22@gmail.com');
+USING (email = 'admin@biovaco.in');
 
 -- Create interns table
 CREATE TABLE public.interns (
@@ -175,6 +175,6 @@ INSERT INTO public.page_content (page_name, title, description, content)
 VALUES (
   'our-story',
   'Our Story',
-  'Discover the journey behind ElectroCulture and the passionate team making it happen.',
-  '{"sections": [{"type": "story", "title": "Our Journey", "content": "ElectroCulture was founded with a vision to revolutionize agriculture through innovative technology."}, {"type": "story", "title": "Innovation in Agriculture", "content": "We believe that the future of agriculture lies in the perfect harmony between technology and nature."}]}'
+  'Discover the journey behind BiovaCo Nexus and the passionate team making it happen.',
+  '{"sections": [{"type": "story", "title": "Our Journey", "content": "BiovaCo Nexus was founded with a vision to revolutionize biotechnology and operations through innovative systems."}, {"type": "story", "title": "Innovation in Agriculture", "content": "We believe that the future of agriculture lies in the perfect harmony between advanced biotechnology, data, and sustainable practices."}]}'
 );

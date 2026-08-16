@@ -22,7 +22,7 @@ interface JobPosition {
 }
 
 const DEFAULT_POSITIONS: JobPosition[] = [
-  { id: "pos_1", title: "Senior R&D Bio-Electroculture Engineer", department: "Research & Development", location: "Amravati / Remote", type: "Full-Time", openings: 2, status: "Active" },
+  { id: "pos_1", title: "Senior R&D Biotechnology Engineer", department: "Research & Development", location: "Amravati / Remote", type: "Full-Time", openings: 2, status: "Active" },
   { id: "pos_2", title: "Frontend UI/UX Systems Architect", department: "Information Technology", location: "Head Office", type: "Full-Time", openings: 1, status: "Active" },
   { id: "pos_3", title: "Agricultural Trial Field Officer", department: "Operations", location: "Field Operations", type: "Full-Time", openings: 4, status: "Active" },
   { id: "pos_4", title: "Corporate Finance & Tax Executive", department: "Finance & Accounting", location: "Head Office", type: "Full-Time", openings: 1, status: "Active" }

@@ -17,7 +17,7 @@ export function UserProfileManagement() {
     department: "Executive Board & R&D Strategy",
     phone: "+91 98765 43210",
     employeeId: "EMP-EXEC-001",
-    bio: "Leading BiovaCo Nexus electroculture agricultural research, enterprise ERP engineering, and corporate operations.",
+    bio: "Leading BiovaCo Nexus biotechnology agricultural research, enterprise ERP engineering, and corporate operations.",
     location: "Amravati / Head Office"
   })
   const { toast } = useToast()

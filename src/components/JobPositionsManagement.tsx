@@ -502,7 +502,7 @@ export function JobPositionsManagement() {
  type="email"
  value={formData.contact_email}
  onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
- placeholder="careers@electroculture.in"
+ placeholder="careers@biovaco.in"
  />
  </div>
 

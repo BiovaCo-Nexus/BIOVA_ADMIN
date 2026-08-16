@@ -28,7 +28,7 @@ const DEFAULT_ACCOUNTS: AccountHead[] = [
   { id: "acc_201", code: "2000-101", name: "Accounts Payable (Trade Creditors)", type: "Liability", subType: "Current Liability", balance: 195000, status: "Active" },
   { id: "acc_202", code: "2200-101", name: "GST Output Tax Payable", type: "Liability", subType: "Statutory Liability", balance: 42000, status: "Active" },
   { id: "acc_301", code: "3000-101", name: "Founder Share Capital", type: "Equity", subType: "Paid-up Capital", balance: 2000000, status: "Active" },
-  { id: "acc_401", code: "4000-101", name: "Electroculture Product Sales Revenue", type: "Revenue", subType: "Operating Revenue", balance: 1280000, status: "Active" },
+  { id: "acc_401", code: "4000-101", name: "Bio-Product & Formulations Sales Revenue", type: "Revenue", subType: "Operating Revenue", balance: 1280000, status: "Active" },
   { id: "acc_501", code: "5000-101", name: "Raw Material Procurement COGS", type: "Expense", subType: "Direct Cost", balance: 420000, status: "Active" },
   { id: "acc_502", code: "5100-101", name: "Staff Payroll & Wages", type: "Expense", subType: "Operating Expense", balance: 340000, status: "Active" }
 ]
