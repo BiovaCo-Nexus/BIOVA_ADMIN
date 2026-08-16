@@ -156,6 +156,11 @@ import { TaxGSTCenter } from "@/components/finance/TaxGSTCenter"
 import { FixedAssetsManagement } from "@/components/finance/FixedAssetsManagement"
 import { RecruitmentManagement } from "@/components/hrms/RecruitmentManagement"
 import { PersonalTasksManagement } from "@/components/workspace/PersonalTasksManagement"
+import { PersonalCalendarSchedule } from "@/components/workspace/PersonalCalendarSchedule"
+import { PersonalDocumentsVault } from "@/components/workspace/PersonalDocumentsVault"
+import { PersonalAttendanceTracker } from "@/components/workspace/PersonalAttendanceTracker"
+import { PersonalPerformanceScorecard } from "@/components/workspace/PersonalPerformanceScorecard"
+import { PersonalNotificationsManager } from "@/components/workspace/PersonalNotificationsManager"
 import { UserProfileManagement } from "@/components/workspace/UserProfileManagement"
 import { CampaignsManagement } from "@/components/marketing/CampaignsManagement"
 import { MarketingInternNotepad } from "@/components/marketing/MarketingInternNotepad"
@@ -1321,13 +1326,13 @@ const Admin = () => {
                 {activeTab === "business_hours" && <PlaceholderPage title="Business Hours" category="Administration" />}
                 {activeTab === "notifications_administration" && <PlaceholderPage title="Notifications" category="Administration" />}
                 {activeTab === "licenses" && <PlaceholderPage title="Licenses" category="Administration" />}
-                {activeTab === "my_tasks" && <PersonalTasksManagement />}
-                {activeTab === "my_calendar" && <MyWork />}
-                {activeTab === "my_documents" && <SharedFilesManager />}
-                {activeTab === "my_attendance" && <Attendance />}
-                {activeTab === "my_performance" && <PerformanceReviews />}
-                {activeTab === "my_notifications" && <Notifications />}
-                {activeTab === "profile" && <UserProfileManagement />}
+                {activeTab === "my_tasks" && <PersonalTasksManagement userEmail={user?.email} />}
+                {activeTab === "my_calendar" && <PersonalCalendarSchedule userEmail={user?.email} />}
+                {activeTab === "my_documents" && <PersonalDocumentsVault userEmail={user?.email} />}
+                {activeTab === "my_attendance" && <PersonalAttendanceTracker userEmail={user?.email} />}
+                {activeTab === "my_performance" && <PersonalPerformanceScorecard userEmail={user?.email} />}
+                {activeTab === "my_notifications" && <PersonalNotificationsManager userEmail={user?.email} />}
+                {activeTab === "profile" && <UserProfileManagement userEmail={user?.email} />}
 
               </>
             )}
